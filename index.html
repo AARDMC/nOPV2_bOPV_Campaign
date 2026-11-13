@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#667eea">
+  <meta name="description" content="nOPV2 / bOPV campaign daily data entry for PHEM officers — AARDMC.">
+  <title>nOPV2 / bOPV2 Campaign — PHEM Data Entry</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23667eea'/%3E%3Cpath d='M38 14l12 12M44 20l-9 9' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M32 26L18 40a6 6 0 108 8l14-14z' fill='white'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --grad-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --grad-cyan: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      --grad-green: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      --grad-orange: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      --grad-purple: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+      --grad-fire: linear-gradient(135deg, #f857a6 0%, #ff5858 100%);
+      --bg: #eef1fb; --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+      --shadow-sm: 0 2px 10px rgba(102,126,234,0.08);
+      --shadow-md: 0 8px 30px rgba(102,126,234,0.14);
+      --shadow-lg: 0 20px 60px rgba(102,126,234,0.22);
+      --shadow-glow: 0 0 0 4px rgba(102,126,234,0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+      color: var(--text); font-size: 13px; height: 100vh; overflow: hidden; background: var(--bg);
+      background-image:
+        radial-gradient(at 0% 0%, rgba(102,126,234,0.13) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(240,147,251,0.11) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(79,172,254,0.13) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(67,233,123,0.11) 0px, transparent 50%);
+    }
+    svg { width: 18px; height: 18px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
+
+    /* ============ LOGIN ============ */
+    #loginGate {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; padding: 20px; overflow-y: auto;
+    }
+    #loginGate.hidden { display: none; }
+    .login-card {
+      background: rgba(255,255,255,0.97); backdrop-filter: blur(30px);
+      border-radius: 24px; padding: 30px 26px; width: 100%; max-width: 440px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.3); animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+      margin: auto;
+    }
+    @keyframes cardIn { from { opacity:0; transform: scale(0.85) translateY(30px); } to { opacity:1; transform: scale(1) translateY(0); } }
+    .login-card .icon-big {
+      width: 64px; height: 64px; margin: 0 auto 14px; background: var(--grad-primary);
+      border-radius: 18px; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+    }
+    .login-card .icon-big svg { width: 32px; height: 32px; stroke: #fff; stroke-width: 2; }
+    .login-card h2 { font-size: 19px; margin-bottom: 4px; text-align: center; font-weight: 700; }
+    .login-card .subtitle { color: var(--text-light); font-size: 12px; margin-bottom: 18px; text-align: center; }
+    .login-card .field { margin-bottom: 10px; }
+    .login-card .field label { display: block; font-size: 11px; color: var(--text-light); margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .login-card .field input {
+      width: 100%; padding: 11px 13px; border: 2px solid var(--border); border-radius: 10px;
+      font-size: 14px; transition: all 0.2s; font-family: inherit;
+    }
+    .login-card .field input:focus { outline: none; border-color: #667eea; box-shadow: var(--shadow-glow); }
+    .login-card button {
+      width: 100%; padding: 13px; border: none; border-radius: 12px; background: var(--grad-primary);
+      color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s;
+      margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: 0 8px 20px rgba(102,126,234,0.4); font-family: inherit;
+    }
+    .login-card button:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(102,126,234,0.5); }
+    .login-card .err { color: #c62828; font-size: 12px; margin-top: 10px; min-height: 18px; font-weight: 600; text-align: center; }
+    .login-card .hint { text-align: center; font-size: 10.5px; color: var(--text-light); margin-top: 12px; line-height: 1.5; }
+
+    /* ============ APP SHELL ============ */
+    #app { display: grid; grid-template-columns: 320px 1fr; grid-template-rows: 68px 1fr; height: 100vh; }
+    #app.hidden { display: none; }
+    header {
+      grid-column: 1/-1; background: var(--grad-primary); color: #fff;
+      display: flex; align-items: center; padding: 0 20px; gap: 14px;
+      z-index: 60; box-shadow: 0 4px 20px rgba(102,126,234,0.35);
+      position: relative; overflow: hidden;
+    }
+    header::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 25%, transparent 50%, rgba(255,255,255,0.1) 75%, transparent 100%);
+      background-size: 200% 100%; animation: shimmer 8s ease-in-out infinite;
+    }
+    @keyframes shimmer { 0%,100% { background-position: 200% 0; } 50% { background-position: -200% 0; } }
+    header h1 { font-size: 16px; font-weight: 700; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; }
+    header h1 svg { width: 22px; height: 22px; stroke: #fff; }
+    header .officer-chip {
+      position: relative; z-index: 1; display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.16); padding: 6px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.22);
+    }
+    header .officer-chip svg { width: 14px; height: 14px; stroke: #fff; }
+    header .spacer { flex: 1; }
+    header button {
+      background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+      padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600;
+      backdrop-filter: blur(10px); transition: all 0.25s; display: inline-flex; align-items: center; gap: 6px;
+      position: relative; z-index: 1; font-family: inherit;
+    }
+    header button svg { width: 14px; height: 14px; stroke: currentColor; }
+    header button:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+    header .hamburger { display: none; }
+
+    /* Sidebar */
+    .sidebar {
+      background: rgba(255,255,255,0.85); backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(226,232,240,0.8); overflow-y: auto;
+      padding: 20px 14px; display: flex; flex-direction: column; gap: 4px;
+      z-index: 55; transition: transform 0.3s ease;
+    }
+    .sidebar::-webkit-scrollbar { width: 8px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--grad-primary); border-radius: 4px; }
+    .sidebar h3 { font-size: 10.5px; text-transform: uppercase; color: var(--text-light); margin: 14px 0 8px; letter-spacing: 1px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .sidebar h3:first-of-type { margin-top: 0; }
+    .sidebar h3::before { content: ''; width: 3px; height: 12px; background: var(--grad-primary); border-radius: 2px; }
+    .sidebar select, .sidebar input[type=text] {
+      width: 100%; padding: 11px 14px; border: 2px solid transparent; border-radius: 12px;
+      font-size: 13px; background: #fff; margin-bottom: 10px; transition: all 0.25s;
+      box-shadow: var(--shadow-sm); font-family: inherit;
+    }
+    .sidebar select:focus, .sidebar input[type=text]:focus { outline: none; border-color: #667eea; box-shadow: var(--shadow-glow); }
+    .sidebar .woreda-list { list-style: none; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+    .sidebar .woreda-list li {
+      padding: 10px 12px; border-radius: 12px; cursor: pointer; display: flex;
+      justify-content: space-between; align-items: center; font-size: 12px; font-weight: 500;
+      background: rgba(255,255,255,0.6); border: 1px solid transparent; transition: all 0.2s;
+    }
+    .sidebar .woreda-list li:hover { background: #fff; border-color: #cbd5e1; transform: translateX(4px); box-shadow: var(--shadow-sm); }
+    .sidebar .woreda-list li.active { background: var(--grad-primary); color: #fff; box-shadow: 0 6px 20px rgba(102,126,234,0.4); transform: translateX(6px); }
+    .sidebar .woreda-list li .badge { font-size: 10px; background: rgba(102,126,234,0.12); color: #667eea; padding: 3px 8px; border-radius: 20px; font-weight: 700; }
+    .sidebar .woreda-list li.active .badge { background: rgba(255,255,255,0.28); color: #fff; }
+    .sidebar .woreda-list li .fac-badge { background: var(--grad-fire); color: #fff; padding: 2px 6px; border-radius: 12px; font-size: 9px; margin-left: 4px; font-weight: 700; }
+    .sidebar .locked-note { font-size: 10.5px; color: var(--text-light); background: rgba(102,126,234,0.08); padding: 10px 12px; border-radius: 10px; line-height: 1.5; }
+    .sidebar .locked-note svg { width: 13px; height: 13px; stroke: #667eea; margin-right: 4px; vertical-align: -2px; }
+
+    .sidebar-overlay { display: none; position: fixed; inset: 68px 0 0 0; background: rgba(0,0,0,0.4); z-index: 50; }
+    .sidebar-overlay.open { display: block; }
+
+    /* Main */
+    .main { overflow-y: auto; padding: 24px; }
+    .main::-webkit-scrollbar { width: 10px; }
+    .main::-webkit-scrollbar-thumb { background: var(--grad-primary); border-radius: 5px; }
+    .woreda-header {
+      background: var(--grad-primary); color: #fff; border-radius: 20px; padding: 22px;
+      margin-bottom: 18px; position: relative; overflow: hidden;
+      box-shadow: 0 12px 40px rgba(102,126,234,0.4); animation: fadeInUp 0.4s ease-out;
+    }
+    .woreda-header::before {
+      content: ''; position: absolute; top: -50%; right: -20%; width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+      border-radius: 50%; animation: float 8s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20px,-20px) scale(1.1); } }
+    @keyframes fadeInUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+    .woreda-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 14px; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .woreda-header h2 svg { width: 22px; height: 22px; stroke: #fff; }
+    .woreda-header h2 .id-badge { font-size: 12px; background: rgba(255,255,255,0.24); padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(10px); font-weight: 600; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; position: relative; z-index: 1; }
+    .info-item { background: rgba(255,255,255,0.16); backdrop-filter: blur(10px); padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.22); transition: all 0.25s; }
+    .info-item:hover { background: rgba(255,255,255,0.24); transform: translateY(-2px); }
+    .info-item label { display: block; font-size: 9.5px; text-transform: uppercase; color: rgba(255,255,255,0.85); margin-bottom: 4px; letter-spacing: 1px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+    .info-item label svg { width: 11px; height: 11px; }
+    .info-item span { font-weight: 700; font-size: 15px; color: #fff; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tabs.day-tabs { margin-bottom: 20px; }
+    .tab {
+      padding: 10px 16px; border: 2px solid transparent; background: rgba(255,255,255,0.7);
+      border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: 600;
+      color: var(--text-light); transition: all 0.25s; position: relative; overflow: hidden;
+      display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
+    }
+    .tab::before { content: ''; position: absolute; inset: 0; background: var(--grad-primary); opacity: 0; transition: opacity 0.25s; z-index: 0; }
+    .tab > span { position: relative; z-index: 1; }
+    .tab svg { width: 14px; height: 14px; position: relative; z-index: 1; }
+    .tab:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); color: #667eea; }
+    .tab.active { color: #fff; box-shadow: 0 8px 22px rgba(102,126,234,0.45); border-color: transparent; }
+    .tab.active::before { opacity: 1; }
+    .tab.facility-tab::before { background: var(--grad-fire); }
+    .tab.facility-tab.active { box-shadow: 0 8px 22px rgba(248,87,166,0.4); }
+
+    /* Form */
+    .form-section { margin-bottom: 20px; padding: 18px; background: rgba(255,255,255,0.85); border-radius: 16px; transition: all 0.3s; position: relative; overflow: hidden; }
+    .form-section::before { content: ''; position: absolute; top: 0; left: 0; width: 5px; height: 100%; }
+    .section-vaccine { background: linear-gradient(135deg, rgba(102,126,234,0.06), rgba(118,75,162,0.06)); }
+    .section-vaccine::before { background: var(--grad-primary); }
+    .section-nopv { background: linear-gradient(135deg, rgba(79,172,254,0.06), rgba(0,242,254,0.06)); }
+    .section-nopv::before { background: var(--grad-cyan); }
+    .section-bopv { background: linear-gradient(135deg, rgba(67,233,123,0.06), rgba(56,249,215,0.06)); }
+    .section-bopv::before { background: var(--grad-green); }
+    .section-alerts { background: linear-gradient(135deg, rgba(250,112,154,0.06), rgba(254,225,64,0.06)); }
+    .section-alerts::before { background: var(--grad-orange); }
+    .section-place { background: linear-gradient(135deg, rgba(161,140,209,0.08), rgba(251,194,235,0.08)); }
+    .section-place::before { background: var(--grad-purple); }
+    .form-section:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .form-section h4 { font-size: 12px; text-transform: uppercase; color: var(--text); margin-bottom: 14px; letter-spacing: 1px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .section-icon { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(102,126,234,0.3); flex-shrink: 0; }
+    .section-icon svg { width: 14px; height: 14px; stroke: #fff; }
+    .section-vaccine .section-icon { background: var(--grad-primary); }
+    .section-nopv .section-icon { background: var(--grad-cyan); }
+    .section-bopv .section-icon { background: var(--grad-green); }
+    .section-alerts .section-icon { background: var(--grad-orange); }
+    .section-place .section-icon { background: var(--grad-purple); }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 12px; }
+    .field label { display: block; font-size: 11px; color: var(--text-light); margin-bottom: 5px; font-weight: 600; }
+    .field input {
+      width: 100%; padding: 10px 12px; border: 2px solid var(--border); border-radius: 10px;
+      font-size: 13px; background: #fff; transition: all 0.2s; font-family: inherit; font-weight: 500;
+      color: var(--text); min-height: 42px;
+    }
+    .field input:focus { outline: none; border-color: #667eea; box-shadow: var(--shadow-glow); transform: translateY(-1px); }
+    .field input[readonly] { background: linear-gradient(135deg,#f0f3ff,#e8edff); color: #4c51bf; font-weight: 700; border-color: #c7d2fe; cursor: default; }
+
+    .flag-red { background: linear-gradient(135deg,#ffebee,#ffcdd2) !important; color:#c62828 !important; border-color:#ef9a9a !important; animation: pulseRed 2s ease-in-out infinite; }
+    @keyframes pulseRed { 0%,100%{ box-shadow:0 0 0 3px rgba(239,154,154,0.2);} 50%{ box-shadow:0 0 0 6px rgba(239,154,154,0.1);} }
+    .flag-green { background: linear-gradient(135deg,#e8f5e9,#c8e6c9) !important; color:#2e7d32 !important; border-color:#a5d6a7 !important; }
+    .flag-yellow { background: linear-gradient(135deg,#fff8e1,#ffecb3) !important; color:#f57f17 !important; border-color:#ffe082 !important; animation: pulseYellow 2s ease-in-out infinite; }
+    @keyframes pulseYellow { 0%,100%{ box-shadow:0 0 0 3px rgba(255,224,130,0.2);} 50%{ box-shadow:0 0 0 6px rgba(255,224,130,0.1);} }
+
+    .footer { display: flex; gap: 10px; align-items: center; padding: 18px 0 0; flex-wrap: wrap; }
+    .btn {
+      padding: 12px 20px; border: none; border-radius: 12px; cursor: pointer; font-size: 13px;
+      font-weight: 700; transition: all 0.25s; font-family: inherit; position: relative;
+      display: inline-flex; align-items: center; gap: 8px; text-decoration: none; min-height: 44px;
+    }
+    .btn svg { width: 16px; height: 16px; stroke: currentColor; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { background: var(--grad-primary); color: #fff; box-shadow: 0 8px 20px rgba(102,126,234,0.4); }
+    .btn-primary:hover { box-shadow: 0 12px 28px rgba(102,126,234,0.5); }
+    .btn-primary:disabled { background: linear-gradient(135deg,#c7d2fe,#a5b4fc); cursor: wait; box-shadow: none; transform: none; }
+    .btn-success { background: var(--grad-green); color: #fff; box-shadow: 0 8px 20px rgba(67,233,123,0.4); }
+    .btn-fire { background: var(--grad-fire); color: #fff; box-shadow: 0 8px 20px rgba(248,87,166,0.4); }
+    .btn-outline { background: #fff; border: 2px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: #667eea; color: #667eea; }
+    .export-result { background: linear-gradient(135deg, rgba(67,233,123,0.1), rgba(56,249,215,0.1)); padding: 16px; border-radius: 14px; margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+    /* Modal / empty / spinner / legend / toast */
+    .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.55); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+    .modal-bg.open { display: flex; }
+    .modal { background: #fff; border-radius: 20px; padding: 26px; width: 460px; max-width: 92vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 30px 80px rgba(15,23,42,0.4); animation: modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes modalIn { from { opacity:0; transform: scale(0.92) translateY(20px);} to { opacity:1; transform: scale(1) translateY(0);} }
+    .modal h3 { font-size: 16px; margin-bottom: 20px; color: var(--text); font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .modal h3 svg { width: 20px; height: 20px; stroke: #667eea; }
+    .modal .field { margin-bottom: 14px; }
+    .empty { padding: 80px 20px; text-align: center; color: var(--text-light); font-size: 14px; }
+    .empty b { color: #667eea; font-size: 16px; display: block; margin-bottom: 8px; }
+    .empty .err { color:#c62828; background: linear-gradient(135deg,#ffebee,#ffcdd2); padding:16px; border-radius:12px; margin:16px auto; font-family:'Courier New',monospace; font-size:12px; text-align:left; white-space:pre-wrap; word-break:break-word; max-height:220px; overflow-y:auto; max-width:500px; border-left:4px solid #ef5350; }
+    .spinner { display: inline-block; width: 40px; height: 40px; border-radius: 50%; border: 4px solid rgba(102,126,234,0.15); border-top-color: #667eea; animation: spin 0.8s linear infinite; margin-bottom: 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .legend { display: flex; gap: 14px; font-size: 11px; color: var(--text-light); padding: 14px 16px; flex-wrap: wrap; margin-top: 12px; background: rgba(255,255,255,0.6); border-radius: 12px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+    .legend span::before { content: ''; width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .legend .lr::before { background: linear-gradient(135deg,#ffebee,#ffcdd2); border: 1px solid #ef9a9a; }
+    .legend .lg::before { background: linear-gradient(135deg,#e8f5e9,#c8e6c9); border: 1px solid #a5d6a7; }
+    .legend .ly::before { background: linear-gradient(135deg,#fff8e1,#ffecb3); border: 1px solid #ffe082; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--grad-green); color: #fff; padding: 14px 24px; border-radius: 14px; font-size: 13px; font-weight: 600; opacity: 0; transform: translateY(20px) scale(0.9); transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1); z-index: 200; pointer-events: none; box-shadow: 0 12px 32px rgba(67,233,123,0.4); display: flex; align-items: center; gap: 8px; max-width: 90vw; }
+    .toast svg { width: 16px; height: 16px; stroke: #fff; }
+    .toast.show { opacity: 1; transform: translateY(0) scale(1); }
+    .readonly-note { display: inline-flex; align-items: center; gap: 6px; color: var(--text-light); font-size: 12px; font-weight: 600; padding: 10px 16px; background: linear-gradient(135deg,#f1f5f9,#e2e8f0); border-radius: 10px; }
+    .readonly-note svg { width: 14px; height: 14px; }
+
+    @media (max-width: 900px) {
+      #app { grid-template-columns: 1fr; grid-template-rows: 60px 1fr; }
+      header { padding: 0 12px; gap: 8px; }
+      header h1 { font-size: 12px; }
+      header h1 svg { width: 18px; height: 18px; }
+      header .officer-chip { font-size: 10px; padding: 5px 9px; }
+      header .officer-chip .chip-text { display: none; }
+      header button { padding: 8px 10px; font-size: 11px; }
+      header button .lbl { display: none; }
+      header .hamburger { display: inline-flex !important; }
+      .sidebar { position: fixed; top: 60px; left: 0; bottom: 0; width: 85vw; max-width: 320px; transform: translateX(-100%); box-shadow: 4px 0 20px rgba(0,0,0,0.2); z-index: 55; }
+      .sidebar.open { transform: translateX(0); }
+      .main { padding: 12px; }
+      .woreda-header { padding: 16px; border-radius: 16px; }
+      .woreda-header h2 { font-size: 16px; }
+      .info-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .info-item { padding: 10px 12px; }
+      .info-item span { font-size: 13px; }
+      .tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+      .tabs::-webkit-scrollbar { height: 3px; }
+      .tab { white-space: nowrap; flex-shrink: 0; padding: 9px 14px; font-size: 11px; }
+      .form-grid { grid-template-columns: 1fr; gap: 10px; }
+      .form-section { padding: 14px; }
+      .field input { font-size: 16px; }
+      .footer { flex-direction: column; align-items: stretch; }
+      .footer .btn { justify-content: center; }
+      .modal { padding: 20px; }
+      .toast { bottom: 12px; right: 12px; left: 12px; text-align: center; justify-content: center; }
+      .login-card { padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============ LOGIN GATE ============ -->
+<div id="loginGate">
+  <div class="login-card">
+    <div class="icon-big" id="loginIcon"></div>
+    <h2>nOPV2 / bOPV2 Campaign</h2>
+    <div class="subtitle">PHEM officer sign-in · Addis Ababa</div>
+
+    <div class="field"><label>Full Name</label><input type="text" id="logName" placeholder="e.g. Abebe Kebede" autocomplete="name"></div>
+    <div class="field"><label>Email</label><input type="email" id="logEmail" placeholder="you@example.com" autocomplete="email"></div>
+    <div class="field"><label>Phone</label><input type="tel" id="logPhone" placeholder="+2519…" autocomplete="tel"></div>
+    <div class="field"><label>Woreda ID</label><input type="text" id="logWoredaID" placeholder="e.g. 1000" autocomplete="off"></div>
+
+    <button id="loginBtn" onclick="doLogin()"><span id="loginBtnIcon"></span><span id="loginBtnText">Sign In</span></button>
+    <div class="err" id="loginErr"></div>
+    <div class="hint">Use the name, email, phone and Woreda ID registered for you in the campaign officer list. You can only see and edit your own woreda.</div>
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app" class="hidden">
+  <header>
+    <button class="hamburger" onclick="toggleSidebar()"><span id="burgerIcon"></span></button>
+    <h1><span id="hdrIcon"></span><span>nOPV2 / bOPV2 Campaign</span></h1>
+    <div class="officer-chip" id="officerChip" style="display:none"></div>
+    <div class="spacer"></div>
+    <button id="settingsBtn" onclick="openSettings()" title="Campaign settings"><span id="icoSettings"></span><span class="lbl">Settings</span></button>
+    <button onclick="logout()" title="Sign out"><span id="icoLogout"></span><span class="lbl">Logout</span></button>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="locked-note" id="lockNote"></div>
+    <h3>Sub City</h3>
+    <select id="zoneSelect"></select>
+    <h3>Search</h3>
+    <input type="text" id="searchInput" placeholder="Woreda ID or name…">
+    <h3>Your Woreda <span id="woredaCount" style="color:#667eea"></span></h3>
+    <ul id="woredaList" class="woreda-list"></ul>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <main class="main" id="mainArea">
+    <div class="panel" style="background:#fff;border-radius:20px;padding:20px;box-shadow:var(--shadow-md)">
+      <div class="empty"><div class="spinner"></div><b>Loading…</b></div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3><span id="icoGear"></span>Campaign Settings</h3>
+    <div class="field"><label>nOPV2 doses per vial (BG2)</label><input type="number" id="setNopv" step="1"></div>
+    <div class="field"><label>bOPV doses per vial (BG3)</label><input type="number" id="setBopv" step="1"></div>
+    <div class="field"><label>Count Revisit children? 1=Yes, 0=No (BG4)</label><input type="number" id="setRevisit" min="0" max="1"></div>
+    <div class="field"><label>Wastage red-flag limit (BG5)</label><input type="number" id="setWastage" step="0.01"></div>
+    <div class="field"><label>Number of daily campaign days (BG6)</label><input type="number" id="setDays" step="1"></div>
+    <div class="footer">
+      <button class="btn btn-primary" onclick="applySettings()">Apply</button>
+      <button class="btn btn-outline" onclick="closeSettings()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================
+     GitHub Pages bridge
+     ------------------------------------------------------------
+     This page was written for Google Apps Script. When it is served
+     from GitHub Pages there is no `google.script.run`, so the block
+     below provides one by calling the campaign's Apps Script JSON
+     API. Inside Apps Script itself the block is skipped and the
+     native bridge is used, which keeps the original published URL
+     working exactly as before.
+     ------------------------------------------------------------
+     ⚙️  If the Apps Script project is redeployed, paste the new
+         /exec URL into CAMPAIGN_API_URL below.
+     ============================================================ -->
+<script>
+window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1lMEcqzTLYxB3tgksV6eKyJ403wh6Yg68Kje42ZRBps4ZdqeZFbIauZk/exec";
+
+(function () {
+  var hasNativeBridge = !!(window.google && window.google.script && window.google.script.run);
+  if (hasNativeBridge) return; // Apps Script hosted — nothing to patch
+
+  window.CAMPAIGN_STATIC = true;
+
+  var ACTIONS = [
+    "authenticateUser", "getInitialData", "getRowData", "saveAndReturn",
+    "saveSettings", "getWoredaExport", "exportToExcelWithFormulas"
+  ];
+
+  function fail(message) {
+    var err = new Error(message);
+    err.campaignMessage = message;
+    return err;
+  }
+  function parseJson(text) {
+    try { return JSON.parse(text); } catch (e) { /* fall through */ }
+    var start = text.indexOf("{"), end = text.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try { return JSON.parse(text.slice(start, end + 1)); } catch (e2) { /* fall through */ }
+    }
+    throw fail("The campaign server sent an unreadable reply. Please try again.");
+  }
+  function sessionToken() {
+    try { return sessionStorage.getItem("epi_token") || ""; } catch (e) { return ""; }
+  }
+  function expireSession(message) {
+    try {
+      sessionStorage.removeItem("epi_token");
+      sessionStorage.removeItem("epi_officer");
+      sessionStorage.setItem("epi_notice", message || "Your session expired. Please sign in again.");
+    } catch (e) { /* private mode */ }
+    location.reload();
+  }
+
+  function postJson(body) {
+    var url = window.CAMPAIGN_API_URL;
+    if (!url) return Promise.reject(fail("This page is not connected to the campaign server yet."));
+    url += (url.indexOf("?") >= 0 ? "&" : "?") + "cb=" + Date.now();
+    return fetch(url, {
+      method: "POST",
+      mode: "cors",
+      redirect: "follow",
+      cache: "no-store",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var data = parseJson(text);
+        if (!res.ok && (!data || !data.error)) {
+          throw fail("The campaign server returned an error (" + res.status + ").");
+        }
+        return data;
+      });
+    });
+  }
+
+  /* Fallback for networks/browsers that block the cross-site fetch:
+     post a hidden form to the same endpoint and receive the JSON back
+     through postMessage. */
+  function postViaIframe(body) {
+    return new Promise(function (resolve, reject) {
+      if (!window.CAMPAIGN_API_URL) {
+        reject(fail("This page is not connected to the campaign server yet."));
+        return;
+      }
+      var id = "r" + Math.floor(Math.random() * 1e9).toString(36);
+      var iframe = document.createElement("iframe");
+      iframe.name = id;
+      iframe.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden";
+      var form = document.createElement("form");
+      form.method = "POST";
+      form.action = window.CAMPAIGN_API_URL;
+      form.target = id;
+      form.style.display = "none";
+      var fields = {
+        action: body.action,
+        payload: JSON.stringify(body.payload || {}),
+        token: body.token || "",
+        transport: "iframe",
+        requestId: id
+      };
+      Object.keys(fields).forEach(function (k) {
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = k;
+        input.value = fields[k];
+        form.appendChild(input);
+      });
+      var settled = false;
+      var timer = setTimeout(function () {
+        finish();
+        reject(fail("The campaign server is not responding. Check your internet connection and try again."));
+      }, 60000);
+      function finish() {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.removeEventListener("message", onMessage);
+        setTimeout(function () {
+          if (form.parentNode) form.parentNode.removeChild(form);
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }, 1500);
+      }
+      function onMessage(event) {
+        var data = event.data;
+        if (!data || data.source !== "nopv2-campaign" || data.requestId !== id) return;
+        finish();
+        resolve(data.result);
+      }
+      window.addEventListener("message", onMessage);
+      document.body.appendChild(iframe);
+      document.body.appendChild(form);
+      form.submit();
+    });
+  }
+
+  function callApi(action, payload) {
+    var body = { action: action, payload: payload || {}, token: sessionToken() };
+    return postJson(body).catch(function (err) {
+      if (err && err.campaignMessage && /unreadable/i.test(err.campaignMessage)) throw err;
+      return postViaIframe(body);
+    }).then(function (out) {
+      if (!out || typeof out !== "object") {
+        throw fail("The campaign server sent an unreadable reply. Please try again.");
+      }
+      if (out.code === "AUTH_REQUIRED") {
+        expireSession(out.error);
+        throw fail(out.error || "Your session has expired. Please sign in again.");
+      }
+      return out;
+    });
+  }
+
+  function payloadFor(action, args) {
+    if (action === "authenticateUser") return args[0] || {};
+    if (action === "getRowData") {
+      return { sheetName: args[0], rowIndex: args[1], facilityIndex: args[3] };
+    }
+    if (action === "saveAndReturn") {
+      var p = args[0] || {};
+      return {
+        sheetName: p.sheetName, rowIndex: p.rowIndex,
+        facilityIndex: p.facilityIndex, values: p.values
+      };
+    }
+    if (action === "saveSettings") return { settings: args[0] || {} };
+    if (action === "getWoredaExport") return { facilityIndex: args[0] || 0 };
+    return {};
+  }
+
+  function makeRunner() {
+    var runner = { __success: null, __failure: null };
+    runner.withSuccessHandler = function (fn) { runner.__success = fn; return runner; };
+    runner.withFailureHandler = function (fn) { runner.__failure = fn; return runner; };
+    ACTIONS.forEach(function (action) {
+      runner[action] = function () {
+        var args = Array.prototype.slice.call(arguments);
+        callApi(action, payloadFor(action, args)).then(function (result) {
+          if (runner.__success) runner.__success(result);
+        }).catch(function (err) {
+          var message = (err && err.campaignMessage) || (err && err.message) || "Unexpected error";
+          if (runner.__failure) runner.__failure(new Error(message));
+          else alert(message);
+        });
+        return runner;
+      };
+    });
+    return runner;
+  }
+
+  window.google = window.google || {};
+  window.google.script = window.google.script || {};
+  Object.defineProperty(window.google.script, "run", {
+    configurable: true,
+    get: function () { return makeRunner(); }
+  });
+
+  /* Warm up the Apps Script container so the first sign-in is quick. */
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      if (!window.CAMPAIGN_API_URL) return;
+      try {
+        fetch(window.CAMPAIGN_API_URL + (window.CAMPAIGN_API_URL.indexOf("?") >= 0 ? "&" : "?") + "action=ping&cb=" + Date.now(), { mode: "no-cors", cache: "no-store" });
+      } catch (e) { /* ignore */ }
+    }, 1200);
+  });
+})();
+</script>
+
+<script>
+// ================= SVG ICONS =================
+const ICONS = {
+  syringe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>',
+  droplet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>',
+  pill: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>',
+  megaphone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+  save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>',
+  excel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 13 6 6"/><path d="m15 13-6 6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+  key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>'
+};
+
+// ================= STATE =================
+const DAYS = ["Day 1","Day 2","Day 3","Day 4","Mop Up Day 1","Mop Up Day 2","Cumulative"];
+const READONLY_DAYS = ["Cumulative"];
+const FORMULA_COLS = ["G","L","N","O","P","X","Y","AG","AH","BA"];
+let state = {
+  planRows: [], settings: {}, selectedRow: null,
+  activeDay: "Day 1", activeFacility: 0,
+  zone: "All", search: "",
+  rowDataCache: {}, busy: false,
+  officer: null
+};
+
+// Inject icons
+document.getElementById('loginIcon').innerHTML = ICONS.lock;
+document.getElementById('loginBtnIcon').innerHTML = ICONS.key;
+document.getElementById('hdrIcon').innerHTML = ICONS.syringe;
+document.getElementById('burgerIcon').innerHTML = ICONS.menu;
+document.getElementById('icoSettings').innerHTML = ICONS.settings;
+document.getElementById('icoLogout').innerHTML = ICONS.logout;
+document.getElementById('icoGear').innerHTML = ICONS.settings;
+
+// ================= LOGIN =================
+function doLogin() {
+  const name = document.getElementById('logName').value.trim();
+  const email = document.getElementById('logEmail').value.trim();
+  const phone = document.getElementById('logPhone').value.trim();
+  const woredaID = document.getElementById('logWoredaID').value.trim();
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = "";
+
+  if (!name || !email || !phone || !woredaID) {
+    errEl.textContent = "All four fields are required";
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  document.getElementById('loginBtnText').textContent = "Signing in…";
+
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false;
+      document.getElementById('loginBtnText').textContent = "Sign In";
+      if (!res.ok) { errEl.textContent = res.error || "Login failed"; return; }
+      state.officer = res.officer;
+      sessionStorage.setItem('epi_officer', JSON.stringify(res.officer));
+      if (res.token) sessionStorage.setItem('epi_token', res.token);
+      sessionStorage.removeItem('epi_notice');
+      openApp();
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      document.getElementById('loginBtnText').textContent = "Sign In";
+      errEl.textContent = "Server error: " + (err && err.message ? err.message : err);
+    })
+    .authenticateUser({ name, email, phone, woredaID });
+}
+
+// Enter key chain
+['logName','logEmail','logPhone','logWoredaID'].forEach((id, i, arr) => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (i < arr.length - 1) document.getElementById(arr[i+1]).focus();
+      else doLogin();
+    }
+  });
+});
+
+function logout() {
+  sessionStorage.removeItem('epi_officer');
+  sessionStorage.removeItem('epi_token');
+  sessionStorage.removeItem('epi_notice');
+  state.officer = null;
+  state.planRows = [];
+  state.selectedRow = null;
+  state.rowDataCache = {};
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginGate').classList.remove('hidden');
+  document.getElementById('loginErr').textContent = "";
+  ['logName','logEmail','logPhone','logWoredaID'].forEach(id => document.getElementById(id).value = "");
+  document.getElementById('logName').focus();
+}
+
+function openApp() {
+  document.getElementById('loginGate').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  // Settings change campaign-wide values, so they are admin-only on the
+  // public site. Inside Apps Script the button stays available as before.
+  const settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) {
+    const allowed = !window.CAMPAIGN_STATIC || !!(state.officer && state.officer.isAdmin);
+    settingsBtn.style.display = allowed ? '' : 'none';
+  }
+
+  // Officer chip
+  const chip = document.getElementById('officerChip');
+  if (state.officer) {
+    chip.style.display = 'flex';
+    chip.innerHTML = ICONS.user +
+      '<span class="chip-text">' + escapeHtml(state.officer.name) + ' · ' + escapeHtml(state.officer.woredaID) + '</span>';
+  }
+
+  // Lock note
+  document.getElementById('lockNote').innerHTML = ICONS.lock +
+    '<b> ' + escapeHtml(state.officer ? state.officer.name : '') + '</b><br>' +
+    'You can only access Woreda <b>#' + escapeHtml(state.officer ? state.officer.woredaID : '') + '</b> (' + escapeHtml(state.officer ? state.officer.woreda : '') + ')';
+
+  boot();
+}
+
+// Auto-resume (the public site also needs an unexpired session token)
+(function autoResume() {
+  const notice = sessionStorage.getItem('epi_notice');
+  if (notice) {
+    sessionStorage.removeItem('epi_notice');
+    document.getElementById('loginErr').textContent = notice;
+  }
+  const saved = sessionStorage.getItem('epi_officer');
+  const hasToken = !window.CAMPAIGN_STATIC || !!sessionStorage.getItem('epi_token');
+  if (saved && hasToken) {
+    try { state.officer = JSON.parse(saved); openApp(); return; } catch(e) {}
+  }
+  if (saved && !hasToken) sessionStorage.removeItem('epi_officer');
+  document.getElementById('logName').focus();
+})();
+
+// ================= BOOT =================
+function boot() {
+  document.querySelector("#mainArea").innerHTML =
+    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px">
+      <div class="empty"><div class="spinner"></div><b>Loading…</b></div>
+    </div>`;
+  google.script.run.withSuccessHandler(handleInitialData).withFailureHandler(handleFatal).getInitialData();
+}
+
+function handleInitialData(data) {
+  if (!data || data.ok === false) { showError("Initial load failed", (data && data.error) || "unknown"); return; }
+  if (!data.plan || !data.plan.length) { showError("No woredas found", "Day 1 sheet returned 0 rows."); return; }
+
+  // 🔒 SCOPE LOCK — keep only the officer's woreda
+  const officerID = String(state.officer ? state.officer.woredaID : "").trim();
+  const allRows = data.plan;
+  const scoped = allRows.filter(r => String(r.woredaID).trim() === officerID);
+
+  if (!scoped.length) {
+    showError("Woreda not found in plan",
+      "The credentials sheet has Woreda ID " + officerID +
+      ", but no row with that ID exists in Day 1.\n\nCheck that the 'Woreda ID' sheet maps '" +
+      (state.officer ? state.officer.zone + " / " + state.officer.woreda : "") + "' to " + officerID + ".");
+    return;
+  }
+
+  state.planRows = scoped;
+  state.settings = data.settings || {};
+  state.selectedRow = scoped[0];
+  state.activeFacility = 0;
+  renderSidebar();
+  loadRowData();
+}
+
+function handleFatal(err) { showError("Couldn't reach server", (err && err.message) || String(err)); }
+function showError(title, msg) {
+  document.querySelector("#mainArea").innerHTML =
+    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px">
+      <div class="empty"><b>❌ ${escapeHtml(title)}</b><div class="err">${escapeHtml(msg)}</div>
+      <button class="btn btn-primary" style="margin-top:14px" onclick="boot()">Retry</button></div>
+    </div>`;
+}
+
+// ================= SIDEBAR =================
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+function renderSidebar() {
+  const zones = ["All", ...new Set(state.planRows.map(r => r.zone))].sort();
+  const sel = document.querySelector("#zoneSelect");
+  sel.innerHTML = zones.map(z => `<option value="${escapeAttr(z)}" ${z===state.zone?"selected":""}>${escapeHtml(z)}</option>`).join("");
+  sel.onchange = e => { state.zone = e.target.value; renderSidebar(); renderWoredaList(); };
+  const inp = document.querySelector("#searchInput");
+  inp.value = state.search;
+  inp.oninput = e => { state.search = e.target.value.toLowerCase(); renderWoredaList(); };
+  renderWoredaList();
+}
+function renderWoredaList() {
+  const list = document.querySelector("#woredaList");
+  const count = document.querySelector("#woredaCount");
+  const filtered = state.planRows.filter(r => {
+    if (state.zone !== "All" && r.zone !== state.zone) return false;
+    if (state.search) {
+      const hay = `${r.woredaID} ${r.woreda} ${r.healthCenter}`.toLowerCase();
+      return hay.includes(state.search);
+    }
+    return true;
+  });
+  count.textContent = `(${filtered.length})`;
+  if (!filtered.length) { list.innerHTML = `<li style="color:#94a3b8;cursor:default;justify-content:center">No matches</li>`; return; }
+  list.innerHTML = filtered.map(r => {
+    const active = state.selectedRow && String(state.selectedRow.woredaID) === String(r.woredaID);
+    const facBadge = r.facilityCount > 1 ? `<span class="fac-badge">${r.facilityCount}×</span>` : "";
+    return `<li data-id="${escapeAttr(r.woredaID)}" class="${active ? 'active' : ''}">
+      <span>${escapeHtml(r.woreda)}${facBadge}</span>
+      <span class="badge">#${escapeHtml(r.woredaID)}</span>
+    </li>`;
+  }).join("");
+  list.querySelectorAll("li[data-id]").forEach(li => {
+    li.onclick = () => {
+      const row = state.planRows.find(r => String(r.woredaID) === li.dataset.id);
+      if (row) {
+        state.selectedRow = row;
+        state.activeFacility = 0;
+        state.activeDay = "Day 1";
+        state.rowDataCache = {};
+        renderWoredaList();
+        loadRowData();
+        if (window.innerWidth <= 900) toggleSidebar();
+      }
+    };
+  });
+}
+
+// ================= LOAD ROW =================
+function loadRowData() {
+  const w = state.selectedRow;
+  if (!w) return;
+  const key = `${w.woredaID}_${state.activeFacility}_${state.activeDay}`;
+  if (state.rowDataCache[key]) { renderMain(state.rowDataCache[key]); return; }
+  document.querySelector("#mainArea").innerHTML =
+    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px">
+      <div class="empty"><div class="spinner"></div><b>Loading ${escapeHtml(w.woreda)} — ${escapeHtml(state.activeDay)}…</b></div>
+    </div>`;
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res || res.ok === false) { showError("Row load failed", (res && res.error) || "no data"); return; }
+      state.rowDataCache[key] = res.data;
+      renderMain(res.data);
+    })
+    .withFailureHandler(err => { showError("Couldn't fetch row", (err && err.message) || String(err)); })
+    .getRowData(state.activeDay, w.rowIndex, w.woredaID, state.activeFacility, w.facilityCount);
+}
+
+// ================= FORMULAS =================
+function computeRow(w, day, r) {
+  const S = state.settings || {};
+  const n = v => (v === "" || v == null || isNaN(v)) ? 0 : Number(v);
+  let dt;
+  if (["Day 1","Day 2","Day 3","Day 4"].indexOf(day) !== -1) dt = (Number(w.totalPlanned) || 0) / (Number(S.campaignDays) || 4);
+  else dt = n(r.G);
+  let L = n(r.H)+n(r.I)+n(r.J)+n(r.K);
+  if (day !== "Day 1" && day !== "Cumulative" && Number(S.countRevisit) === 1) L += n(r.AZ);
+  const M = (r.M === "" || r.M == null) ? null : Number(r.M);
+  const N = M === null ? null : L - M;
+  const O = dt === 0 ? null : L / dt;
+  const P = (Number(w.totalPlanned) || 0) === 0 ? null : L / Number(w.totalPlanned);
+  const nopvNet = n(r.Q) - n(r.T);
+  const nopvDen = nopvNet * (Number(S.nopvDosesPerVial) || 50);
+  const X = nopvDen === 0 ? null : (nopvDen - L) / nopvDen;
+  const Y = n(r.Q) - (n(r.R)+n(r.S)+n(r.T)+n(r.U)+n(r.V)+n(r.W));
+  const bopvNet = n(r.Z) - n(r.AC);
+  const bopvDen = bopvNet * (Number(S.bopvDosesPerVial) || 20);
+  const AG = bopvDen === 0 ? null : (bopvDen - L) / bopvDen;
+  const AH = n(r.Z) - (n(r.AA)+n(r.AB)+n(r.AC)+n(r.AD)+n(r.AE)+n(r.AF));
+  const BA = n(r.AT)+n(r.AU)+n(r.AV)+n(r.AW)+n(r.AX);
+  return { G: dt, L, M, N, O, P, X, Y, AG, AH, BA };
+}
+const fmtPct = v => v == null || isNaN(v) ? "—" : (v*100).toFixed(2) + "%";
+const fmtNum = v => v == null || isNaN(v) ? "—" : Number(v).toLocaleString();
+function cfW(v) { if (v == null) return ""; return v > (Number(state.settings.wastageLimit) || 0.1) ? "flag-red" : "flag-green"; }
+function cfC(v) { if (v == null) return ""; if (v >= 1) return "flag-green"; if (v < 0.8) return "flag-yellow"; return ""; }
+function cfB(v) { if (v == null) return ""; return v < 0 ? "flag-red" : ""; }
+
+// ================= RENDER =================
+function renderMain(rowData) {
+  const w = state.selectedRow;
+  const day = state.activeDay;
+  const readonly = READONLY_DAYS.indexOf(day) !== -1;
+  const c = computeRow(w, day, rowData);
+
+  const facilityTabs = w.facilityCount > 1 ? `
+    <div class="tabs facility-tabs">
+      ${w.facilities.map((f, i) =>
+        `<div class="tab facility-tab ${i === state.activeFacility ? 'active' : ''}" data-fac="${i}">
+          <span>${ICONS.building}</span><span>${escapeHtml(f)}</span>
+        </div>`).join("")}
+    </div>` : "";
+
+  const dayTabs = DAYS.map(d =>
+    `<div class="tab ${d === day ? 'active' : ''}" data-day="${escapeAttr(d)}"><span>${escapeHtml(d)}</span></div>`
+  ).join("");
+
+  const field = (col, label) => {
+    const v = rowData[col] ?? "";
+    return `<div class="field"><label>${escapeHtml(label)}</label>
+      <input type="number" min="0" data-col="${col}" value="${escapeAttr(v)}" ${readonly ? 'readonly' : ''}></div>`;
+  };
+  const calc = (id, label, value, cls = "") =>
+    `<div class="field"><label>${escapeHtml(label)}</label>
+      <input type="text" readonly id="calc_${id}" value="${escapeAttr(value)}" class="${cls}"></div>`;
+
+  const currentFacilityLabel = w.facilityCount > 1 ? w.facilities[state.activeFacility] : w.healthCenter;
+
+  document.querySelector("#mainArea").innerHTML = `
+    <div class="woreda-header">
+      <h2>${ICONS.building}${escapeHtml(w.woreda)} — ${escapeHtml(w.zone)} <span class="id-badge">ID #${escapeHtml(w.woredaID)}</span></h2>
+      <div class="info-grid">
+        <div class="info-item"><label>${ICONS.building} Health Center</label><span>${escapeHtml(currentFacilityLabel || "—")}</span></div>
+        <div class="info-item"><label>${ICONS.target} Total Planned</label><span>${fmtNum(w.totalPlanned)}</span></div>
+        <div class="info-item"><label>${ICONS.users} Teams</label><span>${escapeHtml(w.teams || "—")}</span></div>
+        <div class="info-item"><label>${ICONS.target} Daily Target</label><span>${fmtNum(c.G)}</span></div>
+      </div>
+    </div>
+    ${facilityTabs}
+    <div class="tabs day-tabs">${dayTabs}</div>
+    <div class="panel" id="formPanel" style="background:transparent;padding:0;box-shadow:none">
+      <div class="form-section section-vaccine">
+        <h4><span class="section-icon">${ICONS.shield}</span>Vaccination Coverage</h4>
+        <div class="form-grid">
+          ${field("H","Vaccinated before (0–11m)")}${field("I","Not vaccinated before (0–11m)")}
+          ${field("J","Vaccinated before (12–59m)")}${field("K","Not vaccinated before (12–59m)")}
+          ${calc("L","Total Vaccinated (0–59m)", fmtNum(c.L), "flag-green")}
+          ${field("M","Male")}${calc("N","Female (auto)", c.N == null ? "—" : fmtNum(c.N))}
+          ${calc("G","Daily Target (auto)", fmtNum(c.G))}
+          ${calc("O","Daily Coverage %", fmtPct(c.O), cfC(c.O))}
+          ${calc("P","Coverage from Total %", fmtPct(c.P), cfC(c.P))}
+          ${day !== "Day 1" && day !== "Cumulative" ? field("AZ","Children Vaccinated in Revisit") : ""}
+        </div>
+      </div>
+      <div class="form-section section-nopv">
+        <h4><span class="section-icon">${ICONS.droplet}</span>nOPV2 Vials</h4>
+        <div class="form-grid">
+          ${field("Q","Vials Received")}${field("R","Vials Used")}${field("S","Vials Partially Used")}
+          ${field("T","Returned – Good Condition")}${field("U","Vials Broken")}
+          ${field("V","Returned – Bad Condition (Stage 3 & 4)")}${field("W","Vials Lost")}
+          ${calc("X","Wastage Rate %", fmtPct(c.X), cfW(c.X))}
+          ${calc("Y","Daily Vaccine Balance", fmtNum(c.Y), cfB(c.Y))}
+        </div>
+      </div>
+      <div class="form-section section-bopv">
+        <h4><span class="section-icon">${ICONS.pill}</span>bOPV Vials</h4>
+        <div class="form-grid">
+          ${field("Z","Vials Received")}${field("AA","Vials Used")}${field("AB","Vials Partially Used")}
+          ${field("AC","Returned – Good Condition")}${field("AD","Vials Broken")}
+          ${field("AE","Returned – Bad Condition (Stage 3 & 4)")}${field("AF","Vials Lost")}
+          ${calc("AG","Wastage Rate %", fmtPct(c.AG), cfW(c.AG))}
+          ${calc("AH","Daily Vaccine Balance", fmtNum(c.AH), cfB(c.AH))}
+        </div>
+      </div>
+      <div class="form-section section-alerts">
+        <h4><span class="section-icon">${ICONS.megaphone}</span>Alerts & Social Mobilization</h4>
+        <div class="form-grid">
+          ${field("AI","Number of AFP Alerts")}${field("AJ","Number of AEFI Alerts")}
+          ${field("AK","HHs visited by social mobilizers")}${field("AL","Parents/caregivers in group discussion")}
+          ${field("AM","Parents/caregivers reached (home-to-home)")}
+          ${field("AN","Zero-dose children identified & linked")}${field("AO","Zero-dose children vaccinated")}
+          ${field("AP","Under-vaccinated identified & linked")}${field("AQ","Under-vaccinated vaccinated")}
+        </div>
+      </div>
+      <div class="form-section section-place">
+        <h4><span class="section-icon">${ICONS.pin}</span>Vaccination by Place</h4>
+        <div class="form-grid">
+          ${field("AT","Children Vaccinated in House")}${field("AU","Children Vaccinated in School")}
+          ${field("AV","Children Vaccinated in Market")}${field("AW","Children Vaccinated in Street")}
+          ${field("AX","Children Vaccinated in Other Place")}${field("AY","Children Unvaccinated During Visit")}
+          ${calc("BA","Total Vaccinated by Place", fmtNum(c.BA), "flag-green")}
+        </div>
+      </div>
+      <div class="legend">
+        <span class="lr">Red = wastage over limit / negative balance</span>
+        <span class="lg">Green = good</span>
+        <span class="ly">Yellow = coverage &lt; 80%</span>
+      </div>
+      <div class="footer">
+        ${!readonly
+          ? `<button class="btn btn-primary" id="saveBtn" onclick="saveCurrent()">${ICONS.save}Save ${escapeHtml(day)}</button>`
+          : `<span class="readonly-note">${ICONS.lock}Read-only (auto-calculated)</span>`}
+        <button class="btn btn-fire" onclick="exportExcel()">${ICONS.excel}${isPublicOfficer() ? "Export my data (CSV)" : "Export Excel"}</button>
+      </div>
+      <div id="exportResult"></div>
+    </div>
+  `;
+
+  document.querySelectorAll(".tab[data-day]").forEach(t => {
+    t.onclick = () => { state.activeDay = t.dataset.day; loadRowData(); };
+  });
+  document.querySelectorAll(".tab[data-fac]").forEach(t => {
+    t.onclick = () => {
+      state.activeFacility = Number(t.dataset.fac);
+      state.rowDataCache = {};
+      loadRowData();
+    };
+  });
+
+  if (!readonly) {
+    document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+      inp.oninput = e => {
+        const col = e.target.dataset.col;
+        rowData[col] = e.target.value === "" ? "" : Number(e.target.value);
+        updateCalcDisplay(computeRow(w, day, rowData));
+      };
+    });
+  }
+}
+
+function updateCalcDisplay(c) {
+  const set = (id, v, cls) => {
+    const el = document.getElementById("calc_" + id);
+    if (!el) return;
+    el.value = v;
+    if (cls !== undefined) el.className = cls;
+  };
+  set("L", fmtNum(c.L));
+  set("N", c.N == null ? "—" : fmtNum(c.N));
+  set("G", fmtNum(c.G));
+  set("O", fmtPct(c.O), cfC(c.O));
+  set("P", fmtPct(c.P), cfC(c.P));
+  set("X", fmtPct(c.X), cfW(c.X));
+  set("Y", fmtNum(c.Y), cfB(c.Y));
+  set("AG", fmtPct(c.AG), cfW(c.AG));
+  set("AH", fmtNum(c.AH), cfB(c.AH));
+  set("BA", fmtNum(c.BA));
+}
+
+// ================= SAVE =================
+function saveCurrent() {
+  if (state.busy) return;
+  const w = state.selectedRow;
+  const day = state.activeDay;
+  const inputs = {};
+  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+    if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
+    inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
+  });
+  state.busy = true;
+  const btn = document.getElementById("saveBtn");
+  if (btn) { btn.disabled = true; btn.innerHTML = "Saving…"; }
+  google.script.run
+    .withSuccessHandler(res => {
+      state.busy = false;
+      if (!res || res.ok === false) {
+        alert("Save failed: " + ((res && res.error) || "unknown"));
+        if (btn) { btn.disabled = false; btn.innerHTML = ICONS.save + "Save " + day; }
+        return;
+      }
+      const key = `${w.woredaID}_${state.activeFacility}_${day}`;
+      state.rowDataCache[key] = res.data;
+      renderMain(res.data);
+      toast("Saved " + day + " — " + (w.facilityCount > 1 ? w.facilities[state.activeFacility] : w.woreda));
+    })
+    .withFailureHandler(err => {
+      state.busy = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = ICONS.save + "Save " + day; }
+      alert("Save failed: " + ((err && err.message) || String(err)));
+    })
+    .saveAndReturn({
+      woredaID: w.woredaID, facilityIndex: state.activeFacility,
+      facilityCount: w.facilityCount, sheetName: day,
+      rowIndex: w.rowIndex, values: inputs
+    });
+}
+
+// ================= EXPORT =================
+// On the public site a regular officer gets their own woreda as CSV
+// (the full-workbook Excel export stays with the campaign administrator).
+const CSV_COLUMNS = [
+  ["H", "Vaccinated before (0–11m)", "raw"],
+  ["I", "Not vaccinated before (0–11m)", "raw"],
+  ["J", "Vaccinated before (12–59m)", "raw"],
+  ["K", "Not vaccinated before (12–59m)", "raw"],
+  ["L", "Total Vaccinated (0–59m) (calc)", "calc"],
+  ["M", "Male", "raw"],
+  ["N", "Female (calc)", "calc"],
+  ["G", "Daily Target (calc)", "calc"],
+  ["O", "Daily Coverage (%) (calc)", "pct"],
+  ["P", "Coverage from Total (%) (calc)", "pct"],
+  ["Q", "nOPV2 Vials Received", "raw"],
+  ["R", "nOPV2 Vials Used", "raw"],
+  ["S", "nOPV2 Vials Partially Used", "raw"],
+  ["T", "nOPV2 Returned – Good Condition", "raw"],
+  ["U", "nOPV2 Vials Broken", "raw"],
+  ["V", "nOPV2 Returned – Bad Condition", "raw"],
+  ["W", "nOPV2 Vials Lost", "raw"],
+  ["X", "nOPV2 Wastage Rate (%) (calc)", "pct"],
+  ["Y", "nOPV2 Daily Vaccine Balance (calc)", "calc"],
+  ["Z", "bOPV Vials Received", "raw"],
+  ["AA", "bOPV Vials Used", "raw"],
+  ["AB", "bOPV Vials Partially Used", "raw"],
+  ["AC", "bOPV Returned – Good Condition", "raw"],
+  ["AD", "bOPV Vials Broken", "raw"],
+  ["AE", "bOPV Returned – Bad Condition", "raw"],
+  ["AF", "bOPV Vials Lost", "raw"],
+  ["AG", "bOPV Wastage Rate (%) (calc)", "pct"],
+  ["AH", "bOPV Daily Vaccine Balance (calc)", "calc"],
+  ["AI", "AFP Alerts", "raw"],
+  ["AJ", "AEFI Alerts", "raw"],
+  ["AK", "HHs visited by social mobilizers", "raw"],
+  ["AL", "Caregivers in group discussion", "raw"],
+  ["AM", "Caregivers reached home-to-home", "raw"],
+  ["AN", "Zero-dose children identified", "raw"],
+  ["AO", "Zero-dose children vaccinated", "raw"],
+  ["AP", "Under-vaccinated children identified", "raw"],
+  ["AQ", "Under-vaccinated children vaccinated", "raw"],
+  ["AT", "Vaccinated in House", "raw"],
+  ["AU", "Vaccinated in School", "raw"],
+  ["AV", "Vaccinated in Market", "raw"],
+  ["AW", "Vaccinated in Street", "raw"],
+  ["AX", "Vaccinated in Other Place", "raw"],
+  ["AY", "Unvaccinated During Visit", "raw"],
+  ["BA", "Total Vaccinated by Place (calc)", "calc"]
+];
+
+function isPublicOfficer() {
+  return !!window.CAMPAIGN_STATIC && !(state.officer && state.officer.isAdmin);
+}
+function csvEscape_(value) {
+  const s = String(value == null ? "" : value);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildWoredaCsv(res) {
+  const w = state.selectedRow || {};
+  const header = ["Day", "Region", "Zone", "Woreda", "Health Center", "Total Planned", "Teams"]
+    .concat(CSV_COLUMNS.map(c => c[1]));
+  const lines = [header.map(csvEscape_).join(",")];
+  DAYS.forEach(day => {
+    const rowData = (res.days && res.days[day]) || {};
+    const c = computeRow(w, day, rowData);
+    const row = [
+      day, res.region || "", res.zone || "", res.woreda || "",
+      res.healthCenter || "",
+      res.totalPlanned == null ? "" : res.totalPlanned,
+      res.teams == null ? "" : res.teams
+    ];
+    CSV_COLUMNS.forEach(col => {
+      const key = col[0], kind = col[2];
+      if (kind === "raw") { row.push(rowData[key] === undefined ? "" : rowData[key]); return; }
+      const v = c[key];
+      if (v == null || isNaN(v)) { row.push(""); return; }
+      row.push(kind === "pct" ? (v * 100).toFixed(2) : v);
+    });
+    lines.push(row.map(csvEscape_).join(","));
+  });
+  return lines.join("\r\n");
+}
+function safeFilePart_(s) {
+  return String(s || "").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "woreda";
+}
+function exportMyCsv(el) {
+  if (!state.selectedRow) return;
+  el.innerHTML = `<div class="export-result"><div class="spinner" style="width:20px;height:20px;border-width:3px;margin:0"></div><span style="color:var(--text-light);font-weight:600">Preparing your data…</span></div>`;
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res || res.ok === false) {
+        el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((res && res.error) || 'Export failed')}</span></div>`;
+        return;
+      }
+      const csv = buildWoredaCsv(res);
+      const fileName = "EPI_" + safeFilePart_(res.woreda) + "_" + safeFilePart_(res.healthCenter) + ".csv";
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+      el.innerHTML = `
+        <div class="export-result">
+          <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} CSV ready</span>
+          <a href="${url}" download="${escapeAttr(fileName)}" class="btn btn-success" style="margin-left:auto">${ICONS.download}Download again</a>
+        </div>`;
+      toast("Your woreda data was exported");
+    })
+    .withFailureHandler(err => {
+      el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
+    })
+    .getWoredaExport(state.activeFacility);
+}
+
+function exportExcel() {
+  const el = document.getElementById('exportResult');
+  if (isPublicOfficer()) { exportMyCsv(el); return; }
+  el.innerHTML = `<div class="export-result"><div class="spinner" style="width:20px;height:20px;border-width:3px;margin:0"></div><span style="color:var(--text-light);font-weight:600">Generating Excel…</span></div>`;
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res || !res.ok) {
+        el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((res && res.error) || 'Export failed')}</span></div>`;
+        return;
+      }
+      el.innerHTML = `
+        <div class="export-result">
+          <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel ready</span>
+          <a href="${res.downloadUrl}" target="_blank" class="btn btn-success" style="margin-left:auto">${ICONS.download}Download .xlsx</a>
+          <a href="${res.viewUrl}" target="_blank" class="btn btn-outline">${ICONS.excel}Open</a>
+        </div>`;
+      toast("Excel export created");
+    })
+    .withFailureHandler(err => {
+      el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml(String(err))}</span></div>`;
+    })
+    .exportToExcelWithFormulas();
+}
+
+// ================= SETTINGS =================
+function openSettings() {
+  const s = state.settings || {};
+  document.querySelector("#setNopv").value = s.nopvDosesPerVial ?? 50;
+  document.querySelector("#setBopv").value = s.bopvDosesPerVial ?? 20;
+  document.querySelector("#setRevisit").value = s.countRevisit ?? 0;
+  document.querySelector("#setWastage").value = s.wastageLimit ?? 0.1;
+  document.querySelector("#setDays").value = s.campaignDays ?? 4;
+  document.querySelector("#settingsModal").classList.add("open");
+}
+function closeSettings() { document.querySelector("#settingsModal").classList.remove("open"); }
+function applySettings() {
+  const s = {
+    nopvDosesPerVial: Number(document.querySelector("#setNopv").value) || 50,
+    bopvDosesPerVial: Number(document.querySelector("#setBopv").value) || 20,
+    countRevisit: Number(document.querySelector("#setRevisit").value) === 1 ? 1 : 0,
+    wastageLimit: Number(document.querySelector("#setWastage").value) || 0.1,
+    campaignDays: Number(document.querySelector("#setDays").value) || 4
+  };
+  google.script.run
+    .withSuccessHandler(() => {
+      state.settings = s; state.rowDataCache = {};
+      closeSettings(); loadRowData(); toast("Settings saved");
+    })
+    .withFailureHandler(err => alert("Save failed: " + ((err && err.message) || String(err))))
+    .saveSettings(s);
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.innerHTML = ICONS.check + "<span>" + escapeHtml(msg) + "</span>";
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2600);
+}
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function escapeAttr(s) { return escapeHtml(s); }
+</script>
+</body>
+</html>
