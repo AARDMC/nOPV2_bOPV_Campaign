@@ -39,6 +39,25 @@ Officers can only read and write their own woreda row and only the input
 columns (coverage, vials, alerts, places). Plan data, identifiers, settings and
 formula columns are refused by the server.
 
+The woreda bar at the top of the form is frozen while scrolling and collapses
+to a slim bar that keeps the health center name in view. The site title bar
+shows the Addis Ababa health bureau logo and the polio campaign badge on every
+screen.
+
+## Branding assets
+
+| File | Use |
+| --- | --- |
+| `assets/logo.jpg` | Addis Ababa Regional Health Bureau logo (login card, title bar) |
+| `assets/badge.png` | Polio vaccination campaign badge (login card, title bar, frozen bar, favicon) |
+| `assets/favicon.png` | Browser tab icon, generated from the badge |
+
+The images are served from GitHub Pages. The copy of the page inside Apps
+Script (`Index.html`) must therefore reference them with absolute
+`https://aardmc.github.io/nOPV2_bOPV_Campaign/assets/...` URLs — Apps Script
+cannot serve files from this repository. Keep the relative `assets/...` paths
+in this repo so the static site keeps working.
+
 ## Administrator features
 
 The Google account that owns/deploys the Apps Script project is an
