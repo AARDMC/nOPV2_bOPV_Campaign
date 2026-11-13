@@ -746,9 +746,8 @@ function handleInitialData(data) {
 
   if (!scoped.length) {
     showError("Woreda not found in plan",
-      "The credentials sheet has Woreda ID " + officerID +
-      ", but no row with that ID exists in Day 1.\n\nCheck that the 'Woreda ID' sheet maps '" +
-      (state.officer ? state.officer.zone + " / " + state.officer.woreda : "") + "' to " + officerID + ".");
+      "Your officer record uses Woreda ID " + officerID +
+      ", but no row with that ID exists on the Day 1 sheet.\n\nAsk the campaign administrator to check that this woreda is listed on Day 1 and that your Woreda ID matches the officer list.");
     return;
   }
 
