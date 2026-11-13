@@ -7,7 +7,8 @@
   <meta name="theme-color" content="#667eea">
   <meta name="description" content="nOPV2 / bOPV campaign daily data entry for PHEM officers — AARDMC.">
   <title>nOPV2 / bOPV2 Campaign — PHEM Data Entry</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23667eea'/%3E%3Cpath d='M38 14l12 12M44 20l-9 9' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M32 26L18 40a6 6 0 108 8l14-14z' fill='white'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/badge.png">
   <style>
     :root {
       --grad-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -17,6 +18,7 @@
       --grad-purple: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
       --grad-fire: linear-gradient(135deg, #f857a6 0%, #ff5858 100%);
       --bg: #eef1fb; --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+      --brand-navy: #0b3663; --brand-gold: #e0a13f;
       --shadow-sm: 0 2px 10px rgba(102,126,234,0.08);
       --shadow-md: 0 8px 30px rgba(102,126,234,0.14);
       --shadow-lg: 0 20px 60px rgba(102,126,234,0.22);
@@ -39,22 +41,58 @@
       position: fixed; inset: 0;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
       display: flex; align-items: center; justify-content: center;
-      z-index: 9999; padding: 20px; overflow-y: auto;
+      z-index: 9999; padding: 20px; overflow-y: auto; isolation: isolate;
     }
     #loginGate.hidden { display: none; }
+    .login-deco { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .login-deco::before, .login-deco::after { content: ''; position: absolute; border-radius: 50%; }
+    .login-deco::before {
+      width: 540px; height: 540px; top: -200px; left: -160px;
+      background: radial-gradient(circle, rgba(255,255,255,0.24), transparent 68%);
+      animation: drift 19s ease-in-out infinite;
+    }
+    .login-deco::after {
+      width: 480px; height: 480px; bottom: -180px; right: -140px;
+      background: radial-gradient(circle, rgba(255,214,102,0.3), transparent 68%);
+      animation: drift 24s ease-in-out infinite reverse;
+    }
+    @keyframes drift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(34px,28px) scale(1.12); } }
+    .ghost-badge {
+      position: absolute; width: clamp(190px, 26vw, 350px); opacity: 0.15;
+      filter: drop-shadow(0 22px 44px rgba(15,23,42,0.35));
+      animation: spinSlow 80s linear infinite;
+    }
+    .ghost-badge.left { left: -7%; bottom: -9%; }
+    .ghost-badge.right { right: -8%; top: -11%; animation-direction: reverse; animation-duration: 105s; }
+    @keyframes spinSlow { to { transform: rotate(360deg); } }
+
     .login-card {
+      position: relative; z-index: 1;
       background: rgba(255,255,255,0.97); backdrop-filter: blur(30px);
-      border-radius: 24px; padding: 30px 26px; width: 100%; max-width: 440px;
-      box-shadow: 0 30px 80px rgba(0,0,0,0.3); animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+      border-radius: 24px; padding: 28px 26px; width: 100%; max-width: 440px;
+      box-shadow: 0 30px 80px rgba(15,23,42,0.34); animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
       margin: auto;
     }
     @keyframes cardIn { from { opacity:0; transform: scale(0.85) translateY(30px); } to { opacity:1; transform: scale(1) translateY(0); } }
-    .login-card .icon-big {
-      width: 64px; height: 64px; margin: 0 auto 14px; background: var(--grad-primary);
-      border-radius: 18px; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+    .login-brand { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 16px; }
+    .login-brand .lb-logo {
+      width: 86px; height: 86px; padding: 8px; border-radius: 22px; background: #fff; flex-shrink: 0;
+      box-shadow: 0 12px 30px rgba(15,23,42,0.22), inset 0 0 0 1px rgba(15,23,42,0.06);
+      animation: logoFloat 6.5s ease-in-out infinite;
     }
-    .login-card .icon-big svg { width: 32px; height: 32px; stroke: #fff; stroke-width: 2; }
+    .login-brand .lb-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    @keyframes logoFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    .login-brand .lb-badge { position: relative; width: 74px; height: 74px; flex-shrink: 0; }
+    .login-brand .lb-badge::before {
+      content: ''; position: absolute; inset: -7px; border-radius: 50%;
+      border: 2px dashed rgba(102,126,234,0.5); animation: spinSlow 17s linear infinite;
+    }
+    .login-brand .lb-badge img {
+      width: 100%; height: 100%; object-fit: contain; display: block;
+      filter: drop-shadow(0 8px 18px rgba(15,23,42,0.24));
+      animation: badgePulse 4.5s ease-in-out infinite;
+    }
+    @keyframes badgePulse { 0%,100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.05) rotate(3deg); } }
     .login-card h2 { font-size: 19px; margin-bottom: 4px; text-align: center; font-weight: 700; }
     .login-card .subtitle { color: var(--text-light); font-size: 12px; margin-bottom: 18px; text-align: center; }
     .login-card .field { margin-bottom: 10px; }
@@ -75,12 +113,12 @@
     .login-card .hint { text-align: center; font-size: 10.5px; color: var(--text-light); margin-top: 12px; line-height: 1.5; }
 
     /* ============ APP SHELL ============ */
-    #app { display: grid; grid-template-columns: 320px 1fr; grid-template-rows: 68px 1fr; height: 100vh; }
+    #app { display: grid; grid-template-columns: 1fr; grid-template-rows: 68px 1fr; height: 100vh; }
     #app.hidden { display: none; }
     header {
-      grid-column: 1/-1; background: var(--grad-primary); color: #fff;
-      display: flex; align-items: center; padding: 0 20px; gap: 14px;
-      z-index: 60; box-shadow: 0 4px 20px rgba(102,126,234,0.35);
+      grid-column: 1/-1; background: linear-gradient(120deg, #5f6fe0 0%, #764ba2 58%, #8b5cab 100%);
+      color: #fff; display: flex; align-items: center; padding: 0 20px; gap: 14px;
+      z-index: 70; box-shadow: 0 4px 20px rgba(11,54,99,0.3);
       position: relative; overflow: hidden;
     }
     header::before {
@@ -89,8 +127,28 @@
       background-size: 200% 100%; animation: shimmer 8s ease-in-out infinite;
     }
     @keyframes shimmer { 0%,100% { background-position: 200% 0; } 50% { background-position: -200% 0; } }
-    header h1 { font-size: 16px; font-weight: 700; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; }
-    header h1 svg { width: 22px; height: 22px; stroke: #fff; }
+
+    /* Header brand lockup: logo tile + overlapping badge */
+    header .brand-lock { position: relative; z-index: 1; display: inline-flex; flex-shrink: 0; padding: 0 6px 0 0; }
+    header .brand-logo {
+      width: 42px; height: 42px; border-radius: 12px; background: #fff; padding: 4px;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 8px 20px rgba(11,54,99,0.32);
+      animation: logoFloat 7s ease-in-out infinite;
+    }
+    header .brand-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    header .brand-badge {
+      position: absolute; right: -4px; bottom: -7px; width: 26px; height: 26px; padding: 2px;
+      border-radius: 50%; background: #fff; box-shadow: 0 4px 10px rgba(11,54,99,0.36);
+      animation: badgePulse 5s ease-in-out infinite;
+    }
+    header .brand-badge img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    header h1 {
+      font-size: 15px; font-weight: 700; position: relative; z-index: 1;
+      display: flex; flex-direction: column; gap: 2px; line-height: 1.15;
+    }
+    header h1 .hdr-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.72; }
     header .officer-chip {
       position: relative; z-index: 1; display: flex; align-items: center; gap: 8px;
       background: rgba(255,255,255,0.16); padding: 6px 12px; border-radius: 20px;
@@ -107,51 +165,20 @@
     }
     header button svg { width: 14px; height: 14px; stroke: currentColor; }
     header button:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
-    header .hamburger { display: none; }
-
-    /* Sidebar */
-    .sidebar {
-      background: rgba(255,255,255,0.85); backdrop-filter: blur(20px);
-      border-right: 1px solid rgba(226,232,240,0.8); overflow-y: auto;
-      padding: 20px 14px; display: flex; flex-direction: column; gap: 4px;
-      z-index: 55; transition: transform 0.3s ease;
-    }
-    .sidebar::-webkit-scrollbar { width: 8px; }
-    .sidebar::-webkit-scrollbar-thumb { background: var(--grad-primary); border-radius: 4px; }
-    .sidebar h3 { font-size: 10.5px; text-transform: uppercase; color: var(--text-light); margin: 14px 0 8px; letter-spacing: 1px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-    .sidebar h3:first-of-type { margin-top: 0; }
-    .sidebar h3::before { content: ''; width: 3px; height: 12px; background: var(--grad-primary); border-radius: 2px; }
-    .sidebar select, .sidebar input[type=text] {
-      width: 100%; padding: 11px 14px; border: 2px solid transparent; border-radius: 12px;
-      font-size: 13px; background: #fff; margin-bottom: 10px; transition: all 0.25s;
-      box-shadow: var(--shadow-sm); font-family: inherit;
-    }
-    .sidebar select:focus, .sidebar input[type=text]:focus { outline: none; border-color: #667eea; box-shadow: var(--shadow-glow); }
-    .sidebar .woreda-list { list-style: none; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
-    .sidebar .woreda-list li {
-      padding: 10px 12px; border-radius: 12px; cursor: pointer; display: flex;
-      justify-content: space-between; align-items: center; font-size: 12px; font-weight: 500;
-      background: rgba(255,255,255,0.6); border: 1px solid transparent; transition: all 0.2s;
-    }
-    .sidebar .woreda-list li:hover { background: #fff; border-color: #cbd5e1; transform: translateX(4px); box-shadow: var(--shadow-sm); }
-    .sidebar .woreda-list li.active { background: var(--grad-primary); color: #fff; box-shadow: 0 6px 20px rgba(102,126,234,0.4); transform: translateX(6px); }
-    .sidebar .woreda-list li .badge { font-size: 10px; background: rgba(102,126,234,0.12); color: #667eea; padding: 3px 8px; border-radius: 20px; font-weight: 700; }
-    .sidebar .woreda-list li.active .badge { background: rgba(255,255,255,0.28); color: #fff; }
-    .sidebar .woreda-list li .fac-badge { background: var(--grad-fire); color: #fff; padding: 2px 6px; border-radius: 12px; font-size: 9px; margin-left: 4px; font-weight: 700; }
-    .sidebar .locked-note { font-size: 10.5px; color: var(--text-light); background: rgba(102,126,234,0.08); padding: 10px 12px; border-radius: 10px; line-height: 1.5; }
-    .sidebar .locked-note svg { width: 13px; height: 13px; stroke: #667eea; margin-right: 4px; vertical-align: -2px; }
-
-    .sidebar-overlay { display: none; position: fixed; inset: 68px 0 0 0; background: rgba(0,0,0,0.4); z-index: 50; }
-    .sidebar-overlay.open { display: block; }
 
     /* Main */
-    .main { overflow-y: auto; padding: 24px; }
+    .main { overflow-y: auto; padding: 0 24px 28px; }
     .main::-webkit-scrollbar { width: 10px; }
     .main::-webkit-scrollbar-thumb { background: var(--grad-primary); border-radius: 5px; }
     .woreda-header {
-      background: var(--grad-primary); color: #fff; border-radius: 20px; padding: 22px;
-      margin-bottom: 18px; position: relative; overflow: hidden;
-      box-shadow: 0 12px 40px rgba(102,126,234,0.4); animation: fadeInUp 0.4s ease-out;
+      position: sticky; top: 0; z-index: 45;
+      background: linear-gradient(120deg, #5f6fe0 0%, #764ba2 58%, #8b5cab 100%);
+      color: #fff; border-radius: 0 0 22px 22px;
+      padding: 20px 24px 22px; margin: 0 -24px 18px;
+      box-shadow: 0 12px 34px rgba(11,54,99,0.34);
+      overflow: hidden;
+      animation: fadeInUp 0.4s ease-out;
+      transition: padding 0.28s ease, box-shadow 0.28s ease, border-radius 0.28s ease;
     }
     .woreda-header::before {
       content: ''; position: absolute; top: -50%; right: -20%; width: 400px; height: 400px;
@@ -160,10 +187,39 @@
     }
     @keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20px,-20px) scale(1.1); } }
     @keyframes fadeInUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
-    .woreda-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 14px; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .woreda-header .hero-top { position: relative; z-index: 2; padding-right: 84px; }
+    .woreda-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 7px; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .woreda-header h2 svg { width: 22px; height: 22px; stroke: #fff; }
     .woreda-header h2 .id-badge { font-size: 12px; background: rgba(255,255,255,0.24); padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(10px); font-weight: 600; }
-    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; position: relative; z-index: 1; }
+    .woreda-header .hero-mark {
+      position: absolute; right: 20px; top: 16px; width: 74px; height: 74px; z-index: 1;
+      opacity: 0.3; pointer-events: none;
+      filter: drop-shadow(0 10px 20px rgba(15,23,42,0.3));
+      animation: spinSlow 65s linear infinite;
+      transition: width 0.28s ease, height 0.28s ease, top 0.28s ease, opacity 0.28s ease, right 0.28s ease;
+    }
+    .hero-hc {
+      display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600;
+      color: rgba(255,255,255,0.92); background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.22); padding: 5px 13px 5px 11px; border-radius: 999px;
+      backdrop-filter: blur(8px); position: relative; z-index: 2; max-width: 100%;
+      transition: font-size 0.28s ease, padding 0.28s ease;
+    }
+    .hero-hc svg { width: 13px; height: 13px; stroke: #ffe08a; }
+    .hero-hc b { color: #fff; font-weight: 700; }
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px;
+      position: relative; z-index: 1; margin-top: 14px; max-height: 180px;
+      transition: max-height 0.28s ease, opacity 0.22s ease, margin 0.28s ease;
+    }
+    .woreda-header.compact { padding-top: 10px; padding-bottom: 10px; box-shadow: 0 16px 34px rgba(11,54,99,0.38); border-radius: 0 0 18px 18px; }
+    .woreda-header.compact .hero-top { padding-right: 62px; }
+    .woreda-header.compact h2 { font-size: 15px; margin-bottom: 4px; gap: 8px; }
+    .woreda-header.compact h2 svg { width: 17px; height: 17px; }
+    .woreda-header.compact h2 .id-badge { font-size: 10.5px; padding: 2px 9px; }
+    .woreda-header.compact .hero-hc { font-size: 11px; padding: 3px 10px 3px 8px; }
+    .woreda-header.compact .hero-mark { width: 50px; height: 50px; top: 10px; right: 22px; opacity: 0.36; }
+    .woreda-header.compact .info-grid { max-height: 0; opacity: 0; margin-top: 0; overflow: hidden; }
     .info-item { background: rgba(255,255,255,0.16); backdrop-filter: blur(10px); padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.22); transition: all 0.25s; }
     .info-item:hover { background: rgba(255,255,255,0.24); transform: translateY(-2px); }
     .info-item label { display: block; font-size: 9.5px; text-transform: uppercase; color: rgba(255,255,255,0.85); margin-bottom: 4px; letter-spacing: 1px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
@@ -270,21 +326,26 @@
     .readonly-note svg { width: 14px; height: 14px; }
 
     @media (max-width: 900px) {
-      #app { grid-template-columns: 1fr; grid-template-rows: 60px 1fr; }
-      header { padding: 0 12px; gap: 8px; }
-      header h1 { font-size: 12px; }
-      header h1 svg { width: 18px; height: 18px; }
+      #app { grid-template-rows: 60px 1fr; }
+      header { padding: 0 12px; gap: 10px; }
+      header .brand-lock { padding-right: 4px; }
+      header .brand-logo { width: 36px; height: 36px; border-radius: 10px; padding: 3px; }
+      header .brand-badge { width: 22px; height: 22px; right: -5px; bottom: -6px; }
+      header h1 { font-size: 12.5px; }
+      header h1 .hdr-sub { display: none; }
       header .officer-chip { font-size: 10px; padding: 5px 9px; }
       header .officer-chip .chip-text { display: none; }
       header button { padding: 8px 10px; font-size: 11px; }
       header button .lbl { display: none; }
-      header .hamburger { display: inline-flex !important; }
-      .sidebar { position: fixed; top: 60px; left: 0; bottom: 0; width: 85vw; max-width: 320px; transform: translateX(-100%); box-shadow: 4px 0 20px rgba(0,0,0,0.2); z-index: 55; }
-      .sidebar.open { transform: translateX(0); }
-      .main { padding: 12px; }
-      .woreda-header { padding: 16px; border-radius: 16px; }
-      .woreda-header h2 { font-size: 16px; }
-      .info-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .main { padding: 0 12px 20px; }
+      .woreda-header { padding: 14px 16px 16px; margin: 0 -12px 14px; border-radius: 0 0 16px 16px; }
+      .woreda-header .hero-top { padding-right: 62px; }
+      .woreda-header h2 { font-size: 15.5px; gap: 8px; }
+      .woreda-header h2 svg { width: 18px; height: 18px; }
+      .woreda-header .hero-mark { width: 54px; height: 54px; top: 12px; right: 14px; opacity: 0.26; }
+      .hero-hc { font-size: 11px; }
+      .woreda-header.compact { padding-top: 8px; padding-bottom: 8px; }
+      .info-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; max-height: 220px; }
       .info-item { padding: 10px 12px; }
       .info-item span { font-size: 13px; }
       .tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
@@ -298,6 +359,16 @@
       .modal { padding: 20px; }
       .toast { bottom: 12px; right: 12px; left: 12px; text-align: center; justify-content: center; }
       .login-card { padding: 24px 20px; }
+      .login-brand { gap: 14px; margin-bottom: 14px; }
+      .login-brand .lb-logo { width: 74px; height: 74px; border-radius: 19px; padding: 7px; }
+      .login-brand .lb-badge { width: 64px; height: 64px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
     }
   </style>
 </head>
@@ -305,10 +376,17 @@
 
 <!-- ============ LOGIN GATE ============ -->
 <div id="loginGate">
+  <div class="login-deco" aria-hidden="true">
+    <img class="ghost-badge left" src="assets/badge.png" alt="">
+    <img class="ghost-badge right" src="assets/badge.png" alt="">
+  </div>
   <div class="login-card">
-    <div class="icon-big" id="loginIcon"></div>
+    <div class="login-brand">
+      <div class="lb-logo"><img src="assets/logo.jpg" alt="Addis Ababa Regional Health Bureau"></div>
+      <div class="lb-badge"><img src="assets/badge.png" alt="Polio vaccination campaign badge"></div>
+    </div>
     <h2>nOPV2 / bOPV2 Campaign</h2>
-    <div class="subtitle">PHEM officer sign-in · Addis Ababa</div>
+    <div class="subtitle">Addis Ababa PHEM officer sign-in</div>
 
     <div class="field"><label>Full Name</label><input type="text" id="logName" placeholder="e.g. Abebe Kebede" autocomplete="name"></div>
     <div class="field"><label>Email</label><input type="email" id="logEmail" placeholder="you@example.com" autocomplete="email"></div>
@@ -324,27 +402,19 @@
 <!-- ============ MAIN APP ============ -->
 <div id="app" class="hidden">
   <header>
-    <button class="hamburger" onclick="toggleSidebar()"><span id="burgerIcon"></span></button>
-    <h1><span id="hdrIcon"></span><span>nOPV2 / bOPV2 Campaign</span></h1>
+    <div class="brand-lock" title="Addis Ababa Regional Health Bureau">
+      <span class="brand-logo"><img src="assets/logo.jpg" alt="Addis Ababa Regional Health Bureau"></span>
+      <span class="brand-badge"><img src="assets/badge.png" alt=""></span>
+    </div>
+    <h1><span>nOPV2 / bOPV2 Campaign</span><span class="hdr-sub">PHEM data entry</span></h1>
     <div class="officer-chip" id="officerChip" style="display:none"></div>
     <div class="spacer"></div>
     <button id="settingsBtn" onclick="openSettings()" title="Campaign settings"><span id="icoSettings"></span><span class="lbl">Settings</span></button>
     <button onclick="logout()" title="Sign out"><span id="icoLogout"></span><span class="lbl">Logout</span></button>
   </header>
 
-  <aside class="sidebar" id="sidebar">
-    <div class="locked-note" id="lockNote"></div>
-    <h3>Sub City</h3>
-    <select id="zoneSelect"></select>
-    <h3>Search</h3>
-    <input type="text" id="searchInput" placeholder="Woreda ID or name…">
-    <h3>Your Woreda <span id="woredaCount" style="color:#667eea"></span></h3>
-    <ul id="woredaList" class="woreda-list"></ul>
-  </aside>
-  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
   <main class="main" id="mainArea">
-    <div class="panel" style="background:#fff;border-radius:20px;padding:20px;box-shadow:var(--shadow-md)">
+    <div class="panel" style="background:#fff;border-radius:20px;padding:20px;margin:18px 0;box-shadow:var(--shadow-md)">
       <div class="empty"><div class="spinner"></div><b>Loading…</b></div>
     </div>
   </main>
@@ -606,16 +676,12 @@ const FORMULA_COLS = ["G","L","N","O","P","X","Y","AG","AH","BA"];
 let state = {
   planRows: [], settings: {}, selectedRow: null,
   activeDay: "Day 1", activeFacility: 0,
-  zone: "All", search: "",
   rowDataCache: {}, busy: false,
   officer: null
 };
 
 // Inject icons
-document.getElementById('loginIcon').innerHTML = ICONS.lock;
 document.getElementById('loginBtnIcon').innerHTML = ICONS.key;
-document.getElementById('hdrIcon').innerHTML = ICONS.syringe;
-document.getElementById('burgerIcon').innerHTML = ICONS.menu;
 document.getElementById('icoSettings').innerHTML = ICONS.settings;
 document.getElementById('icoLogout').innerHTML = ICONS.logout;
 document.getElementById('icoGear').innerHTML = ICONS.settings;
@@ -702,11 +768,6 @@ function openApp() {
       '<span class="chip-text">' + escapeHtml(state.officer.name) + ' · ' + escapeHtml(state.officer.woredaID) + '</span>';
   }
 
-  // Lock note
-  document.getElementById('lockNote').innerHTML = ICONS.lock +
-    '<b> ' + escapeHtml(state.officer ? state.officer.name : '') + '</b><br>' +
-    'You can only access Woreda <b>#' + escapeHtml(state.officer ? state.officer.woredaID : '') + '</b> (' + escapeHtml(state.officer ? state.officer.woreda : '') + ')';
-
   boot();
 }
 
@@ -729,7 +790,7 @@ function openApp() {
 // ================= BOOT =================
 function boot() {
   document.querySelector("#mainArea").innerHTML =
-    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px">
+    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px;margin:18px 0">
       <div class="empty"><div class="spinner"></div><b>Loading…</b></div>
     </div>`;
   google.script.run.withSuccessHandler(handleInitialData).withFailureHandler(handleFatal).getInitialData();
@@ -755,69 +816,16 @@ function handleInitialData(data) {
   state.settings = data.settings || {};
   state.selectedRow = scoped[0];
   state.activeFacility = 0;
-  renderSidebar();
   loadRowData();
 }
 
 function handleFatal(err) { showError("Couldn't reach server", (err && err.message) || String(err)); }
 function showError(title, msg) {
   document.querySelector("#mainArea").innerHTML =
-    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px">
+    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px;margin:18px 0">
       <div class="empty"><b>❌ ${escapeHtml(title)}</b><div class="err">${escapeHtml(msg)}</div>
       <button class="btn btn-primary" style="margin-top:14px" onclick="boot()">Retry</button></div>
     </div>`;
-}
-
-// ================= SIDEBAR =================
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebarOverlay').classList.toggle('open');
-}
-function renderSidebar() {
-  const zones = ["All", ...new Set(state.planRows.map(r => r.zone))].sort();
-  const sel = document.querySelector("#zoneSelect");
-  sel.innerHTML = zones.map(z => `<option value="${escapeAttr(z)}" ${z===state.zone?"selected":""}>${escapeHtml(z)}</option>`).join("");
-  sel.onchange = e => { state.zone = e.target.value; renderSidebar(); renderWoredaList(); };
-  const inp = document.querySelector("#searchInput");
-  inp.value = state.search;
-  inp.oninput = e => { state.search = e.target.value.toLowerCase(); renderWoredaList(); };
-  renderWoredaList();
-}
-function renderWoredaList() {
-  const list = document.querySelector("#woredaList");
-  const count = document.querySelector("#woredaCount");
-  const filtered = state.planRows.filter(r => {
-    if (state.zone !== "All" && r.zone !== state.zone) return false;
-    if (state.search) {
-      const hay = `${r.woredaID} ${r.woreda} ${r.healthCenter}`.toLowerCase();
-      return hay.includes(state.search);
-    }
-    return true;
-  });
-  count.textContent = `(${filtered.length})`;
-  if (!filtered.length) { list.innerHTML = `<li style="color:#94a3b8;cursor:default;justify-content:center">No matches</li>`; return; }
-  list.innerHTML = filtered.map(r => {
-    const active = state.selectedRow && String(state.selectedRow.woredaID) === String(r.woredaID);
-    const facBadge = r.facilityCount > 1 ? `<span class="fac-badge">${r.facilityCount}×</span>` : "";
-    return `<li data-id="${escapeAttr(r.woredaID)}" class="${active ? 'active' : ''}">
-      <span>${escapeHtml(r.woreda)}${facBadge}</span>
-      <span class="badge">#${escapeHtml(r.woredaID)}</span>
-    </li>`;
-  }).join("");
-  list.querySelectorAll("li[data-id]").forEach(li => {
-    li.onclick = () => {
-      const row = state.planRows.find(r => String(r.woredaID) === li.dataset.id);
-      if (row) {
-        state.selectedRow = row;
-        state.activeFacility = 0;
-        state.activeDay = "Day 1";
-        state.rowDataCache = {};
-        renderWoredaList();
-        loadRowData();
-        if (window.innerWidth <= 900) toggleSidebar();
-      }
-    };
-  });
 }
 
 // ================= LOAD ROW =================
@@ -827,7 +835,7 @@ function loadRowData() {
   const key = `${w.woredaID}_${state.activeFacility}_${state.activeDay}`;
   if (state.rowDataCache[key]) { renderMain(state.rowDataCache[key]); return; }
   document.querySelector("#mainArea").innerHTML =
-    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px">
+    `<div class="panel" style="background:#fff;border-radius:20px;padding:20px;margin:18px 0">
       <div class="empty"><div class="spinner"></div><b>Loading ${escapeHtml(w.woreda)} — ${escapeHtml(state.activeDay)}…</b></div>
     </div>`;
   google.script.run
@@ -901,13 +909,17 @@ function renderMain(rowData) {
   const currentFacilityLabel = w.facilityCount > 1 ? w.facilities[state.activeFacility] : w.healthCenter;
 
   document.querySelector("#mainArea").innerHTML = `
-    <div class="woreda-header">
-      <h2>${ICONS.building}${escapeHtml(w.woreda)} — ${escapeHtml(w.zone)} <span class="id-badge">ID #${escapeHtml(w.woredaID)}</span></h2>
+    <div class="woreda-header" id="woredaHero">
+      <img class="hero-mark" src="assets/badge.png" alt="" aria-hidden="true">
+      <div class="hero-top">
+        <h2>${ICONS.building}${escapeHtml(w.woreda)} — ${escapeHtml(w.zone)} <span class="id-badge">ID #${escapeHtml(w.woredaID)}</span></h2>
+        <div class="hero-hc">${ICONS.pin}<span>Health center <b>${escapeHtml(currentFacilityLabel || "—")}</b></span></div>
+      </div>
       <div class="info-grid">
-        <div class="info-item"><label>${ICONS.building} Health Center</label><span>${escapeHtml(currentFacilityLabel || "—")}</span></div>
         <div class="info-item"><label>${ICONS.target} Total Planned</label><span>${fmtNum(w.totalPlanned)}</span></div>
         <div class="info-item"><label>${ICONS.users} Teams</label><span>${escapeHtml(w.teams || "—")}</span></div>
         <div class="info-item"><label>${ICONS.target} Daily Target</label><span>${fmtNum(c.G)}</span></div>
+        <div class="info-item"><label>${ICONS.shield} Campaign Day</label><span>${escapeHtml(day)}</span></div>
       </div>
     </div>
     ${facilityTabs}
@@ -1000,6 +1012,26 @@ function renderMain(rowData) {
       };
     });
   }
+
+  setupStickyHero();
+}
+
+/* The hero bar freezes under the app header so the woreda and health
+   center stay visible while scrolling the form. It collapses to a slim
+   bar once the user scrolls, and expands again near the top. */
+function setupStickyHero() {
+  const main = document.getElementById('mainArea');
+  const hero = document.getElementById('woredaHero');
+  if (!main || !hero) return;
+  const sync = () => {
+    const y = main.scrollTop;
+    if (y > 110 && !hero.classList.contains('compact')) hero.classList.add('compact');
+    else if (y < 24 && hero.classList.contains('compact')) hero.classList.remove('compact');
+  };
+  if (main.__heroSync) main.removeEventListener('scroll', main.__heroSync);
+  main.__heroSync = sync;
+  main.addEventListener('scroll', sync, { passive: true });
+  sync();
 }
 
 function updateCalcDisplay(c) {
