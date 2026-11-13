@@ -294,6 +294,8 @@
     }
     .field input:focus { outline: none; border-color: #667eea; box-shadow: var(--shadow-glow); transform: translateY(-1px); }
     .field input[readonly] { background: linear-gradient(135deg,#f0f3ff,#e8edff); color: #4c51bf; font-weight: 700; border-color: #c7d2fe; cursor: default; }
+    .field.has-error input { border-color: #e11d48; background: #fde6e6; box-shadow: 0 0 0 3px rgba(225,29,72,0.15); }
+    .field .field-err { color: #c62828; font-size: 10px; margin-top: 3px; font-weight: 600; line-height: 1.3; }
 
     .flag-red { background: linear-gradient(135deg,#ffebee,#ffcdd2) !important; color:#c62828 !important; border-color:#ef9a9a !important; animation: pulseRed 2s ease-in-out infinite; }
     @keyframes pulseRed { 0%,100%{ box-shadow:0 0 0 3px rgba(239,154,154,0.2);} 50%{ box-shadow:0 0 0 6px rgba(239,154,154,0.1);} }
@@ -895,6 +897,91 @@ function computeRow(w, day, r) {
   return { G: dt, L, M, N, O, P, X, Y, AG, AH, BA };
 }
 const fmtPct = v => v == null || isNaN(v) ? "—" : (v*100).toFixed(2) + "%";
+function validateRow(w, day, r) {
+  const n = v => (v === "" || v == null || isNaN(v)) ? 0 : Number(v);
+  const errs = [];
+  const add = (cols, msg) => errs.push({ cols: cols, msg: msg });
+
+  // Non-negative integer check (entry cells only)
+  Object.keys(r || {}).forEach(col => {
+    const v = r[col];
+    if (v === "" || v === null || v === undefined) return;
+    const num = Number(v);
+    if (!isFinite(num)) add([col], col + " must be a number.");
+    else if (!Number.isInteger(num)) add([col], col + " must be a whole number (no decimals).");
+    else if (num < 0) add([col], col + " cannot be negative.");
+  });
+
+  const L = n(r.H) + n(r.I) + n(r.J) + n(r.K);
+  // Male cannot exceed total vaccinated
+  if (r.M !== "" && r.M != null && Number(r.M) > L) add(["M"], "Male (" + r.M + ") cannot exceed total vaccinated (" + L + ").");
+  // Female check: L - M (calculated) must be >= 0 (covered by M check)
+
+  // Places of vaccination must not exceed total vaccinated
+  const pl = n(r.AT) + n(r.AU) + n(r.AV) + n(r.AW) + n(r.AX);
+  if (pl > L && L > 0) add(["AT","AU","AV","AW","AX"], "Places of vaccination sum (" + pl + ") exceeds total vaccinated (" + L + ").");
+
+  // Vial accounting: received = used + partial + returned good + broken + returned bad + lost
+  const nopvAcc = n(r.R) + n(r.S) + n(r.T) + n(r.U) + n(r.V) + n(r.W);
+  if (n(r.Q) > 0 && n(r.Q) !== nopvAcc) add(["Q","R","S","T","U","V","W"], "nOPV2 vials: received (" + n(r.Q) + ") does not match accounted (" + nopvAcc + ").");
+  const bopvAcc = n(r.AA) + n(r.AB) + n(r.AC) + n(r.AD) + n(r.AE) + n(r.AF);
+  if (n(r.Z) > 0 && n(r.Z) !== bopvAcc) add(["Z","AA","AB","AC","AD","AE","AF"], "bOPV vials: received (" + n(r.Z) + ") does not match accounted (" + bopvAcc + ").");
+
+  // Wastage sanity: doses given cannot exceed vials used capacity
+  const nopvCap = (n(r.R) + n(r.S)) * (Number(state.settings && state.settings.nopvDosesPerVial) || 50);
+  if (nopvCap > 0 && L > nopvCap) add(["Q","R","S","H","I","J","K"], "nOPV2: total vaccinated (" + L + ") exceeds vial capacity (" + nopvCap + " doses).");
+  const bopvCap = (n(r.AA) + n(r.AB)) * (Number(state.settings && state.settings.bopvDosesPerVial) || 20);
+  if (bopvCap > 0 && L > bopvCap) add(["Z","AA","AB","H","I","J","K"], "bOPV: total vaccinated (" + L + ") exceeds vial capacity (" + bopvCap + " doses).");
+
+  // Linkage: vaccinated cannot exceed identified
+  if (n(r.AO) > n(r.AN) && n(r.AN) > 0) add(["AN","AO"], "Zero-dose vaccinated (" + n(r.AO) + ") exceeds identified (" + n(r.AN) + ").");
+  if (n(r.AQ) > n(r.AP) && n(r.AP) > 0) add(["AP","AQ"], "Under-vaccinated vaccinated (" + n(r.AQ) + ") exceeds identified (" + n(r.AP) + ").");
+
+  // Daily target sanity: if day has a target, total should not be 0 on a campaign day
+  const S = state.settings || {};
+  if (["Day 1","Day 2","Day 3","Day 4"].indexOf(day) !== -1 && (r.H === "" || r.H == null) && (r.I === "" || r.I == null) && (r.J === "" || r.J == null) && (r.K === "" || r.K == null)) {
+    // allow empty (not yet entered); only flag if some data entered but total 0? skip
+  }
+
+  return errs;
+}
+function applyValidationHighlights(errs) {
+  document.querySelectorAll("#formPanel .field").forEach(f => {
+    f.classList.remove("has-error");
+    const e = f.querySelector(".field-err");
+    if (e) e.remove();
+  });
+  if (!errs || !errs.length) return;
+  errs.forEach(e => {
+    (e.cols || []).forEach(col => {
+      const inp = document.querySelector(`#formPanel input[data-col="${col}"]`);
+      if (!inp) return;
+      const field = inp.closest(".field");
+      if (!field) return;
+      field.classList.add("has-error");
+      if (!field.querySelector(".field-err")) {
+        const span = document.createElement("span");
+        span.className = "field-err";
+        span.textContent = e.msg;
+        field.appendChild(span);
+      }
+    });
+  });
+}
+
+function refreshValidation() {
+  const w = state.selectedRow;
+  if (!w) return;
+  const day = state.activeDay;
+  const inputs = {};
+  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+    if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
+    inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
+  });
+  const errs = validateRow(w, day, inputs);
+  applyValidationHighlights(errs);
+}
+
 const fmtNum = v => v == null || isNaN(v) ? "—" : Number(v).toLocaleString();
 function cfW(v) { if (v == null) return ""; return v > (Number(state.settings.wastageLimit) || 0.1) ? "flag-red" : "flag-green"; }
 function cfC(v) { if (v == null) return ""; if (v >= 1) return "flag-green"; if (v < 0.8) return "flag-yellow"; return ""; }
@@ -1034,6 +1121,7 @@ function renderMain(rowData) {
         const col = e.target.dataset.col;
         rowData[col] = clean === "" ? "" : Number(clean);
         updateCalcDisplay(computeRow(w, day, rowData));
+        refreshValidation();
       };
       inp.onpaste = e => {
         e.preventDefault();
@@ -1043,11 +1131,13 @@ function renderMain(rowData) {
         const col = e.target.dataset.col;
         rowData[col] = clean === "" ? "" : Number(clean);
         updateCalcDisplay(computeRow(w, day, rowData));
+        refreshValidation();
       };
     });
   }
 
   setupStickyHero();
+  refreshValidation();
 }
 
 /* The hero bar freezes under the app header so the woreda and health
@@ -1097,6 +1187,22 @@ function saveCurrent() {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
     inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
   });
+  // Validate before saving
+  const errs = validateRow(w, day, inputs);
+  applyValidationHighlights(errs);
+  if (errs.length) {
+    const report = errs.map((e, i) => (i + 1) + ". " + e.msg).join("<br>");
+    const el = document.getElementById("exportResult");
+    if (el) el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1));flex-direction:column;align-items:flex-start;gap:6px">
+      <span style="color:#c62828;font-weight:700">❌ Cannot save — ${errs.length} issue${errs.length > 1 ? "s" : ""} found</span>
+      <span style="color:#7f1d1d;font-size:12px;line-height:1.5">${report}</span>
+    </div>`;
+    toast("Fix the highlighted fields before saving", true);
+    return;
+  }
+  const el0 = document.getElementById("exportResult");
+  if (el0) el0.innerHTML = "";
+
   state.busy = true;
   const btn = document.getElementById("saveBtn");
   if (btn) { btn.disabled = true; btn.innerHTML = "Saving…"; }
@@ -1125,10 +1231,7 @@ function saveCurrent() {
     });
 }
 
-// ================= EXPORT (own woreda, real .xlsx) =================
-// EACH OFFICER EXPORTS ONLY THE WOREDA THEY SIGNED IN WITH. The workbook is
-// built in the browser from the server's officer-scoped data, so no other
-// woreda can ever appear in it.
+// ================= EXPORT (own woreda, real .xlsx, 7 sheets) =================
 const EXPORT_COLUMNS = [
   ["H", "Vaccinated before (0–11m)", "raw"],
   ["I", "Not vaccinated before (0–11m)", "raw"],
@@ -1148,7 +1251,6 @@ const EXPORT_COLUMNS = [
   ["V", "nOPV2 Returned – Bad Condition", "raw"],
   ["W", "nOPV2 Vials Lost", "raw"],
   ["X", "nOPV2 Wastage Rate (%) (calc)", "pct"],
-  ["Y", "nOPV2 Daily Vaccine Balance (calc)", "calc"],
   ["Z", "bOPV Vials Received", "raw"],
   ["AA", "bOPV Vials Used", "raw"],
   ["AB", "bOPV Vials Partially Used", "raw"],
@@ -1157,7 +1259,6 @@ const EXPORT_COLUMNS = [
   ["AE", "bOPV Returned – Bad Condition", "raw"],
   ["AF", "bOPV Vials Lost", "raw"],
   ["AG", "bOPV Wastage Rate (%) (calc)", "pct"],
-  ["AH", "bOPV Daily Vaccine Balance (calc)", "calc"],
   ["AI", "AFP Alerts", "raw"],
   ["AJ", "AEFI Alerts", "raw"],
   ["AK", "HHs visited by social mobilizers", "raw"],
@@ -1176,105 +1277,36 @@ const EXPORT_COLUMNS = [
   ["BA", "Total Vaccinated by Place (calc)", "calc"]
 ];
 
-function safeFilePart_(s) {
-  return String(s || "").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "woreda";
-}
-function exportColName_(n) {
-  let s = "";
-  while (n > 0) {
-    const r = (n - 1) % 26;
-    s = String.fromCharCode(65 + r) + s;
-    n = Math.floor((n - 1) / 26);
-  }
-  return s;
-}
-function xmlEscape_(v) {
-  return String(v == null ? "" : v)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-function toNumber_(v) {
-  if (v === "" || v === null || v === undefined) return "";
-  const n = Number(v);
-  return isFinite(n) ? n : "";
-}
+function safeFilePart_(s) { return String(s || "").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "woreda"; }
+function exportColName_(n) { let s = ""; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
+function xmlEscape_(v) { return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;"); }
+function toNumber_(v) { if (v === "" || v === null || v === undefined) return ""; const n = Number(v); return isFinite(n) ? n : ""; }
 let crcTable_ = null;
 function crc32_(bytes) {
-  if (!crcTable_) {
-    crcTable_ = new Uint32Array(256);
-    for (let n = 0; n < 256; n++) {
-      let c = n;
-      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-      crcTable_[n] = c >>> 0;
-    }
-  }
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < bytes.length; i++) c = crcTable_[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
-  return (c ^ 0xFFFFFFFF) >>> 0;
+  if (!crcTable_) { crcTable_ = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); crcTable_[n] = c >>> 0; } }
+  let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = crcTable_[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0;
 }
-/** Store-only zip writer: a valid .xlsx with no external libraries. */
 function zipStore_(files) {
-  const enc = new TextEncoder();
-  const parts = [];
-  const central = [];
-  let offset = 0;
+  const enc = new TextEncoder(); const parts = []; const central = []; let offset = 0;
   const now = new Date();
   const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
   const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
   files.forEach(f => {
-    const name = enc.encode(f.name);
-    const data = typeof f.data === "string" ? enc.encode(f.data) : f.data;
-    const crc = crc32_(data);
-    const lh = new Uint8Array(30 + name.length);
-    const lv = new DataView(lh.buffer);
-    lv.setUint32(0, 0x04034b50, true);
-    lv.setUint16(4, 20, true);
-    lv.setUint16(6, 0x0800, true);
-    lv.setUint16(8, 0, true);
-    lv.setUint16(10, dosTime, true);
-    lv.setUint16(12, dosDate, true);
-    lv.setUint32(14, crc, true);
-    lv.setUint32(18, data.length, true);
-    lv.setUint32(22, data.length, true);
-    lv.setUint16(26, name.length, true);
-    lv.setUint16(28, 0, true);
-    lh.set(name, 30);
-    parts.push(lh, data);
-
-    const cd = new Uint8Array(46 + name.length);
-    const cv = new DataView(cd.buffer);
-    cv.setUint32(0, 0x02014b50, true);
-    cv.setUint16(4, 20, true);
-    cv.setUint16(6, 20, true);
-    cv.setUint16(8, 0x0800, true);
-    cv.setUint16(10, 0, true);
-    cv.setUint16(12, dosTime, true);
-    cv.setUint16(14, dosDate, true);
-    cv.setUint32(16, crc, true);
-    cv.setUint32(20, data.length, true);
-    cv.setUint32(24, data.length, true);
-    cv.setUint16(28, name.length, true);
-    cv.setUint16(30, 0, true);
-    cv.setUint16(32, 0, true);
-    cv.setUint16(34, 0, true);
-    cv.setUint16(36, 0, true);
-    cv.setUint32(38, 0, true);
-    cv.setUint32(42, offset, true);
-    cd.set(name, 46);
-    central.push(cd);
-    offset += lh.length + data.length;
+    const name = enc.encode(f.name); const data = typeof f.data === "string" ? enc.encode(f.data) : f.data; const crc = crc32_(data);
+    const lh = new Uint8Array(30 + name.length); const lv = new DataView(lh.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true); lv.setUint16(8, 0, true);
+    lv.setUint16(10, dosTime, true); lv.setUint16(12, dosDate, true); lv.setUint32(14, crc, true); lv.setUint32(18, data.length, true); lv.setUint32(22, data.length, true);
+    lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true); lh.set(name, 30); parts.push(lh, data);
+    const cd = new Uint8Array(46 + name.length); const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true);
+    cv.setUint16(12, dosTime, true); cv.setUint16(14, dosDate, true); cv.setUint32(16, crc, true); cv.setUint32(20, data.length, true); cv.setUint32(24, data.length, true);
+    cv.setUint16(28, name.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true); cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true); cv.setUint32(42, offset, true);
+    cd.set(name, 46); central.push(cd); offset += lh.length + data.length;
   });
   const centralSize = central.reduce((n, c) => n + c.length, 0);
-  const eocd = new Uint8Array(22);
-  const ev = new DataView(eocd.buffer);
-  ev.setUint32(0, 0x06054b50, true);
-  ev.setUint16(8, files.length, true);
-  ev.setUint16(10, files.length, true);
-  ev.setUint32(12, centralSize, true);
-  ev.setUint32(16, offset, true);
-  return new Blob(parts.concat(central, [eocd]), {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  });
+  const eocd = new Uint8Array(22); const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true); ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true);
+  return new Blob(parts.concat(central, [eocd]), { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 function excelCell_(ref, value, style) {
   const s = style ? ` s="${style}"` : "";
@@ -1282,52 +1314,27 @@ function excelCell_(ref, value, style) {
   if (typeof value === "number" && isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`;
   return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEscape_(value)}</t></is></c>`;
 }
-function buildWoredaWorkbook_(res) {
-  const w = { totalPlanned: res.totalPlanned, teams: res.teams };
-  const totalCols = 7 + EXPORT_COLUMNS.length;
-  const lastCol = exportColName_(totalCols);
-  const rows = [];
-
-  const title = "nOPV2 / bOPV Campaign — " + (res.woreda || "") + " (ID #" + (res.woredaID || "") + ")";
-  const titleCells = [excelCell_("A1", title, 2)];
-  for (let c = 2; c <= totalCols; c++) titleCells.push(excelCell_(exportColName_(c) + "1", "", 2));
+function sheetXmlForDay_(day, res, w) {
+  const totalCols = 7 + EXPORT_COLUMNS.length; const lastCol = exportColName_(totalCols); const rows = [];
+  const title = "nOPV2 / bOPV Campaign — " + (res.woreda || "") + " (ID #" + (res.woredaID || "") + ") — " + day;
+  const titleCells = [excelCell_("A1", title, 2)]; for (let c = 2; c <= totalCols; c++) titleCells.push(excelCell_(exportColName_(c) + "1", "", 2));
   rows.push(`<row r="1" ht="28" customHeight="1">${titleCells.join("")}</row>`);
-
-  const meta = [
-    "Health center: " + (res.healthCenter || "—"),
-    "Region: " + (res.region || "—"),
-    "Zone: " + (res.zone || "—"),
-    "Total planned: " + (res.totalPlanned == null ? "—" : res.totalPlanned),
-    "Teams: " + (res.teams == null ? "—" : res.teams)
-  ];
+  const meta = ["Health center: " + (res.healthCenter || "—"), "Region: " + (res.region || "—"), "Zone: " + (res.zone || "—"), "Total planned: " + (res.totalPlanned == null ? "—" : res.totalPlanned), "Teams: " + (res.teams == null ? "—" : res.teams), "Day: " + day];
   rows.push(`<row r="2"><c r="A2" t="inlineStr"><is><t>${xmlEscape_(meta.join("   |   "))}</t></is></c></row>`);
-
-  const headers = ["Day", "Region", "Zone", "Woreda", "Health Center", "Total Planned", "Teams"]
-    .concat(EXPORT_COLUMNS.map(c => c[1]));
-  rows.push(`<row r="3" ht="32" customHeight="1">${headers.map((h, i) =>
-    excelCell_(exportColName_(i + 1) + "3", h, 1)).join("")}</row>`);
-
-  DAYS.forEach((day, i) => {
-    const r = i + 4;
-    const rowData = (res.days && res.days[day]) || {};
-    const c = computeRow(w, day, rowData);
-    const values = [
-      day, res.region || "", res.zone || "", res.woreda || "", res.healthCenter || "",
-      toNumber_(res.totalPlanned), toNumber_(res.teams)
-    ];
-    EXPORT_COLUMNS.forEach(col => {
-      const key = col[0], kind = col[2];
-      if (kind === "raw") { values.push(toNumber_(rowData[key])); return; }
-      const v = c[key];
-      if (v == null || isNaN(v)) { values.push(""); return; }
-      values.push(kind === "pct" ? Number((v * 100).toFixed(2)) : v);
-    });
-    rows.push(`<row r="${r}">${values.map((v, j) =>
-      excelCell_(exportColName_(j + 1) + r, v, 0)).join("")}</row>`);
+  const headers = ["Day", "Region", "Zone", "Woreda", "Health Center", "Total Planned", "Teams"].concat(EXPORT_COLUMNS.map(c => c[1]));
+  rows.push(`<row r="3" ht="32" customHeight="1">${headers.map((h, i) => excelCell_(exportColName_(i + 1) + "3", h, 1)).join("")}</row>`);
+  const rowData = (res.days && res.days[day]) || {};
+  const c = computeRow(w, day, rowData);
+  const values = [day, res.region || "", res.zone || "", res.woreda || "", res.healthCenter || "", toNumber_(res.totalPlanned), toNumber_(res.teams)];
+  EXPORT_COLUMNS.forEach(col => {
+    const key = col[0], kind = col[2];
+    if (kind === "raw") { values.push(toNumber_(rowData[key])); return; }
+    const v = c[key]; if (v == null || isNaN(v)) { values.push(""); return; }
+    values.push(kind === "pct" ? Number((v * 100).toFixed(2)) : v);
   });
-
+  rows.push(`<row r="4">${values.map((v, j) => excelCell_(exportColName_(j + 1) + "4", v, 0)).join("")}</row>`);
   const colsXml = `<cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="5" width="16" customWidth="1"/><col min="6" max="7" width="12" customWidth="1"/><col min="8" max="${totalCols}" width="20" customWidth="1"/></cols>`;
-  const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A4" sqref="A4"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="15"/>
@@ -1335,7 +1342,9 @@ ${colsXml}
 <sheetData>${rows.join("")}</sheetData>
 <mergeCells count="1"><mergeCell ref="A1:${lastCol}1"/></mergeCells>
 </worksheet>`;
-
+}
+function buildWoredaWorkbook_(res) {
+  const w = { totalPlanned: res.totalPlanned, teams: res.teams };
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <fonts count="3">
@@ -1357,47 +1366,45 @@ ${colsXml}
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
-
+  const workbookSheets = DAYS.map((day, i) => `<sheet name="${xmlEscape_(day)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("");
   const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets><sheet name="Woreda Data" sheetId="1" r:id="rId1"/></sheets>
+<sheets>${workbookSheets}</sheets>
 </workbook>`;
+  const rels = DAYS.map((day, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("") +
+    `<Relationship Id="rId${DAYS.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
   const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+${rels}
 </Relationships>`;
   const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
 </Relationships>`;
+  const ctSheets = DAYS.map((day, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+${ctSheets}
 <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>`;
-
-  return zipStore_([
+  const files = [
     { name: "[Content_Types].xml", data: contentTypes },
     { name: "_rels/.rels", data: rootRels },
     { name: "xl/workbook.xml", data: workbookXml },
     { name: "xl/_rels/workbook.xml.rels", data: workbookRels },
-    { name: "xl/styles.xml", data: stylesXml },
-    { name: "xl/worksheets/sheet1.xml", data: sheetXml }
-  ]);
+    { name: "xl/styles.xml", data: stylesXml }
+  ];
+  DAYS.forEach((day, i) => { files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: sheetXmlForDay_(day, res, w) }); });
+  return zipStore_(files);
 }
 function downloadBlob_(blob, fileName) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  link.href = url; link.download = fileName; link.rel = "noopener";
+  document.body.appendChild(link); link.click(); link.remove();
   return url;
 }
 function exportWoreda() {
