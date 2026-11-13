@@ -1,4 +1,4 @@
-# nOPV2 / bOPV2 Campaign — PHEM Data Entry
+# nOPV2 / bOPV Campaign — PHEM Data Entry
 
 Daily campaign data entry for PHEM officers, served as a static site on GitHub
 Pages and backed by the campaign's Google Apps Script project + Google Sheets.
@@ -32,12 +32,21 @@ Woreda ID.
 1. Open the site, enter name, email, phone and Woreda ID.
 2. The app loads the officer's own woreda row from the `Day 1` plan.
 3. Pick a campaign day, enter the numbers, press **Save**.
-4. **Export my data (CSV)** downloads the officer's own woreda for all days.
+4. **Export my woreda (Excel)** builds a `.xlsx` file in the browser containing
+   only the signed-in officer's woreda — download it or open it in a new tab.
 5. **Logout** clears the session.
 
 Officers can only read and write their own woreda row and only the input
 columns (coverage, vials, alerts, places). Plan data, identifiers, settings and
 formula columns are refused by the server.
+
+Entry cells accept **whole, non-negative numbers** only; decimals and minus
+signs are stripped as you type and rejected by the server. Calculated cells
+(daily target, totals, coverage %, wastage %, balances) stay formula-driven and
+cannot be edited.
+
+The phone number accepts both `+251910804879` and `0910804879` (any spacing) as
+the same number.
 
 The woreda bar at the top of the form is frozen while scrolling and collapses
 to a slim bar that keeps the health center name in view. The site title bar
@@ -70,10 +79,10 @@ emails:
 ADMIN_EMAILS = admin@example.org, epi-lead@example.org
 ```
 
-Administrators additionally see **Settings** (nOPV2/bOPV2 doses per vial,
+Administrators additionally see **Settings** (nOPV2/bOPV doses per vial,
 revisit counting, wastage limit, campaign length) and the full-workbook
-**Export Excel**. Everyone else gets the settings button hidden and a
-woreda-scoped CSV export.
+**Export Excel** (city-wide). Everyone else gets the settings button hidden and
+the woreda-scoped Excel export only.
 
 ## Redeploying the Apps Script backend
 
