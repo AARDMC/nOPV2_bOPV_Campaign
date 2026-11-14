@@ -729,8 +729,13 @@ function openDashboard() {
   try {
     if (state.token) localStorage.setItem("epi_token_bridge", state.token);
     if (wid) localStorage.setItem("epi_woreda_bridge", wid);
+    if (typeof state.activeFacility === "number") localStorage.setItem("epi_facility_bridge", String(state.activeFacility));
   } catch (e) {}
-  const url = wid ? ("dashboard.html?woredaID=" + encodeURIComponent(wid)) : "dashboard.html";
+  let url = "dashboard.html";
+  if (wid) {
+    url += "?woredaID=" + encodeURIComponent(wid);
+    if (typeof state.activeFacility === "number") url += "&facilityIndex=" + encodeURIComponent(state.activeFacility);
+  }
   window.open(url, "_blank", "noopener");
 }
 

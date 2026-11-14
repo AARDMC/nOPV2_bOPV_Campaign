@@ -200,7 +200,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetch(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
   function postViaIframe(body){ return new Promise(function(resolve,reject){ var url=window.CAMPAIGN_API_URL; if(!url){reject(fail('No server URL'));return;} var id='r'+Math.floor(Math.random()*1e9).toString(36); var iframe=document.createElement('iframe'); iframe.name=id; iframe.style.cssText='position:absolute;width:0;height:0;border:0;visibility:hidden'; var form=document.createElement('form'); form.method='POST'; form.action=url; form.target=id; form.style.display='none'; var fields={action:body.action,payload:JSON.stringify(body.payload||{}),token:body.token||'',transport:'iframe',requestId:id}; Object.keys(fields).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);}); var settled=false; var timer=setTimeout(function(){finish();reject(fail('Server not responding'));},60000); function finish(){if(settled)return; settled=true; clearTimeout(timer); window.removeEventListener('message',onMessage); setTimeout(function(){if(form.parentNode)form.parentNode.removeChild(form); if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},1500);} function onMessage(ev){var d=ev.data; if(!d||d.source!=='nopv2-campaign'||d.requestId!==id) return; finish(); resolve(d.result);} window.addEventListener('message',onMessage); document.body.appendChild(iframe); document.body.appendChild(form); form.submit(); }); }
   function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; return postJson(body).catch(function(){return postViaIframe(body);}).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token');}catch(e){} } return out; }); }
-  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getLogo'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; if(action==='getDashboardData') p={force:!!args[0]}; if(action==='getDashboardExport') p={}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
+  [object Object]
   window.google=window.google||{}; window.google.script=window.google.script||{};
   Object.defineProperty(window.google.script,'run',{configurable:true,get:function(){return makeRunner();}});
 })();
@@ -221,8 +221,11 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 
 <header class="top">
   <div class="top-inner">
-    <div class="brand">
-      <img id="logo" class="logo" src="assets/logo.jpg" alt="Health Bureau logo">
+    <div class="brand" style="gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <img id="logo" class="logo" src="assets/logo.jpg" alt="Health Bureau logo" style="width:68px;height:68px;">
+        <img src="assets/badge.png" alt="" style="width:58px;height:58px;object-fit:contain;flex:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));">
+      </div>
       <div class="org">
         <div class="am">አዲስ አበባ ከተማ አስተዳደር<br>ጤና ቢሮ</div>
         <div class="en">ADDIS ABABA CITY ADMINISTRATION<br>HEALTH BUREAU</div>
@@ -231,7 +234,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     </div>
     <div class="navwrap">
       <div class="tt"><div class="heroart" id="heroArt" aria-hidden="true"></div><div>
-        <h1 id="title">nOPV2 campaign update</h1>
+        <h1 id="title">Addis Ababa City Adminstration Health Bureau nOPV2 + bOPV Campaign Dashboard</h1>
         <span class="yel" id="subtitle">Loading data from the campaign workbook</span>
       </div></div>
       <div class="datebox">
@@ -248,6 +251,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   <div class="filters-inner">
     <div class="fld"><label for="fZone">Zone</label><select id="fZone"></select></div>
     <div class="fld"><label for="fWoreda">Woreda</label><select id="fWoreda" disabled></select></div>
+    <div class="fld" id="hcField" style="display:none"><label for="fHC">Health center</label><select id="fHC"></select></div>
     <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
     <button class="btn solid" id="btnExport" type="button">Export Excel</button>
@@ -288,7 +292,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 /* ===================== LOGIC ===================== */
 let CFG = null, M = null;
 const S = { zone:'all', woreda:'all', upTo:0, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all' };
-let DASH_SCOPE = { mode:'all', zone:'', woreda:'', woredaID:'' };
+let DASH_SCOPE = { mode:'all', zone:'', woreda:'', woredaID:'', facilities: [], facilityCount: 0, facilityIndex: -1 };
+let DASH_FACILITY = -1;
 
 const nf = new Intl.NumberFormat('en-US');
 const fmt = n => (n == null || !isFinite(n)) ? '–' : nf.format(Math.round(n));
@@ -743,6 +748,19 @@ function updateHeader() {
   const d = M.days[S.upTo];
   $('#repDate').textContent = d && d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : (d ? d.label : '–');
 }
+function updateHCSelector() {
+  const hcField = $('#hcField');
+  if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilities && DASH_SCOPE.facilities.length > 1) {
+    hcField.style.display = '';
+    const hcSel = $('#fHC');
+    const prev = String(DASH_FACILITY >= 0 ? DASH_FACILITY : 0);
+    hcSel.innerHTML = DASH_SCOPE.facilities.map((f,i)=>'<option value="'+i+'"'+(String(i)===prev?' selected':'')+'>'+esc(f)+'</option>').join('');
+    if (DASH_FACILITY < 0) DASH_FACILITY = 0;
+    hcSel.value = String(DASH_FACILITY);
+  } else {
+    hcField.style.display = 'none';
+  }
+}
 function fillFilters() {
   $('#fZone').innerHTML = '<option value="all">All zones</option>' + M.zones.map(z => '<option>' + esc(z) + '</option>').join('');
   $('#fZone').value = S.zone;
@@ -751,6 +769,7 @@ function fillFilters() {
     if (DASH_SCOPE.zone) { S.zone = DASH_SCOPE.zone; $('#fZone').value = S.zone; $('#fZone').disabled = true; }
   }
   fillWoredas();
+  updateHCSelector();
   $('#fDay').innerHTML = M.days.map((d, i) => i > M.last ? '' : '<option value="' + i + '">' + esc(dayText(i)) + '</option>').join('');
   $('#fDay').value = S.upTo;
 }
@@ -767,7 +786,8 @@ function fillWoredas() {
 }
 function onData(payload) {
   if (!payload || payload.ok === false) { showError(payload && payload.error ? payload.error : 'Failed to load data'); return; }
-  if (payload.scope) DASH_SCOPE = payload.scope;
+  if (payload.scope) DASH_SCOPE = Object.assign({facilities:[],facilityCount:0,facilityIndex:-1}, payload.scope);
+  if (payload.scope && payload.scope.facilityIndex != null && payload.scope.facilityIndex >= 0) DASH_FACILITY = payload.scope.facilityIndex;
   buildModel(payload);
   if (!onData.done) { S.upTo = M.last; onData.done = true; }
   if (S.upTo > M.last || !M.days[S.upTo]) S.upTo = M.last;
@@ -778,7 +798,9 @@ function onData(payload) {
   $('#title').textContent = M.meta.title;
   const first = M.days[0] && M.days[0].date, lastD = M.days[M.last] && M.days[M.last].date;
   const f = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-  $('#subtitle').textContent = 'Round 5 | ' + M.units.length + ' woredas in ' + M.zones.length + ' zones' + (first && lastD ? ', ' + f(first) + ' to ' + f(lastD) : '');
+  let sub = 'nOPV2 + bOPV Campaign | ' + M.units.length + ' woredas in ' + M.zones.length + ' zones' + (first && lastD ? ', ' + f(first) + ' to ' + f(lastD) : '');
+  if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilities && DASH_SCOPE.facilities.length > 1 && DASH_FACILITY >= 0 && DASH_SCOPE.facilities[DASH_FACILITY]) sub += ' | ' + DASH_SCOPE.facilities[DASH_FACILITY];
+  $('#subtitle').textContent = sub;
   $('#stamp').textContent = 'Data read ' + M.meta.generated;
   fillFilters(); render();
   $('#btnRefresh').disabled = false; $('#btnRefresh').textContent = 'Refresh';
@@ -800,8 +822,9 @@ function toast(html, isErr) {
 
 function load(force) {
   $('#btnRefresh').disabled = true; $('#btnRefresh').textContent = 'Refreshing';
-  const token = sessionStorage.getItem('dash_token') || sessionStorage.getItem('epi_token') || '';
-  google.script.run.withSuccessHandler(onData).withFailureHandler(function(err){ showError(err); }).getDashboardData(!!force);
+  const payload = (force && typeof force === 'object') ? force : { force: !!force };
+  if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
+  google.script.run.withSuccessHandler(onData).withFailureHandler(function(err){ showError(err); }).getDashboardData(payload);
 }
 
 // Login
@@ -809,7 +832,7 @@ function doDashLogin() {
   const id = document.getElementById('dashId').value.trim();
   const err = document.getElementById('dashErr');
   err.textContent = '';
-  if (!id) { err.textContent = 'Enter your Sub City ID.'; return; }
+  if (!id) { err.textContent = 'Enter your ID.'; return; }
   document.getElementById('dashLoginBtn').disabled = true;
   google.script.run
     .withSuccessHandler(function(res){
@@ -817,7 +840,7 @@ function doDashLogin() {
       if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return; }
       try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
       document.getElementById('dashLogin').classList.add('hidden');
-      if (res.dashboard) { DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone || '', woreda: res.dashboard.woreda || '', woredaID: res.dashboard.woredaID || '' }; }
+      if (res.dashboard) { DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone || '', woreda: res.dashboard.woreda || '', woredaID: res.dashboard.woredaID || '', facilities: res.dashboard.facilities || [], facilityCount: res.dashboard.facilityCount || 0, facilityIndex: -1 }; if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; }
       load(false);
     })
     .withFailureHandler(function(e){ document.getElementById('dashLoginBtn').disabled = false; err.textContent = (e && e.message) || String(e); })
@@ -986,6 +1009,7 @@ ${ctSheets}
 function doDashboardExport(){
   if(!M){ toast('Load the dashboard first.', true); return; }
   setBusy('Preparing export', 'Building Excel mirror of the campaign sheet…');
+  const payload = {}; if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
   google.script.run
     .withSuccessHandler(function(res){
       if(!res || !res.ok){ setBusy(null); toast('Export failed: '+esc((res&&res.error)||'unknown'), true); return; }
@@ -996,6 +1020,7 @@ function doDashboardExport(){
         if(scope.woreda) name += '_' + scope.woreda.replace(/[^\w.-]+/g,'_');
         else if(scope.zone) name += '_' + scope.zone.replace(/[^\w.-]+/g,'_');
         else name += '_Addis_Ababa';
+        if(scope.facilityIndex!=null && scope.facilityIndex>=0 && DASH_SCOPE.facilities && DASH_SCOPE.facilities[scope.facilityIndex]) name += '_' + String(DASH_SCOPE.facilities[scope.facilityIndex]).replace(/[^\w.-]+/g,'_');
         name += '.xlsx';
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
@@ -1004,7 +1029,7 @@ function doDashboardExport(){
       } catch(e){ setBusy(null); toast('Export failed: '+esc(e&&e.message?e.message:e), true); }
     })
     .withFailureHandler(function(err){ setBusy(null); toast('Export failed: '+esc(err&&err.message?err.message:err), true); })
-    .getDashboardExport();
+    .getDashboardExport(payload);
 }
 
 
@@ -1016,6 +1041,7 @@ function init() {
   $('#fZone').addEventListener('change', e => { S.zone = e.target.value; S.woreda = 'all'; fillWoredas(); render(); });
   $('#fWoreda').addEventListener('change', e => { S.woreda = e.target.value; render(); });
   $('#fDay').addEventListener('change', e => { S.upTo = Number(e.target.value); render(); });
+  $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
   $('#btnReset').addEventListener('click', () => {
     if (DASH_SCOPE.mode === 'woreda') { S.zone = DASH_SCOPE.zone; S.woreda = DASH_SCOPE.woreda; }
     else if (DASH_SCOPE.mode === 'zone') { S.zone = DASH_SCOPE.zone; S.woreda = 'all'; }
@@ -1032,14 +1058,17 @@ function init() {
   let epiToken = sessionStorage.getItem('epi_token');
   const dashToken = sessionStorage.getItem('dash_token');
   const params = new URLSearchParams(location.search);
+  if (params.get('facilityIndex') != null) { const fi = parseInt(params.get('facilityIndex'), 10); if (!isNaN(fi)) DASH_FACILITY = fi; }
   if (!epiToken) {
     try {
       const bridged = localStorage.getItem('epi_token_bridge');
-      if (bridged && (params.get('woredaID') || sessionStorage.getItem('epi_woreda_bridge'))) {
+      if (bridged && (params.get('woredaID') || sessionStorage.getItem('epi_woreda_bridge') || localStorage.getItem('epi_woreda_bridge'))) {
         epiToken = bridged;
         sessionStorage.setItem('epi_token', bridged);
       }
+      if (DASH_FACILITY < 0) { const fb = localStorage.getItem('epi_facility_bridge'); if (fb != null) { const fi2=parseInt(fb,10); if(!isNaN(fi2)) DASH_FACILITY=fi2; } }
       localStorage.removeItem('epi_token_bridge');
+      localStorage.removeItem('epi_facility_bridge');
     } catch (e) {}
   }
   if (params.get('woredaID') && epiToken) {
@@ -1057,7 +1086,7 @@ function init() {
   }
   if (dashToken) {
     document.getElementById('dashLogin').classList.add('hidden');
-    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '' }; } catch(e){}
+    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '', facilities: info.facilities || [], facilityCount: info.facilityCount || 0, facilityIndex: -1 }; if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; } catch(e){}
     load(false);
     return;
   }
