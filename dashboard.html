@@ -189,6 +189,31 @@ td.wrap{white-space:normal;text-align:left;min-width:240px}
 .foot .tag{margin-top:8px;font-style:italic;font-size:14px;font-weight:500;color:#DCEBFA}
 @media(max-width:700px){.foot .pillars i{display:none}}
 .backlink{color:#fff;text-decoration:none;font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:4px}
+
+/* Presenter */
+#presenter{position:fixed;inset:0;background:#08152e;color:#fff;z-index:10000;display:none;flex-direction:column}
+#presenter.show{display:flex}
+#presenter .p-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.12)}
+#presenter .p-title{font-size:14px;font-weight:600;color:#e6f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55vw}
+#presenter .p-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+#presenter .p-btn{border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;font:inherit}
+#presenter .p-btn:hover{background:rgba(255,255,255,0.16)}
+#presenter .p-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#presenter .slide{width:min(1200px,96vw);min-height:min(675px,78vh);background:linear-gradient(135deg,#0f2552,#123a7a);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);padding:34px 38px;display:none;flex-direction:column;gap:14px}
+#presenter .slide.active{display:flex}
+#presenter .slide h1{margin:0;font-size:42px;line-height:1.15;color:#fff}
+#presenter .slide h2{margin:0;font-size:30px;line-height:1.2;color:#fff}
+#presenter .slide .muted{color:#cfe0ff;font-size:18px}
+#presenter .kgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:8px}
+#presenter .kcard{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:14px}
+#presenter .kcard .l{font-size:13px;color:#d7e7ff;margin-bottom:6px}
+#presenter .kcard .v{font-size:28px;font-weight:700;color:#fff}
+#presenter .tblwrap{background:rgba(255,255,255,0.96);border-radius:12px;overflow:auto;max-height:52vh}
+#presenter table{width:100%;border-collapse:collapse;font-size:15px;color:#0f172a}
+#presenter th,#presenter td{padding:10px 12px;border-bottom:1px solid #dbe5f3;text-align:left;vertical-align:top}
+#presenter th{background:#eaf2ff;color:#0f2552;font-weight:700;position:sticky;top:0}
+#presenter .p-foot{padding:8px 14px;color:#cfe0ff;font-size:13px;text-align:center;border-top:1px solid rgba(255,255,255,0.12)}
+@media (max-width:800px){#presenter .slide{padding:22px;min-height:auto}#presenter .slide h1{font-size:30px}#presenter .slide h2{font-size:24px}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}#presenter table{font-size:13px}#presenter .p-title{max-width:40vw}}
 </style>
 <script>
 window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1lMEcqzTLYxB3tgksV6eKyJ403wh6Yg68Kje42ZRBps4ZdqeZFbIauZk/exec";
@@ -268,6 +293,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
     <button class="btn solid" id="btnExport" type="button" title="Download filtered Excel on your device">Download Excel</button>
     <button class="btn solid" id="btnExportPpt" type="button" title="Download filtered presentation (PPT) on your device">Download PPT</button>
+    <button class="btn dark" id="btnPresent" type="button" title="Present dashboard in full screen">▶ Present</button>
   </div>
 </div>
 <div class="tabbar">
@@ -300,6 +326,21 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   </div>
   <div class="tag">Vaccinate Every Child, Stop Polio Together</div>
 </footer>
+
+<div id="presenter" aria-hidden="true">
+  <div class="p-top">
+    <div class="p-title" id="presentTitle">Presentation</div>
+    <div class="p-actions">
+      <button class="p-btn" id="prevSlide" type="button">◀ Prev</button>
+      <span id="slideCount" style="font-size:13px;color:#d7e7ff;min-width:70px;text-align:center">1 / 1</span>
+      <button class="p-btn" id="nextSlide" type="button">Next ▶</button>
+      <button class="p-btn" id="fsSlide" type="button">⛶ Full screen</button>
+      <button class="p-btn" id="exitSlide" type="button">✕ Exit</button>
+    </div>
+  </div>
+  <div class="p-stage" id="presentStage"></div>
+  <div class="p-foot">Use ← → keys to navigate, Esc to exit presentation.</div>
+</div>
 
 <script>
 /* ===================== LOGIC ===================== */
@@ -1190,6 +1231,70 @@ function doDashboardExport(){
 
 
 
+function buildPresentationSlides(){
+  const scopeTitle = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.woreda) ? (DASH_SCOPE.zone+' / '+DASH_SCOPE.woreda) : (DASH_SCOPE.mode==='zone' && DASH_SCOPE.zone ? DASH_SCOPE.zone : 'Addis Ababa (Scoped View)');
+  const hcName = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.facilities && DASH_FACILITY>=0 && DASH_SCOPE.facilities[DASH_FACILITY]) ? DASH_SCOPE.facilities[DASH_FACILITY] : '';
+  const asOf = 'Cumulative through ' + dayText(S.upTo);
+  const stamp = M.meta && M.meta.generated ? ('Data read ' + M.meta.generated) : '';
+  const units = scopeUnits(), recs = scopeRecs(), tgt = tgtOf(units);
+  const cum = sumRecs(recs.filter(r=>r.d<=S.upTo));
+  const cur = sumRecs(recs.filter(r=>r.d===S.upTo));
+  const c = cov(cum.tot, tgt), w = wastage(cum), bw = bWastage(cum);
+  const rows = unitRows();
+  const atT = rows.filter(r=>r.cov!=null && r.cov>=CFG.targetCoverage).length;
+  const below = rows.filter(r=>r.cov!=null && r.cov<CFG.warnCoverage).length;
+  const dt = dayTotals(recs).slice(0,S.upTo+1);
+  const g = groups(rows).slice().sort((a,b)=> (a.cov||0)-(b.cov||0));
+  const flags = [];
+  rows.forEach(r=>{ const cnt=(r.flags||0); if(cnt>0) flags.push({name:r.u.woreda+' - '+(r.u.hc||'HC'), cov:r.cov, tot:r.a.tot, tgt:r.tgt, flags:cnt}); });
+  flags.sort((a,b)=> b.flags-a.flags || (a.cov||0)-(b.cov||0));
+  return { scopeTitle, hcName, asOf, stamp, tgt, cum, cur, c, w, bw, rows, atT, below, dt, g, flags };
+}
+
+let PRESENT_INDEX = 0;
+function renderPresenter(){
+  const stage = document.getElementById('presentStage');
+  if(!stage || !M) return;
+  const d = buildPresentationSlides();
+  const kpis = [
+    ['Cumulative vaccinated', fmt(d.cum.tot)], ['Target (scope)', fmt(d.tgt)], ['Coverage', pct(d.c)],
+    ['Vaccinated (selected day)', fmt(d.cur.tot)], ['At/above target', fmt(d.atT)+' / '+fmt(d.rows.length)], ['Below '+pct(CFG.warnCoverage,0), fmt(d.below)],
+    ['nOPV2 wastage', pct(d.w)], ['bOPV wastage', pct(d.bw)], ['Not vaccinated before', fmt((d.cum.n011||0)+(d.cum.n1259||0))], ['AEFI reported', fmt((d.cum.aefiM||0)+(d.cum.aefiS||0))]
+  ];
+  const slides = [];
+  slides.push('<section class="slide active"><div class="muted">Addis Ababa City Administration Health Bureau</div><h1>'+esc(M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard')+'</h1><div class="muted">'+esc(d.scopeTitle + (d.hcName?(' — '+d.hcName):''))+'</div><div class="muted">'+esc(d.asOf)+'</div><div class="muted" style="margin-top:auto">'+esc(d.stamp)+'</div><div class="muted">AAPHREML • Designed by: Addis Ababa City Data Management Center</div></section>');
+  slides.push('<section class="slide"><h2>Overview (Filtered)</h2><div class="muted">'+esc(d.scopeTitle + (d.hcName?(' — '+d.hcName):''))+' | '+esc(d.asOf)+'</div><div class="kgrid">'+kpis.map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div></div>').join('')+'</div></section>');
+  slides.push('<section class="slide"><h2>Daily Performance</h2><div class="tblwrap"><table><thead><tr><th>Day</th><th>Vaccinated</th><th>Daily target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.dt.map((a,i)=>'<tr><td>'+esc(dayText(i))+'</td><td>'+fmt(a.tot)+'</td><td>'+fmt(a.dtgt)+'</td><td>'+pct(a.dtgt? a.tot/a.dtgt:null)+'</td><td>'+pct(wastage(a))+'</td><td>'+pct(bWastage(a))+'</td></tr>').join('')+'</tbody></table></div></section>');
+  slides.push('<section class="slide"><h2>Coverage by '+(groupBy()==='zone'?'Zone':'Woreda')+'</h2><div class="tblwrap"><table><thead><tr><th>Name</th><th>Vaccinated</th><th>Target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.g.slice(0,18).map(x=>'<tr><td>'+esc(x.key)+'</td><td>'+fmt(x.a.tot)+'</td><td>'+fmt(x.tgt)+'</td><td>'+pct(x.cov)+'</td><td>'+pct(x.w)+'</td><td>'+pct(x.bw)+'</td></tr>').join('')+'</tbody></table></div></section>');
+  slides.push('<section class="slide"><h2>Vaccine Use Summary</h2><div class="tblwrap"><table><thead><tr><th>Metric</th><th>nOPV2</th><th>bOPV</th></tr></thead><tbody>'+
+    [['Vials received',fmt(d.cum.rec),fmt(d.cum.brec||0)],['Vials used',fmt(d.cum.used),fmt(d.cum.bused||0)],['Partially used',fmt(d.cum.part),fmt(d.cum.bpart||0)],['Returned (good)',fmt(d.cum.retG),fmt(d.cum.bretG||0)],['Broken/bad/lost',fmt((d.cum.brk||0)+(d.cum.retB||0)+(d.cum.lost||0)),fmt((d.cum.bbrk||0)+(d.cum.bretB||0)+(d.cum.blost||0))],['Doses given',fmt(d.cum.tot),fmt(d.cum.tot)],['Wastage',pct(d.w),pct(d.bw)]].map(r=>'<tr><td>'+esc(r[0])+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('')+
+  '</tbody></table></div></section>');
+  if(d.flags.length){ slides.push('<section class="slide"><h2>Data Quality Flags (Top)</h2><div class="tblwrap"><table><thead><tr><th>Woreda / HC</th><th>Coverage</th><th>Vaccinated</th><th>Target</th><th>Flags</th></tr></thead><tbody>'+d.flags.slice(0,18).map(f=>'<tr><td>'+esc(f.name)+'</td><td>'+pct(f.cov)+'</td><td>'+fmt(f.tot)+'</td><td>'+fmt(f.tgt)+'</td><td>'+esc(f.flags)+'</td></tr>').join('')+'</tbody></table></div></section>'); }
+  stage.innerHTML = slides.join('');
+  PRESENT_INDEX = 0;
+  updatePresenter();
+  document.getElementById('presentTitle').textContent = (M.meta && M.meta.title ? M.meta.title : 'Campaign Dashboard') + ' — ' + d.scopeTitle + (d.hcName ? (' / '+d.hcName) : '');
+}
+function updatePresenter(){
+  const slides = document.querySelectorAll('#presentStage .slide');
+  slides.forEach((s,i)=>s.classList.toggle('active', i===PRESENT_INDEX));
+  const c = document.getElementById('slideCount'); if(c) c.textContent = (slides.length ? (PRESENT_INDEX+1)+' / '+slides.length : '0 / 0');
+}
+function openPresenter(){
+  if(!M){ toast('Load the dashboard first.', true); return; }
+  renderPresenter();
+  const p = document.getElementById('presenter'); if(!p) return;
+  p.classList.add('show'); p.setAttribute('aria-hidden','false');
+}
+function closePresenter(){
+  const p = document.getElementById('presenter'); if(!p) return;
+  p.classList.remove('show'); p.setAttribute('aria-hidden','true');
+  if(document.fullscreenElement && document.exitFullscreen){ document.exitFullscreen().catch(function(){}); }
+}
+function nextPresenter(){ const n = document.querySelectorAll('#presentStage .slide').length; if(!n) return; PRESENT_INDEX = (PRESENT_INDEX + 1) % n; updatePresenter(); }
+function prevPresenter(){ const n = document.querySelectorAll('#presentStage .slide').length; if(!n) return; PRESENT_INDEX = (PRESENT_INDEX - 1 + n) % n; updatePresenter(); }
+function togglePresenterFs(){ const p=document.getElementById('presenter'); if(!p) return; if(!document.fullscreenElement){ (p.requestFullscreen||p.webkitRequestFullscreen||p.msRequestFullscreen||function(){}).call(p); } else { (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document); } }
+
 function doPptExport(){
   if(!M){ toast('Load the dashboard first.', true); return; }
   if(typeof PptxGenJS === 'undefined'){ toast('Presentation library is still loading. Please try again in a moment.', true); return; }
@@ -1316,6 +1421,12 @@ function init() {
   $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
   $('#btnExport').addEventListener('click', doDashboardExport);
   $('#btnExportPpt').addEventListener('click', doPptExport);
+  $('#btnPresent').addEventListener('click', openPresenter);
+  const _psPrev = document.getElementById('prevSlide'); if(_psPrev) _psPrev.addEventListener('click', prevPresenter);
+  const _psNext = document.getElementById('nextSlide'); if(_psNext) _psNext.addEventListener('click', nextPresenter);
+  const _psExit = document.getElementById('exitSlide'); if(_psExit) _psExit.addEventListener('click', closePresenter);
+  const _psFs = document.getElementById('fsSlide'); if(_psFs) _psFs.addEventListener('click', togglePresenterFs);
+  document.addEventListener('keydown', function(e){ const p=document.getElementById('presenter'); if(!p || !p.classList.contains('show')) return; if(e.key==='Escape'){ closePresenter(); } else if(e.key==='ArrowRight' || e.key==='PageDown' || e.key===' '){ e.preventDefault(); nextPresenter(); } else if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); prevPresenter(); } });
   $('#btnReset').addEventListener('click', () => {
     if (DASH_SCOPE.mode === 'woreda') { S.zone = DASH_SCOPE.zone; S.woreda = DASH_SCOPE.woreda; }
     else if (DASH_SCOPE.mode === 'zone') { S.zone = DASH_SCOPE.zone; S.woreda = 'all'; }
