@@ -932,7 +932,7 @@ function renderMap(){
         rollup(unitRows(), r => r.u.zone).forEach(g => { covByZone[normName(g.key)] = g.cov; });
       } catch(e){}
       function propVals(p){
-        const keys = ['woreda','Woreda','WOREDA','woreda_name','Woreda_Name','woredaName','woreda_id','Woreda_ID','subcity','Subcity','SUBCITY','sub_city','Sub_City','zone','Zone','ZONE','name','NAME','Name','ADM3_EN','ADM2_EN','ADM1_EN','W_NAME','Z_NAME','WEREDA','WOREDA_NAM'];
+        const keys = ['woreda','Woreda','WOREDA','woreda_name','Woreda_Name','woredaName','woreda_id','Woreda_ID','wid','WID','Wid','id','ID','label','Label','LABEL','pathid','PathId','PATHID','subcity','Subcity','SUBCITY','sub_city','Sub_City','zone','Zone','ZONE','name','NAME','Name','ADM3_EN','ADM2_EN','ADM1_EN','W_NAME','Z_NAME','WEREDA','WOREDA_NAM'];
         const vals = [];
         keys.forEach(k=>{ if (p && p[k] != null && String(p[k]).trim()!=='') vals.push(normName(p[k])); });
         return vals;
@@ -949,16 +949,25 @@ function renderMap(){
         if (!vals.length) return true; // unknown schema: keep (avoid hiding everything)
         const z = normName(DASH_SCOPE.zone || '');
         const w = normName(DASH_SCOPE.woreda || '');
+        const wid = String(DASH_SCOPE.woredaID == null ? '' : DASH_SCOPE.woredaID).trim();
         if (DASH_SCOPE.mode === 'zone') {
           if (!z) return true;
           return vals.some(v => v === z || v.indexOf(z) !== -1 || z.indexOf(v) !== -1);
         }
         if (DASH_SCOPE.mode === 'woreda') {
+          if (wid) {
+            const fw = p.wid != null ? String(p.wid).trim() : (p.WID != null ? String(p.WID).trim() : (p.woreda_id != null ? String(p.woreda_id).trim() : (p.Woreda_ID != null ? String(p.Woreda_ID).trim() : '')));
+            if (fw && fw === wid) return true;
+            const widNorm = normName(wid);
+            const widRe = new RegExp('(^|[^0-9])' + wid.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + '([^0-9]|$)');
+            if (p.label && widRe.test(String(p.label))) return true;
+            if (p.pathid && (String(p.pathid).indexOf('-' + wid) !== -1 || String(p.pathid).indexOf('Woreda-' + wid) !== -1 || normName(p.pathid).indexOf(widNorm) !== -1)) return true;
+            if (vals.some(v => v === widNorm)) return true;
+          }
           if (w) {
             const woredaMatch = vals.some(v => v === w || v.indexOf(w) !== -1 || w.indexOf(v) !== -1);
             if (woredaMatch) return true;
           }
-          // if woreda name doesn't match but zone does, keep only when no woreda-level props? better exclude unless woreda match; but fallback: if only zone-level features exist, don't hide all incorrectly
           return false;
         }
         return true;
