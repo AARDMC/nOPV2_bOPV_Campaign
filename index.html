@@ -1024,9 +1024,13 @@ function validateRow(w, day, r) {
   if (r.M !== "" && r.M != null && Number(r.M) > L) add(["M"], "Male (" + r.M + ") cannot exceed total vaccinated (" + L + ").");
   // Female check: L - M (calculated) must be >= 0 (covered by M check)
 
-  // Places of vaccination must not exceed total vaccinated
+  // Total Vaccinated by Place must equal Total Vaccinated (0–59 months)
   const pl = n(r.AT) + n(r.AU) + n(r.AV) + n(r.AW) + n(r.AX);
-  if (pl > L && L > 0) add(["AT","AU","AV","AW","AX"], "Places of vaccination sum (" + pl + ") exceeds total vaccinated (" + L + ").");
+  if (pl !== L) {
+    const diff = pl - L;
+    const diffText = diff > 0 ? (diff + " more than total") : (Math.abs(diff) + " less than total");
+    add(["AT","AU","AV","AW","AX","H","I","J","K"], "Total Vaccinated by Place (" + pl + ") must equal Total Vaccinated 0–59 months (" + L + "). Difference: " + diffText + " — flag for review.");
+  }
 
   // Vial accounting: received = used + partial + returned good + broken + returned bad + lost
   const nopvAcc = n(r.R) + n(r.S) + n(r.T) + n(r.U) + n(r.V) + n(r.W);
@@ -1034,11 +1038,13 @@ function validateRow(w, day, r) {
   const bopvAcc = n(r.AA) + n(r.AB) + n(r.AC) + n(r.AD) + n(r.AE) + n(r.AF);
   if (n(r.Z) > 0 && n(r.Z) !== bopvAcc) add(["Z","AA","AB","AC","AD","AE","AF"], "bOPV vials: received (" + n(r.Z) + ") does not match accounted (" + bopvAcc + ").");
 
-  // Wastage sanity: doses given cannot exceed vials used capacity (X uses =((Q-T)*50-L)/((Q-T)*50))
-  const nopvCap = (n(r.R) + n(r.S)) * 50;
-  if (nopvCap > 0 && L > nopvCap) add(["Q","R","S","H","I","J","K"], "nOPV2: total vaccinated (" + L + ") exceeds vial capacity (" + nopvCap + " doses).");
-  const bopvCap = (n(r.AA) + n(r.AB)) * (Number(state.settings && state.settings.bopvDosesPerVial) || 20);
-  if (bopvCap > 0 && L > bopvCap) add(["Z","AA","AB","H","I","J","K"], "bOPV: total vaccinated (" + L + ") exceeds vial capacity (" + bopvCap + " doses).");
+  // Vial capacity sanity (cannot vaccinate more children than vials used can hold)
+  const nopvVialsUsed = n(r.R) + n(r.S);
+  const nopvCap = nopvVialsUsed * 50;
+  if (nopvCap > 0 && L > nopvCap) add(["Q","R","S","H","I","J","K"], "nOPV2: total vaccinated (" + L + ") exceeds vial capacity (" + nopvCap + " doses from " + nopvVialsUsed + " vial(s) used at 50 children/vial).");
+  const bopvVialsUsed = n(r.AA) + n(r.AB);
+  const bopvCap = bopvVialsUsed * 20;
+  if (bopvCap > 0 && L > bopvCap) add(["Z","AA","AB","H","I","J","K"], "bOPV: total vaccinated (" + L + ") exceeds vial capacity (" + bopvCap + " doses from " + bopvVialsUsed + " vial(s) used at 20 children/vial).");
 
   // Linkage: vaccinated cannot exceed identified
   if (n(r.AO) > n(r.AN) && n(r.AN) > 0) add(["AN","AO"], "Zero-dose vaccinated (" + n(r.AO) + ") exceeds identified (" + n(r.AN) + ").");
@@ -1105,9 +1111,71 @@ function refreshValidation() {
 }
 
 const fmtNum = v => v == null || isNaN(v) ? "—" : Number(v).toLocaleString();
+const fmtRatio = v => (v == null || !isFinite(v)) ? "—" : (Math.round(v * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
 function cfW(v) { if (v == null) return ""; return v > (Number(state.settings.wastageLimit) || 0.1) ? "flag-red" : "flag-green"; }
 function cfC(v) { if (v == null) return ""; if (v >= 1) return "flag-green"; if (v < 0.8) return "flag-yellow"; return ""; }
 function cfB(v) { if (v == null) return ""; return v < 0 ? "flag-red" : ""; }
+
+function vialCoverageInfo_(label, children, vialsUsed, expectedPerVial) {
+  if (!(vialsUsed > 0)) {
+    return { status: "none", html: `<div class="vial-alert"><div class="va-title">${escapeHtml(label)} vial coverage</div><div>Enter vials used (used + partially used) to check coverage per vial.</div></div>` };
+  }
+  const ratio = children / vialsUsed;
+  let status = "within", statusText = "Within expected range";
+  if (ratio > expectedPerVial) { status = "above"; statusText = "Above expected (fewer droplets per child)"; }
+  else if (ratio < expectedPerVial) { status = "below"; statusText = "Below expected (more droplets per child / vaccine overuse)"; }
+  const cls = status === "within" ? "good" : (status === "above" ? "warn" : "bad");
+  const note = status === "within"
+    ? "Coverage per vial is within the expected range."
+    : (status === "above"
+      ? "More children than expected were vaccinated per vial — possible fewer droplets per child or data-entry inconsistency. Flag for review."
+      : "Fewer children than expected were vaccinated per vial — possible more droplets per child, vaccine overuse, or data-entry inconsistency. Flag for review.");
+  const html = `<div class="vial-alert ${cls}">
+    <div class="va-title">${escapeHtml(label)} vial coverage: ${escapeHtml(statusText)}</div>
+    <div class="va-grid">
+      <div><b>Children vaccinated:</b> ${fmtNum(children)}</div>
+      <div><b>Vials used:</b> ${fmtNum(vialsUsed)}</div>
+      <div><b>Expected children/vial:</b> ${fmtNum(expectedPerVial)}</div>
+      <div><b>Calculated ratio:</b> ${fmtRatio(ratio)} children/vial</div>
+      <div><b>Status:</b> ${escapeHtml(statusText)}</div>
+    </div>
+    <div style="margin-top:4px">${escapeHtml(note)}</div>
+  </div>`;
+  return { status, html };
+}
+
+function placeDiffInfo_(L, BA) {
+  const diff = BA - L;
+  if (diff === 0) {
+    return `<div class="place-diff-note good" id="placeDiffNote">Total Vaccinated by Place equals Total Vaccinated (0–59 months): ${fmtNum(BA)} = ${fmtNum(L)} (difference 0).</div>`;
+  }
+  const dir = diff > 0 ? "higher than" : "lower than";
+  return `<div class="place-diff-note bad" id="placeDiffNote">Flag for review: Total Vaccinated by Place (${fmtNum(BA)}) is ${Math.abs(diff)} ${dir} Total Vaccinated 0–59 months (${fmtNum(L)}). Difference: ${diff > 0 ? "+" : ""}${fmtNum(diff)}.</div>`;
+}
+
+function currentInputsFromForm_() {
+  const inputs = {};
+  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+    if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
+    inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
+  });
+  return inputs;
+}
+
+function updateCoverageAlertsDisplay_(r, c) {
+  const n = v => (v === "" || v == null || isNaN(v)) ? 0 : Number(v);
+  const L = n(r.H) + n(r.I) + n(r.J) + n(r.K);
+  const nopv = vialCoverageInfo_("nOPV2", L, n(r.R) + n(r.S), 50);
+  const bopv = vialCoverageInfo_("bOPV", L, n(r.AA) + n(r.AB), 20);
+  const nEl = document.getElementById("nopvCoverageAlert");
+  const bEl = document.getElementById("bopvCoverageAlert");
+  if (nEl) nEl.innerHTML = nopv.html;
+  if (bEl) bEl.innerHTML = bopv.html;
+  const pEl = document.getElementById("placeDiffWrap");
+  if (pEl) pEl.innerHTML = placeDiffInfo_(L, c.BA);
+  const baEl = document.getElementById("calc_BA");
+  if (baEl) baEl.className = (c.BA === L) ? "flag-green" : "flag-red";
+}
 
 // ================= RENDER =================
 function renderMain(rowData) {
@@ -1144,7 +1212,7 @@ function renderMain(rowData) {
     <div class="woreda-header" id="woredaHero">
       <img class="hero-mark" src="assets/badge.png" alt="" aria-hidden="true">
       <div class="hero-top">
-        <h2>${ICONS.building}${escapeHtml(w.woreda)} — ${escapeHtml(w.zone)} <span class="id-badge">ID #${escapeHtml(w.woredaID)}</span></h2>
+        <h2>${ICONS.building}${escapeHtml(w.woreda)} — ${escapeHtml(w.zone)}</h2>
         <div class="hero-hc">${ICONS.pin}<span>Health center <b>${escapeHtml(currentFacilityLabel || "—")}</b></span></div>
       </div>
       <div class="info-grid">
@@ -1185,6 +1253,7 @@ function renderMain(rowData) {
           ${calc("X","Wastage Rate %", fmtPct(c.X), cfW(c.X))}
           ${calc("Y","Daily Vaccine Balance", fmtNum(c.Y), cfB(c.Y))}
         </div>
+        <div id="nopvCoverageAlert"></div>
       </div>
       <div class="form-section section-bopv">
         <h4><span class="section-icon">${ICONS.pill}</span>bOPV Vials</h4>
@@ -1195,6 +1264,7 @@ function renderMain(rowData) {
           ${calc("AG","Wastage Rate %", fmtPct(c.AG), cfW(c.AG))}
           ${calc("AH","Daily Vaccine Balance", fmtNum(c.AH), cfB(c.AH))}
         </div>
+        <div id="bopvCoverageAlert"></div>
       </div>
       <div class="form-section section-alerts">
         <h4><span class="section-icon">${ICONS.megaphone}</span>Alerts & Social Mobilization</h4>
@@ -1212,8 +1282,9 @@ function renderMain(rowData) {
           ${field("AT","Children Vaccinated in House")}${field("AU","Children Vaccinated in School")}
           ${field("AV","Children Vaccinated in Market")}${field("AW","Children Vaccinated in Street")}
           ${field("AX","Children Vaccinated in Other Place")}${field("AY","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
-          ${calc("BA","Total Vaccinated by Place", fmtNum(c.BA), "flag-green")}
+          ${calc("BA","Total Vaccinated by Place", fmtNum(c.BA), (c.BA === c.L ? "flag-green" : "flag-red"))}
         </div>
+        <div id="placeDiffWrap"></div>
       </div>
       <div class="legend">
         <span class="lr">Red = wastage over limit / negative balance</span>
@@ -1249,7 +1320,9 @@ function renderMain(rowData) {
         if (clean !== e.target.value) e.target.value = clean;
         const col = e.target.dataset.col;
         rowData[col] = clean === "" ? "" : Number(clean);
-        updateCalcDisplay(computeRow(w, day, rowData));
+        const cNow = computeRow(w, day, rowData);
+        updateCalcDisplay(cNow);
+        updateCoverageAlertsDisplay_(rowData, cNow);
         refreshValidation();
       };
       inp.onpaste = e => {
@@ -1259,13 +1332,16 @@ function renderMain(rowData) {
         e.target.value = clean;
         const col = e.target.dataset.col;
         rowData[col] = clean === "" ? "" : Number(clean);
-        updateCalcDisplay(computeRow(w, day, rowData));
+        const cNow = computeRow(w, day, rowData);
+        updateCalcDisplay(cNow);
+        updateCoverageAlertsDisplay_(rowData, cNow);
         refreshValidation();
       };
     });
   }
 
   setupStickyHero();
+  updateCoverageAlertsDisplay_(rowData, c);
   refreshValidation();
 }
 
@@ -1304,6 +1380,7 @@ function updateCalcDisplay(c) {
   set("Y", fmtNum(c.Y), cfB(c.Y));
   set("AG", fmtPct(c.AG), cfW(c.AG));
   set("AH", fmtNum(c.AH), cfB(c.AH));
+  // BA styled by coverage/place-diff update
   set("BA", fmtNum(c.BA));
 }
 
