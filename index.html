@@ -1038,13 +1038,7 @@ function validateRow(w, day, r) {
   const bopvAcc = n(r.AA) + n(r.AB) + n(r.AC) + n(r.AD) + n(r.AE) + n(r.AF);
   if (n(r.Z) > 0 && n(r.Z) !== bopvAcc) add(["Z","AA","AB","AC","AD","AE","AF"], "bOPV vials: received (" + n(r.Z) + ") does not match accounted (" + bopvAcc + ").");
 
-  // Vial capacity sanity (cannot vaccinate more children than vials used can hold)
-  const nopvVialsUsed = n(r.R) + n(r.S);
-  const nopvCap = nopvVialsUsed * 50;
-  if (nopvCap > 0 && L > nopvCap) add(["Q","R","S","H","I","J","K"], "nOPV2: total vaccinated (" + L + ") exceeds vial capacity (" + nopvCap + " doses from " + nopvVialsUsed + " vial(s) used at 50 children/vial).");
-  const bopvVialsUsed = n(r.AA) + n(r.AB);
-  const bopvCap = bopvVialsUsed * 20;
-  if (bopvCap > 0 && L > bopvCap) add(["Z","AA","AB","H","I","J","K"], "bOPV: total vaccinated (" + L + ") exceeds vial capacity (" + bopvCap + " doses from " + bopvVialsUsed + " vial(s) used at 20 children/vial).");
+  // Per-vial coverage above/below expected is shown as an informational alert (usage status), not a save blocker.
 
   // Linkage: vaccinated cannot exceed identified
   if (n(r.AO) > n(r.AN) && n(r.AN) > 0) add(["AN","AO"], "Zero-dose vaccinated (" + n(r.AO) + ") exceeds identified (" + n(r.AN) + ").");
