@@ -371,6 +371,9 @@ main,.bannerhost,.filters-inner,.tabs,.top-inner{max-width:100%}
 #presenter .chart-box{position:relative;flex:1;min-height:260px}
 #presenter .chart-box canvas{width:100% !important;height:100% !important}
 #presenter .p-foot{padding:8px 14px;color:#4a6286;font-size:13px;text-align:center;border-top:1px solid #d9e5f2;background:#fff}
+#presenter .curly-head{position:relative;display:inline-block;padding-bottom:8px}
+#presenter .curly-head::after{content:"";display:block;height:10px;margin-top:4px;background-repeat:repeat-x;background-size:120px 10px;opacity:.9;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10'%3E%3Cpath d='M0 5 C10 0, 20 10, 30 5 S50 0,60 5 80 10,90 5 110 0,120 5' fill='none' stroke='%231558B8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")}
+#presenter:fullscreen .curly-head::after,#presenter:-webkit-full-screen .curly-head::after{height:12px;background-size:140px 12px}
 @media (max-width:1000px){#presenter .chart-grid{grid-template-columns:1fr}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:800px){#presenter .s-body{padding:14px}#presenter .slide h1{font-size:30px}#presenter .slide h2{font-size:22px}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}#presenter .p-title{max-width:40vw}}
 </style>
@@ -1807,13 +1810,64 @@ function buildNarrationDeck(){
   const places = [['house', cum.pHouse||0], ['school', cum.pSchool||0], ['market', cum.pMarket||0], ['street', cum.pStreet||0], ['other places', cum.pOther||0]].sort((a,b)=>b[1]-a[1]);
   const mf = (cum.male||0)+(cum.female||0) || 1;
   const slides = [];
+  const units = scopeUnits(), allRows = unitRows();
+  const uniqueWoredas = new Set(units.map(u => (u.zone||'') + '|' + (u.woreda||''))).size;
+  const hcCount = units.filter(u => u && u.hc && String(u.hc).trim()).length || units.length || 0;
+  const teamCount = units.reduce((s,u)=>s + (Number(u.teams)||0), 0) || allRows.reduce((s,r)=>s + (Number(r.day && r.day.teams)||Number(r.u && r.u.teams)||0), 0);
+  const scopeLabel = scopeTitle + (hcName ? (' — ' + hcName) : '');
+  const perfGroups = groups(allRows).filter(g => g.cov != null).sort((a,b)=>b.cov-a.cov);
+  const highPerf = perfGroups.slice(0,5);
+  const lowPerf = perfGroups.slice().sort((a,b)=>a.cov-b.cov).slice(0,5);
+  const byArea = (S.zone === 'all' ? groups(allRows) : groups(allRows)).sort((a,b)=>b.a.tot-a.a.tot).slice(0,12);
+  const areaChartTitle = (S.zone === 'all' && DASH_SCOPE.mode !== 'zone') ? 'Total vaccinated children by sub city/woreda' : 'Total vaccinated children by woreda/reporting area';
 
   slides.push({ kind:'title', title:'Title', heading: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard',
     narration: [
-      'This presentation reviews campaign performance against targets for ' + scopeTitle + (hcName?(' — '+hcName):'') + '.',
+      'This presentation reviews campaign performance against targets for ' + scopeLabel + '.',
       'It covers all data entered through ' + dayText(S.upTo) + '. ' + (stamp || ''),
       'Figures are based on the campaign workbook/dashboard data and can be traced back to reported entries.'
     ]});
+
+  slides.push({ kind:'kpis', title:'Scope summary', heading:'Campaign scope and totals',
+    narration: [
+      'Scope: ' + scopeLabel + '.',
+      'This view includes ' + fmt(uniqueWoredas) + ' woreda(s), ' + fmt(hcCount) + ' health center(s), and ' + fmt(teamCount) + ' vaccination team(s) (planned).',
+      'Total vaccinated children (cumulative through ' + dayText(S.upTo) + '): ' + fmt(cum.tot) + '.'
+    ],
+    kpis: [
+      ['Woredas', fmt(uniqueWoredas)], ['Health centers', fmt(hcCount)], ['Vaccination teams', fmt(teamCount)],
+      ['Vaccinated children', fmt(cum.tot)], ['Target', fmt(tgt)], ['Coverage', pct(c)]
+    ]
+  });
+
+  slides.push({ kind:'chart', title:'Vaccinated by area', heading: areaChartTitle,
+    narration: [
+      'Total vaccinated children by reporting area for the current login/access scope.',
+      byArea.length ? ('Highest: ' + byArea[0].key + ' (' + fmt(byArea[0].a.tot) + '), lowest shown: ' + byArea[byArea.length-1].key + ' (' + fmt(byArea[byArea.length-1].a.tot) + ').') : 'No area data available.'
+    ],
+    charts: [
+      { id:'ch_area_tot', type:'bar', title:'Total vaccinated children', labels: byArea.map(g=>g.key), datasets:[{label:'Vaccinated children', data: byArea.map(g=>g.a.tot||0), backgroundColor:'#2563EB'}] }
+    ]
+  });
+
+  slides.push({ kind:'chart', title:'Performance comparison', heading:'High and low performing areas',
+    narration: [
+      'Comparison of high-performing and low-performing areas by coverage to guide follow-up and recognition.',
+      highPerf.length ? ('Top performer: ' + highPerf[0].key + ' (' + pct(highPerf[0].cov) + ').') : '',
+      lowPerf.length ? ('Lowest performer: ' + lowPerf[0].key + ' (' + pct(lowPerf[0].cov) + ').') : ''
+    ].filter(Boolean),
+    charts: [
+      { id:'ch_high_perf', type:'bar', title:'High performers (coverage %)', labels: highPerf.map(g=>g.key), datasets:[{label:'Coverage %', data: highPerf.map(g=>Math.round((g.cov||0)*1000)/10), backgroundColor:'#16A34A'}], yPercent:true },
+      { id:'ch_low_perf', type:'bar', title:'Low performers (coverage %)', labels: lowPerf.map(g=>g.key), datasets:[{label:'Coverage %', data: lowPerf.map(g=>Math.round((g.cov||0)*1000)/10), backgroundColor:'#DC2626'}], yPercent:true }
+    ]
+  });
+
+  slides.push({ kind:'map', title:'Map', heading:'Campaign area map',
+    narration: [
+      'Map of the current reporting area and vaccinated children distribution for the selected scope.',
+      'Use this view to understand geographic coverage and focus follow-up where needed.'
+    ]
+  });
 
   slides.push({ kind:'kpis', title:'Headline results', heading:'Headline results',
     narration: [
@@ -1974,6 +2028,9 @@ function buildNarrationDeck(){
   slides.push({ kind:'list', title:'Points for discussion', heading:'Points for discussion & next actions', bullets: disc,
     narration: disc.concat(['Agree an owner and a date for each point before closing the meeting.']) });
 
+  slides.push({ kind:'thanks', title:'Thank you', heading:'Thank you',
+    narration: ['Thank you for your attention and commitment to vaccinating every child.'] });
+
   return { scopeTitle, hcName, asOf, stamp, title: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard', slides };
 }
 
@@ -2004,6 +2061,63 @@ function renderPresenterCharts_(){
     } catch(e){}
   });
 }
+
+async function renderPresenterMap_(){
+  const wrap = document.getElementById('presentMapSlide');
+  if (!wrap) return;
+  try {
+    if (typeof loadGeoJsonData !== 'function') { wrap.innerHTML = '<div class="muted">Map data unavailable.</div>'; return; }
+    const gj = await loadGeoJsonData();
+    if (!gj) { wrap.innerHTML = '<div class="muted">Map data unavailable.</div>'; return; }
+    const features = gj.type === 'FeatureCollection' ? (gj.features || []) : gj.type === 'Feature' ? [gj] : [];
+    if (!features.length) { wrap.innerHTML = '<div class="muted">No map features available.</div>'; return; }
+    const normName = s => String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim();
+    const geoNorm = s => String(s==null?'':s).toLowerCase().replace(/sub[\s_\-]*city/g,'').replace(/kifle[\s_\-]*ketema/g,'').replace(/[^a-z0-9]/g,'');
+    const subAliases = {'Addis Ketema':['addisketema','addisketemaa','addiskitema'],'Akaki Kality':['akakikality','akakikaliti','akakikalit'],'Arada':['arada','aradaa'],'Bole':['bole'],'Gulele':['gulele','gullele'],'Kirkos':['kirkos','kirkoss','kirkus'],'Kolfe Keranyo':['kolfekeranyo','kolfekeranio','kolfekeraniyo','kolfekerania'],'Lemi Kura':['lemikura','lemikuraa','lemikurra','lemmikura'],'Lideta':['lideta','lidetta'],'Nifas Silk Lafto':['nifassilklafto','nifassilk','nifasilklafto'],'Yeka':['yeka','yekaa']};
+    const canonSub = name => { const n = geoNorm(name); if (!n) return ''; const keys = Object.keys(subAliases); for (const s of keys) if (geoNorm(s) === n) return s; for (const s of keys) if ((subAliases[s]||[]).indexOf(n) >= 0) return s; for (const s of keys) { const m = geoNorm(s); if (n.length>4 && (m.indexOf(n)===0 || n.indexOf(m)===0)) return s; } return ''; };
+    const woredaNum = val => { const s = String(val == null ? '' : val); const m = s.match(/(?:woreda|wereda|wor)[\s_\-\.]*0*(\d+)/i) || s.match(/\b0*(\d+)\b/); return m ? String(parseInt(m[1], 10)) : ''; };
+    const totByWoreda = {}, totByWoredaId = {}, totByZone = {};
+    try { if (typeof unitRows === 'function') { unitRows().forEach(r => { const t = (r && r.a && r.a.tot != null) ? r.a.tot : 0; if (r && r.u) { if (r.u.woreda) totByWoreda[normName(r.u.woreda)] = (totByWoreda[normName(r.u.woreda)] || 0) + t; if (r.u.woredaID != null && String(r.u.woredaID).trim()!=='') { const wid = String(parseInt(r.u.woredaID,10)); if (wid && wid !== 'NaN') totByWoredaId[wid] = (totByWoredaId[wid] || 0) + t; } if (r.u.zone) totByZone[normName(r.u.zone)] = (totByZone[normName(r.u.zone)] || 0) + t; } }); } } catch(e){}
+    function findVaccinated(x){ const p = x.p || {}; if (x.wid && totByWoredaId[String(parseInt(x.wid,10))] != null) return totByWoredaId[String(parseInt(x.wid,10))]; const candidates = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short]; for (const c of candidates){ if (c==null) continue; const n = normName(c); if (totByWoreda[n]!=null) return totByWoreda[n]; } if (x.sub && totByZone[normName(x.sub)] != null) return totByZone[normName(x.sub)]; const zc = [p.subcity,p.Subcity,p.zone,p.Zone]; for (const c of zc){ if(c==null) continue; const n=normName(c); if (totByZone[n]!=null) return totByZone[n]; } return null; }
+    function featureInfo(f, i){ const p = f.properties || {}; const subRaw = String(p.subcity || p.Subcity || p.SUBCITY || p.zone || p.Zone || '').trim(); const sub = canonSub(subRaw) || subRaw; const wid = p.wid!=null ? String(p.wid).trim() : (p.WID!=null ? String(p.WID).trim() : ''); const wLabel = wid ? ('Woreda ' + wid) : ''; const label = sub && wLabel ? (sub + ' - ' + wLabel) : (sub || wLabel || p.label || p.name || 'Feature'); const short = sub && wid ? (sub + ' W' + wid) : (p.label || label); return { i, f, p, sub, subCanon: canonSub(sub) || canonSub(subRaw), wid, label, short, pathid: p.pathid||'' }; }
+    const infos = features.map((f,i)=>featureInfo(f,i)).filter(x => x.f && x.f.geometry && (x.f.geometry.type==='Polygon' || x.f.geometry.type==='MultiPolygon'));
+    if (!infos.length) { wrap.innerHTML = '<div class="muted">No map features available.</div>'; return; }
+    const scopeMode = DASH_SCOPE ? DASH_SCOPE.mode : 'all';
+    let selected = infos;
+    function bySubcity(list, zoneName){ const target = canonSub(zoneName || ''); if (!target) return list; const m = list.filter(x => (x.subCanon || canonSub(x.sub)) === target); return m.length ? m : []; }
+    function byWoreda(list, zoneName, woredaName, woredaID){ let area = bySubcity(list, zoneName); if (!area.length) area = list; const wid = String(woredaID == null ? '' : woredaID).trim(); const wNum = woredaNum(woredaName || wid || ''); const wNorm = normName(woredaName || ''); const m = area.filter(x => { if (wid && x.wid && String(x.wid) === wid) return true; if (wNum && x.wid && String(parseInt(x.wid,10)) === String(parseInt(wNum,10))) return true; if (wNorm) { const xl = normName(x.label), xs = normName(x.short||''); if (xl === wNorm || xs === wNorm || xl.indexOf(wNorm) !== -1 || wNorm.indexOf(xl) !== -1) return true; if (wNum && (String(x.wid) === wNum || (x.label && woredaNum(x.label) === wNum))) return true; } return false; }); return m; }
+    const fZone = (typeof S !== 'undefined' && S.zone && S.zone !== 'all') ? S.zone : (DASH_SCOPE && DASH_SCOPE.zone ? DASH_SCOPE.zone : '');
+    const fWoreda = (typeof S !== 'undefined' && S.woreda && S.woreda !== 'all') ? S.woreda : (scopeMode === 'woreda' && DASH_SCOPE ? DASH_SCOPE.woreda : '');
+    const fWid = (scopeMode === 'woreda' && DASH_SCOPE ? DASH_SCOPE.woredaID : '');
+    if (fWoreda) { const m = byWoreda(infos, fZone, fWoreda, fWid); selected = m.length ? m : (bySubcity(infos,fZone).length ? bySubcity(infos,fZone) : infos); }
+    else if (fZone) { const m = bySubcity(infos, fZone); selected = m.length ? m : infos; }
+    else { selected = infos; }
+    if (!selected.length) { wrap.innerHTML = '<div class="muted">No map features for this scope.</div>'; return; }
+    const MAP_W = 900, MAP_PAD = 0.03, MAP_PCT = 0.01;
+    function collectCoords(feats){ const lons=[], lats=[]; const walk=c=>{ if(typeof c[0]==='number'){ lons.push(c[0]); lats.push(c[1]); } else c.forEach(walk); }; feats.forEach(f=>walk(f.geometry.coordinates)); return {lons,lats}; }
+    function percentile(arr,q){ if(!arr.length) return 0; const i=Math.min(arr.length-1, Math.max(0, Math.floor(arr.length*q))); return arr[i]; }
+    function robustBbox(feats){ const {lons,lats}=collectCoords(feats); if(!lons.length) return null; const ls=lons.slice().sort((a,b)=>a-b), ts=lats.slice().sort((a,b)=>a-b); let x0=percentile(ls,MAP_PCT),x1=percentile(ls,1-MAP_PCT),y0=percentile(ts,MAP_PCT),y1=percentile(ts,1-MAP_PCT); if(x1-x0<1e-6){x0=ls[0];x1=ls[ls.length-1];} if(y1-y0<1e-6){y0=ts[0];y1=ts[ts.length-1];} const dx=(x1-x0)*MAP_PAD, dy=(y1-y0)*MAP_PAD; return {x0:x0-dx,x1:x1+dx,y0:y0-dy,y1:y1+dy}; }
+    function projector(feats,W){ const bb=robustBbox(feats); if(!bb) return null; const lonR=bb.x1-bb.x0, latR=bb.y1-bb.y0; if(lonR<=0||latR<=0) return null; const midLat=(bb.y0+bb.y1)/2; const cosLat=Math.cos(midLat*Math.PI/180)||1; const H=W*latR/(lonR*cosLat); const P=([lon,lat])=>[(lon-bb.x0)/lonR*W,(bb.y1-lat)/latR*H]; return {W,H,P}; }
+    function ringsOf(f){ return f.geometry.type==='Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates; }
+    function pathOf(f,P){ const oneRing=ring=>{ if(!ring||!ring.length) return ''; return 'M'+ring.map(p=>{const xy=P(p); return xy[0].toFixed(1)+','+xy[1].toFixed(1);}).join('L')+'Z'; }; return ringsOf(f).map(poly=>poly.map(oneRing).join('')).join(''); }
+    function centroidOf(f,P){ const polys=ringsOf(f); let best=null,bestLen=0; polys.forEach(poly=>{const r=poly[0]; if(r&&r.length>bestLen){best=r;bestLen=r.length;}}); if(!best||!best.length) return null; let sx=0,sy=0,n=0; for(let i=0;i<best.length;i++){ if(i===best.length-1 && best.length>1 && best[i][0]===best[0][0] && best[i][1]===best[0][1]) break; const xy=P(best[i]); sx+=xy[0]; sy+=xy[1]; n++; } return n?[sx/n,sy/n]:null; }
+    const selFeats = selected.map(x=>x.f);
+    const proj = projector(selFeats, MAP_W);
+    if (!proj) { wrap.innerHTML = '<div class="muted">Could not render map.</div>'; return; }
+    const {W,H,P} = proj;
+    selected.forEach(x => { x.vacc = findVaccinated(x); });
+    const vals = selected.map(x => x.vacc).filter(v => v != null && !isNaN(v));
+    const maxV = vals.length ? Math.max.apply(null, vals) : 0;
+    function colorFor(v){ if (v == null || isNaN(v) || maxV<=0) return '#d7e3f4'; const r=v/maxV; if(r<=0.2) return '#fee5d9'; if(r<=0.4) return '#fcbba1'; if(r<=0.6) return '#fc9272'; if(r<=0.8) return '#fb6a4a'; return '#a50f15'; }
+    const paths = selected.map(x => '<path d="'+pathOf(x.f,P)+'" fill="'+colorFor(x.vacc)+'" fill-opacity="0.85" stroke="#0F2552" stroke-width="0.9"><title>'+esc((x.label||x.short)+(x.vacc!=null?' — Vaccinated: '+fmt(x.vacc):''))+'</title></path>').join('');
+    const labels = selected.map(x => { const c = centroidOf(x.f,P); if(!c) return ''; const fs = selected.length > 40 ? 7 : selected.length > 15 ? 8 : 9; const txt = esc(String(x.short || x.label)); const w = Math.max(18, txt.length*fs*0.62); return '<g><rect x="'+(c[0]-w/2)+'" y="'+(c[1]-fs*0.85)+'" width="'+w+'" height="'+(fs*1.55)+'" rx="4" ry="4" fill="#fff" fill-opacity="0.94" stroke="#0F2552" stroke-width="0.6"></rect><text x="'+c[0].toFixed(1)+'" y="'+(c[1]+fs*0.35).toFixed(1)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" fill="#0F2552" font-family="Arial,sans-serif">'+txt+'</text></g>'; }).join('');
+    const PAD = 30;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+(-PAD)+' '+(-PAD)+' '+(W+2*PAD).toFixed(0)+' '+(H+2*PAD).toFixed(0)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;background:#F7FBFF"><rect x="'+(-PAD)+'" y="'+(-PAD)+'" width="'+(W+2*PAD)+'" height="'+(H+2*PAD)+'" fill="#F7FBFF"></rect>'+paths+labels+'</svg>';
+    wrap.innerHTML = svg;
+  } catch(e) {
+    wrap.innerHTML = '<div class="muted">Could not load map.</div>';
+  }
+}
 function renderPresenter(){
   const stage = document.getElementById('presentStage');
   if(!stage || !M) return;
@@ -2020,27 +2134,34 @@ function renderPresenter(){
   const htmlSlides = d.slides.map((s, idx) => {
     const active = idx===0 ? ' active' : '';
     if (s.kind === 'title') {
-      const body = '<div class="s-body" style="justify-content:center"><div class="muted">Campaign Dashboard Presentation</div><h1>'+esc(s.heading)+'</h1><div class="muted">'+esc(scopeFull)+'</div>'+narr(s.narration)+'</div>';
+      const body = '<div class="s-body" style="justify-content:center"><div class="muted">Campaign Dashboard Presentation</div><h1 class="curly-head">'+esc(s.heading)+'</h1><div class="muted">'+esc(scopeFull)+'</div>'+narr(s.narration)+'</div>';
       return '<section class="slide'+active+'">'+sHead()+body+'<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>Protect every child through polio vaccination</span></div></section>';
     } else if (s.kind === 'kpis') {
-      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="kgrid">'+(s.kpis||[]).map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div></div>').join('')+'</div>'+narr(s.narration)+'</div>';
+      const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading)+'</h2><div class="kgrid">'+(s.kpis||[]).map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div></div>').join('')+'</div>'+narr(s.narration)+'</div>';
       return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+    } else if (s.kind === 'map') {
+      const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading)+'</h2><div id="presentMapSlide" style="flex:1;min-height:360px;border:1px solid #d9e5f2;border-radius:12px;background:#f7fbff;overflow:hidden;display:flex;align-items:center;justify-content:center"><div class="muted">Loading map…</div></div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'" data-slide="map">'+sHead()+body+sFoot()+'</section>';
     } else if (s.kind === 'chart') {
-      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="chart-grid">'+(s.charts||[]).map(chartCard).join('')+'</div>'+narr(s.narration)+'</div>';
+      const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading)+'</h2><div class="chart-grid">'+(s.charts||[]).map(chartCard).join('')+'</div>'+narr(s.narration)+'</div>';
       return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
     } else if (s.kind === 'table') {
-      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="tblwrap"><table><thead><tr>'+((s.headers||[]).map(h=>'<th>'+esc(h)+'</th>').join(''))+'</tr></thead><tbody>'+((s.rows||[]).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join(''))+'</tbody></table></div>'+narr(s.narration)+'</div>';
+      const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading)+'</h2><div class="tblwrap"><table><thead><tr>'+((s.headers||[]).map(h=>'<th>'+esc(h)+'</th>').join(''))+'</tr></thead><tbody>'+((s.rows||[]).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join(''))+'</tbody></table></div>'+narr(s.narration)+'</div>';
       return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
     } else if (s.kind === 'list') {
-      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="narr" style="font-size:17px"><ul style="margin:0;padding-left:22px">'+(s.bullets||[]).map(b=>'<li style="margin:8px 0">'+esc(b)+'</li>').join('')+'</ul></div>'+narr(s.narration)+'</div>';
+      const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading)+'</h2><div class="narr" style="font-size:17px"><ul style="margin:0;padding-left:22px">'+(s.bullets||[]).map(b=>'<li style="margin:8px 0">'+esc(b)+'</li>').join('')+'</ul></div>'+narr(s.narration)+'</div>';
       return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+    } else if (s.kind === 'thanks') {
+      const body = '<div class="s-body" style="justify-content:center;align-items:center;text-align:center"><h1 class="curly-head" style="font-size:64px;color:#0B2E6B">Thank you</h1><div class="muted" style="font-size:22px;max-width:900px">Thank you for your attention and commitment to protecting every child through polio vaccination.</div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'">'+sHead()+body+'<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>Vaccinate Every Child, Stop Polio Together</span></div></section>';
     }
-    const body = '<div class="s-body"><h2>'+esc(s.heading||s.title||'')+'</h2>'+narr(s.narration)+'</div>';
+    const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading||s.title||'')+'</h2>'+narr(s.narration)+'</div>';
     return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
   });
   stage.innerHTML = htmlSlides.join('');
   PRESENT_INDEX = 0;
   renderPresenterCharts_();
+  renderPresenterMap_();
   updatePresenter();
   document.getElementById('presentTitle').textContent = d.title + ' — ' + scopeFull;
 }
