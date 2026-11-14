@@ -187,7 +187,8 @@
       padding: 20px 24px 22px; margin: 0 -24px 18px;
       box-shadow: 0 12px 34px rgba(11,54,99,0.34);
       overflow: hidden;
-      animation: fadeInUp 0.4s ease-out;
+      backface-visibility: hidden;
+      transform: translateZ(0);
       transition: padding 0.28s ease, box-shadow 0.28s ease, border-radius 0.28s ease;
     }
     .woreda-header::before {
@@ -1268,13 +1269,14 @@ function setupStickyHero() {
   if (!main || !hero) return;
   const sync = () => {
     const y = main.scrollTop;
-    if (y > 110 && !hero.classList.contains('compact')) hero.classList.add('compact');
-    else if (y < 24 && hero.classList.contains('compact')) hero.classList.remove('compact');
+    const compact = hero.classList.contains('compact');
+    if (!compact && y > 120) hero.classList.add('compact');
+    else if (compact && y < 20) hero.classList.remove('compact');
   };
   if (main.__heroSync) main.removeEventListener('scroll', main.__heroSync);
   main.__heroSync = sync;
   main.addEventListener('scroll', sync, { passive: true });
-  sync();
+  requestAnimationFrame(sync);
 }
 
 function updateCalcDisplay(c) {
