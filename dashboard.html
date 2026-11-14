@@ -199,21 +199,36 @@ td.wrap{white-space:normal;text-align:left;min-width:240px}
 #presenter .p-btn{border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;font:inherit}
 #presenter .p-btn:hover{background:rgba(255,255,255,0.16)}
 #presenter .p-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
-#presenter .slide{width:min(1200px,96vw);min-height:min(675px,78vh);background:linear-gradient(135deg,#0f2552,#123a7a);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);padding:34px 38px;display:none;flex-direction:column;gap:14px}
+#presenter .slide{width:min(1220px,96vw);min-height:min(690px,80vh);background:linear-gradient(135deg,#0f2552,#123a7a);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);padding:0;display:none;flex-direction:column;overflow:hidden}
 #presenter .slide.active{display:flex}
-#presenter .slide h1{margin:0;font-size:42px;line-height:1.15;color:#fff}
-#presenter .slide h2{margin:0;font-size:30px;line-height:1.2;color:#fff}
-#presenter .slide .muted{color:#cfe0ff;font-size:18px}
-#presenter .kgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:8px}
+#presenter .s-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;background:rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.14)}
+#presenter .s-head .brand{display:flex;align-items:center;gap:10px;min-width:0}
+#presenter .s-head img{width:38px;height:38px;border-radius:50%;background:#fff;object-fit:contain;padding:3px}
+#presenter .s-head .bt{font-size:13px;line-height:1.2;color:#eaf3ff;font-weight:600}
+#presenter .s-head .bt small{display:block;font-size:11px;color:#cfe0ff;font-weight:500}
+#presenter .s-head .meta{font-size:12px;color:#d7e7ff;text-align:right}
+#presenter .s-body{flex:1;padding:22px 28px;display:flex;flex-direction:column;gap:12px;min-height:0}
+#presenter .s-foot{display:flex;justify-content:space-between;gap:10px;padding:10px 22px;background:rgba(255,255,255,0.06);border-top:1px solid rgba(255,255,255,0.12);font-size:12px;color:#d7e7ff}
+#presenter .slide h1{margin:0;font-size:40px;line-height:1.15;color:#fff}
+#presenter .slide h2{margin:0;font-size:28px;line-height:1.2;color:#fff}
+#presenter .slide .muted{color:#cfe0ff;font-size:17px}
+#presenter .narr{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:12px;padding:12px 14px;color:#f3f8ff;font-size:16px;line-height:1.45}
+#presenter .narr b{color:#fff}
+#presenter .kgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:4px}
 #presenter .kcard{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:14px}
 #presenter .kcard .l{font-size:13px;color:#d7e7ff;margin-bottom:6px}
-#presenter .kcard .v{font-size:28px;font-weight:700;color:#fff}
-#presenter .tblwrap{background:rgba(255,255,255,0.96);border-radius:12px;overflow:auto;max-height:52vh}
-#presenter table{width:100%;border-collapse:collapse;font-size:15px;color:#0f172a}
-#presenter th,#presenter td{padding:10px 12px;border-bottom:1px solid #dbe5f3;text-align:left;vertical-align:top}
+#presenter .kcard .v{font-size:26px;font-weight:700;color:#fff}
+#presenter .kcard .s{font-size:12px;color:#cfe0ff;margin-top:4px}
+#presenter .tblwrap{background:rgba(255,255,255,0.96);border-radius:12px;overflow:auto;max-height:40vh}
+#presenter table{width:100%;border-collapse:collapse;font-size:14px;color:#0f172a}
+#presenter th,#presenter td{padding:9px 11px;border-bottom:1px solid #dbe5f3;text-align:left;vertical-align:top}
 #presenter th{background:#eaf2ff;color:#0f2552;font-weight:700;position:sticky;top:0}
+#presenter .bars{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+#presenter .barrow{display:grid;grid-template-columns:180px 1fr 70px;gap:10px;align-items:center;font-size:13px;color:#eaf3ff}
+#presenter .bar{height:12px;background:rgba(255,255,255,0.15);border-radius:999px;overflow:hidden}
+#presenter .bar i{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#22c55e);border-radius:999px}
 #presenter .p-foot{padding:8px 14px;color:#cfe0ff;font-size:13px;text-align:center;border-top:1px solid rgba(255,255,255,0.12)}
-@media (max-width:800px){#presenter .slide{padding:22px;min-height:auto}#presenter .slide h1{font-size:30px}#presenter .slide h2{font-size:24px}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}#presenter table{font-size:13px}#presenter .p-title{max-width:40vw}}
+@media (max-width:800px){#presenter .s-body{padding:16px}#presenter .slide h1{font-size:28px}#presenter .slide h2{font-size:22px}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}#presenter .barrow{grid-template-columns:120px 1fr 56px}#presenter .p-title{max-width:40vw}}
 </style>
 <script>
 window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1lMEcqzTLYxB3tgksV6eKyJ403wh6Yg68Kje42ZRBps4ZdqeZFbIauZk/exec";
@@ -1256,24 +1271,86 @@ function renderPresenter(){
   const stage = document.getElementById('presentStage');
   if(!stage || !M) return;
   const d = buildPresentationSlides();
+  const scopeFull = d.scopeTitle + (d.hcName ? (' | '+d.hcName) : '');
+  const title = M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard';
+  const logo = 'assets/badge.png';
+  const covStatus = d.c==null ? 'not available yet' : (d.c >= CFG.targetCoverage ? 'at or above the target' : (d.c >= CFG.warnCoverage ? 'close to the target but below '+pct(CFG.targetCoverage,0) : 'below the expected target'));
+  const nwStatus = d.w==null ? 'not available' : (d.w > CFG.maxWastage ? 'above the '+pct(CFG.maxWastage,0)+' limit and needs attention' : 'within the acceptable limit');
+  const bwStatus = d.bw==null ? 'not available' : (d.bw > CFG.maxWastage ? 'above the '+pct(CFG.maxWastage,0)+' limit and needs attention' : 'within the acceptable limit');
+  const firstDay = d.dt[0], lastDay = d.dt[d.dt.length-1];
+  const trend = (firstDay && lastDay && isFinite(firstDay.tot) && isFinite(lastDay.tot)) ? (lastDay.tot >= firstDay.tot ? 'an upward or steady daily vaccination volume toward '+esc(dayText(d.dt.length-1)) : 'a decline in daily vaccination volume by '+esc(dayText(d.dt.length-1))) : 'varying daily performance across reported days';
+  const sortedCov = d.g.filter(x=>x.cov!=null).slice().sort((a,b)=>b.cov-a.cov);
+  const best = sortedCov[0], worst = sortedCov[sortedCov.length-1];
+  const topFlags = d.flags.slice(0,5);
+  const aefi = (d.cum.aefiM||0)+(d.cum.aefiS||0);
+
+  const slide = (heading, body, note) => '<section class="slide">'
+    + '<div class="s-head"><div class="brand"><img src="'+logo+'" alt="Logo"><div class="bt">Addis Ababa City Administration Health Bureau<small>'+esc(title)+'</small></div></div><div class="meta">'+esc(scopeFull)+'<br>'+esc(d.asOf)+'</div></div>'
+    + '<div class="s-body"><h2>'+esc(heading)+'</h2>'+body+(note?('<div class="narr">'+note+'</div>'):'')+'</div>'
+    + '<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>'+esc(d.stamp || '')+'</span></div>'
+    + '</section>';
+
   const kpis = [
-    ['Cumulative vaccinated', fmt(d.cum.tot)], ['Target (scope)', fmt(d.tgt)], ['Coverage', pct(d.c)],
-    ['Vaccinated (selected day)', fmt(d.cur.tot)], ['At/above target', fmt(d.atT)+' / '+fmt(d.rows.length)], ['Below '+pct(CFG.warnCoverage,0), fmt(d.below)],
-    ['nOPV2 wastage', pct(d.w)], ['bOPV wastage', pct(d.bw)], ['Not vaccinated before', fmt((d.cum.n011||0)+(d.cum.n1259||0))], ['AEFI reported', fmt((d.cum.aefiM||0)+(d.cum.aefiS||0))]
+    ['Cumulative vaccinated', fmt(d.cum.tot), 'Scope total'], ['Target (scope)', fmt(d.tgt), 'Planned'], ['Coverage', pct(d.c), covStatus],
+    ['Selected day vaccinated', fmt(d.cur.tot), esc(dayText(S.upTo))], ['At/above target', fmt(d.atT)+' / '+fmt(d.rows.length), 'Woredas/units'], ['Below '+pct(CFG.warnCoverage,0), fmt(d.below), 'Need follow-up'],
+    ['nOPV2 wastage', pct(d.w), nwStatus], ['bOPV wastage', pct(d.bw), bwStatus], ['Not vaccinated before', fmt((d.cum.n011||0)+(d.cum.n1259||0)), '0–11m & 12–59m']
   ];
+
   const slides = [];
-  slides.push('<section class="slide active"><div class="muted">Addis Ababa City Administration Health Bureau</div><h1>'+esc(M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard')+'</h1><div class="muted">'+esc(d.scopeTitle + (d.hcName?(' — '+d.hcName):''))+'</div><div class="muted">'+esc(d.asOf)+'</div><div class="muted" style="margin-top:auto">'+esc(d.stamp)+'</div><div class="muted">AAPHREML • Designed by: Addis Ababa City Data Management Center</div></section>');
-  slides.push('<section class="slide"><h2>Overview (Filtered)</h2><div class="muted">'+esc(d.scopeTitle + (d.hcName?(' — '+d.hcName):''))+' | '+esc(d.asOf)+'</div><div class="kgrid">'+kpis.map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div></div>').join('')+'</div></section>');
-  slides.push('<section class="slide"><h2>Daily Performance</h2><div class="tblwrap"><table><thead><tr><th>Day</th><th>Vaccinated</th><th>Daily target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.dt.map((a,i)=>'<tr><td>'+esc(dayText(i))+'</td><td>'+fmt(a.tot)+'</td><td>'+fmt(a.dtgt)+'</td><td>'+pct(a.dtgt? a.tot/a.dtgt:null)+'</td><td>'+pct(wastage(a))+'</td><td>'+pct(bWastage(a))+'</td></tr>').join('')+'</tbody></table></div></section>');
-  slides.push('<section class="slide"><h2>Coverage by '+(groupBy()==='zone'?'Zone':'Woreda')+'</h2><div class="tblwrap"><table><thead><tr><th>Name</th><th>Vaccinated</th><th>Target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.g.slice(0,18).map(x=>'<tr><td>'+esc(x.key)+'</td><td>'+fmt(x.a.tot)+'</td><td>'+fmt(x.tgt)+'</td><td>'+pct(x.cov)+'</td><td>'+pct(x.w)+'</td><td>'+pct(x.bw)+'</td></tr>').join('')+'</tbody></table></div></section>');
-  slides.push('<section class="slide"><h2>Vaccine Use Summary</h2><div class="tblwrap"><table><thead><tr><th>Metric</th><th>nOPV2</th><th>bOPV</th></tr></thead><tbody>'+
-    [['Vials received',fmt(d.cum.rec),fmt(d.cum.brec||0)],['Vials used',fmt(d.cum.used),fmt(d.cum.bused||0)],['Partially used',fmt(d.cum.part),fmt(d.cum.bpart||0)],['Returned (good)',fmt(d.cum.retG),fmt(d.cum.bretG||0)],['Broken/bad/lost',fmt((d.cum.brk||0)+(d.cum.retB||0)+(d.cum.lost||0)),fmt((d.cum.bbrk||0)+(d.cum.bretB||0)+(d.cum.blost||0))],['Doses given',fmt(d.cum.tot),fmt(d.cum.tot)],['Wastage',pct(d.w),pct(d.bw)]].map(r=>'<tr><td>'+esc(r[0])+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('')+
-  '</tbody></table></div></section>');
-  if(d.flags.length){ slides.push('<section class="slide"><h2>Data Quality Flags (Top)</h2><div class="tblwrap"><table><thead><tr><th>Woreda / HC</th><th>Coverage</th><th>Vaccinated</th><th>Target</th><th>Flags</th></tr></thead><tbody>'+d.flags.slice(0,18).map(f=>'<tr><td>'+esc(f.name)+'</td><td>'+pct(f.cov)+'</td><td>'+fmt(f.tot)+'</td><td>'+fmt(f.tgt)+'</td><td>'+esc(f.flags)+'</td></tr>').join('')+'</tbody></table></div></section>'); }
+  slides.push('<section class="slide active"><div class="s-head"><div class="brand"><img src="'+logo+'" alt="Logo"><div class="bt">Addis Ababa City Administration Health Bureau<small>nOPV2 + bOPV Campaign Monitoring</small></div></div><div class="meta">'+esc(d.asOf)+'<br>'+esc(scopeFull)+'</div></div><div class="s-body" style="justify-content:center"><div class="muted">Campaign Dashboard Presentation</div><h1>'+esc(title)+'</h1><div class="muted">'+esc(scopeFull)+'</div><div class="narr"><b>Scope:</b> This presentation summarizes filtered dashboard data for the selected login/scope. <b>As of:</b> '+esc(d.asOf)+'. '+(d.stamp?('<b>'+esc(d.stamp)+'.</b>'):'')+'</div></div><div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>Protect every child through polio vaccination</span></div></section>');
+
+  slides.push(slide('Executive Overview', '<div class="kgrid">'+kpis.map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div><div class="s">'+esc(k[2])+'</div></div>').join('')+'</div>',
+    '<b>Narration:</b> The campaign has reached <b>'+fmt(d.cum.tot)+'</b> vaccinated children out of a target of <b>'+fmt(d.tgt)+'</b>, giving coverage of <b>'+pct(d.c)+'</b> ('+covStatus+'). <b>'+fmt(d.atT)+'</b> of <b>'+fmt(d.rows.length)+'</b> reporting units are at/above '+pct(CFG.targetCoverage,0)+', while <b>'+fmt(d.below)+'</b> are below '+pct(CFG.warnCoverage,0)+'. nOPV2 wastage is <b>'+pct(d.w)+'</b> ('+nwStatus+') and bOPV wastage is <b>'+pct(d.bw)+'</b> ('+bwStatus+').'));
+
+  slides.push(slide('Coverage & Performance Insight', '<div class="kgrid">'
+    +'<div class="kcard"><div class="l">Coverage status</div><div class="v">'+pct(d.c)+'</div><div class="s">'+esc(covStatus)+'</div></div>'
+    +'<div class="kcard"><div class="l">Highest coverage</div><div class="v">'+(best?esc(pct(best.cov)):'–')+'</div><div class="s">'+(best?esc(best.key):'No data')+'</div></div>'
+    +'<div class="kcard"><div class="l">Lowest coverage</div><div class="v">'+(worst?esc(pct(worst.cov)):'–')+'</div><div class="s">'+(worst?esc(worst.key):'No data')+'</div></div>'
+    +'</div>',
+    '<b>Narration:</b> '+(best&&worst?('Coverage ranges from <b>'+pct(worst.cov)+'</b> ('+esc(worst.key)+') to <b>'+pct(best.cov)+'</b> ('+esc(best.key)+'), indicating '+( (best.cov-(worst.cov||0))>0.15 ? 'notable performance variation that should be prioritized for targeted follow-up.' : 'relatively consistent performance across the viewed areas.' )):'Coverage comparison is limited by available data.')+' Focus support on areas below '+pct(CFG.warnCoverage,0)+' to improve overall campaign attainment.'));
+
+  slides.push(slide('Daily Trend', '<div class="tblwrap"><table><thead><tr><th>Day</th><th>Vaccinated</th><th>Daily target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.dt.map((a,i)=>'<tr><td>'+esc(dayText(i))+'</td><td>'+fmt(a.tot)+'</td><td>'+fmt(a.dtgt)+'</td><td>'+pct(a.dtgt? a.tot/a.dtgt:null)+'</td><td>'+pct(wastage(a))+'</td><td>'+pct(bWastage(a))+'</td></tr>').join('')+'</tbody></table></div>',
+    '<b>Narration:</b> Daily results show '+trend+'. The most recent reported day ('+esc(dayText(S.upTo))+') recorded <b>'+fmt(d.cur.tot)+'</b> vaccinated children'+(d.cur.dtgt?(', against a daily target of <b>'+fmt(d.cur.dtgt)+'</b> ('+pct(d.cur.dtgt?d.cur.tot/d.cur.dtgt:null)+')'):'')+'. Monitoring daily gaps helps sustain momentum and address missed children promptly.'));
+
+  slides.push(slide('Coverage by '+(groupBy()==='zone'?'Zone':'Woreda'), '<div class="tblwrap"><table><thead><tr><th>Name</th><th>Vaccinated</th><th>Target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.g.slice(0,14).map(x=>'<tr><td>'+esc(x.key)+'</td><td>'+fmt(x.a.tot)+'</td><td>'+fmt(x.tgt)+'</td><td>'+pct(x.cov)+'</td><td>'+pct(x.w)+'</td><td>'+pct(x.bw)+'</td></tr>').join('')+'</tbody></table></div>',
+    '<b>Narration:</b> This view compares performance across '+esc(groupBy()==='zone'?'zones':'woredas')+'. '+(worst?('Prioritize <b>'+esc(worst.key)+'</b> (lowest coverage) for supervision and mop-up, while documenting practices from <b>'+esc(best?best.key:worst.key)+'</b> to replicate strengths.'):'Use this comparison to target supervision and resource support where coverage is lagging.')));
+
+  slides.push(slide('nOPV2 Vaccine Use', '<div class="kgrid">'
+    +'<div class="kcard"><div class="l">Received</div><div class="v">'+fmt(d.cum.rec)+'</div><div class="s">vials</div></div>'
+    +'<div class="kcard"><div class="l">Used / Partially used</div><div class="v">'+fmt(d.cum.used)+'</div><div class="s">'+fmt(d.cum.part)+' partial</div></div>'
+    +'<div class="kcard"><div class="l">Wastage</div><div class="v">'+pct(d.w)+'</div><div class="s">Limit '+pct(CFG.maxWastage,0)+'</div></div>'
+    +'<div class="kcard"><div class="l">Returned (good)</div><div class="v">'+fmt(d.cum.retG)+'</div><div class="s">Reusable</div></div>'
+    +'<div class="kcard"><div class="l">Broken/Bad/Lost</div><div class="v">'+fmt((d.cum.brk||0)+(d.cum.retB||0)+(d.cum.lost||0))+'</div><div class="s">Accountability</div></div>'
+    +'<div class="kcard"><div class="l">Doses given</div><div class="v">'+fmt(d.cum.tot)+'</div><div class="s">50 doses/vial basis</div></div>'
+    +'</div>',
+    '<b>Narration:</b> nOPV2 supply management is '+nwStatus+'. Received <b>'+fmt(d.cum.rec)+'</b> vials with <b>'+fmt(d.cum.used)+'</b> used and <b>'+fmt(d.cum.retG)+'</b> returned in good condition; maintaining cold chain and session planning can help keep wastage controlled.'));
+
+  slides.push(slide('bOPV Vaccine Use', '<div class="kgrid">'
+    +'<div class="kcard"><div class="l">Received</div><div class="v">'+fmt(d.cum.brec||0)+'</div><div class="s">vials</div></div>'
+    +'<div class="kcard"><div class="l">Used / Partially used</div><div class="v">'+fmt(d.cum.bused||0)+'</div><div class="s">'+fmt(d.cum.bpart||0)+' partial</div></div>'
+    +'<div class="kcard"><div class="l">Wastage</div><div class="v">'+pct(d.bw)+'</div><div class="s">Limit '+pct(CFG.maxWastage,0)+'</div></div>'
+    +'<div class="kcard"><div class="l">Returned (good)</div><div class="v">'+fmt(d.cum.bretG||0)+'</div><div class="s">Reusable</div></div>'
+    +'<div class="kcard"><div class="l">Broken/Bad/Lost</div><div class="v">'+fmt((d.cum.bbrk||0)+(d.cum.bretB||0)+(d.cum.blost||0))+'</div><div class="s">Accountability</div></div>'
+    +'<div class="kcard"><div class="l">Doses given</div><div class="v">'+fmt(d.cum.tot)+'</div><div class="s">20 doses/vial basis</div></div>'
+    +'</div>',
+    '<b>Narration:</b> bOPV supply management is '+bwStatus+'. Received <b>'+fmt(d.cum.brec||0)+'</b> vials with <b>'+fmt(d.cum.bused||0)+'</b> used and <b>'+fmt(d.cum.bretG||0)+'</b> returned in good condition. Balanced nOPV2 and bOPV management supports uninterrupted campaign delivery.'));
+
+  if(d.flags.length){
+    slides.push(slide('Data Quality & Follow-up', '<div class="tblwrap"><table><thead><tr><th>Woreda / HC</th><th>Coverage</th><th>Vaccinated</th><th>Target</th><th>Flags</th></tr></thead><tbody>'+d.flags.slice(0,12).map(f=>'<tr><td>'+esc(f.name)+'</td><td>'+pct(f.cov)+'</td><td>'+fmt(f.tot)+'</td><td>'+fmt(f.tgt)+'</td><td>'+esc(f.flags)+'</td></tr>').join('')+'</tbody></table></div>',
+      '<b>Narration:</b> <b>'+d.flags.length+'</b> reporting unit(s) have data-quality flags in this view'+(topFlags.length?(', led by <b>'+esc(topFlags[0].name)+'</b>'):'')+'. Review flagged entries for completeness and consistency (totals, vials, wastage, and reporting) to improve data reliability for decision-making.'));
+  }
+
+  slides.push(slide('Key Messages & Next Actions', '<div class="kgrid">'
+    +'<div class="kcard"><div class="l">Coverage</div><div class="v">'+pct(d.c)+'</div><div class="s">'+esc(covStatus)+'</div></div>'
+    +'<div class="kcard"><div class="l">Priority areas</div><div class="v">'+fmt(d.below)+'</div><div class="s">Below '+pct(CFG.warnCoverage,0)+'</div></div>'
+    +'<div class="kcard"><div class="l">AEFI reported</div><div class="v">'+fmt(aefi)+'</div><div class="s">'+(aefi>0?'Monitor & respond':'No cases reported in scope')+'</div></div>'
+    +'</div><div class="narr" style="margin-top:6px"><b>Recommended actions:</b><br>• Strengthen mop-up and supervision in low-coverage/flagged areas'+(worst?(' (e.g. '+esc(worst.key)+')'):'')+'.<br>• Maintain vaccine accountability to keep nOPV2/bOPV wastage within the '+pct(CFG.maxWastage,0)+' limit.<br>• Continue timely, complete reporting to support evidence-based campaign decisions.</div>',
+    '<b>Narration:</b> Sustained focus on reaching missed children, controlling vaccine wastage, and resolving data-quality issues will improve overall nOPV2 + bOPV campaign outcomes for this scope.'));
+
   stage.innerHTML = slides.join('');
   PRESENT_INDEX = 0;
   updatePresenter();
-  document.getElementById('presentTitle').textContent = (M.meta && M.meta.title ? M.meta.title : 'Campaign Dashboard') + ' — ' + d.scopeTitle + (d.hcName ? (' / '+d.hcName) : '');
+  document.getElementById('presentTitle').textContent = title + ' — ' + scopeFull;
 }
 function updatePresenter(){
   const slides = document.querySelectorAll('#presentStage .slide');
