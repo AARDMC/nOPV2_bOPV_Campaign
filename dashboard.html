@@ -952,7 +952,6 @@ function renderMap(){
         const m = s.match(/(?:woreda|wereda|wor)[\s_\-\.]*0*(\d+)/i) || s.match(/\b0*(\d+)\b/);
         return m ? String(parseInt(m[1], 10)) : '';
       };
-      const woredaNum = s => { const m = String(s||'').match(/(?:woreda|wereda|wor)[\s_\-\.]*0*(\d+)/i) || String(s||'').match(/(\d+)\s*$/); return m ? String(parseInt(m[1],10)) : ''; };
 
       // ---- coverage lookup (by normalized woreda/zone from dashboard data) ----
       const covByWoreda = {}, covByZone = {};
