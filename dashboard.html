@@ -931,26 +931,57 @@ function renderMap(){
         rollup(unitRows(), r => r.u.woreda).forEach(g => { covByWoreda[normName(g.key)] = g.cov; });
         rollup(unitRows(), r => r.u.zone).forEach(g => { covByZone[normName(g.key)] = g.cov; });
       } catch(e){}
+      function propVals(p){
+        const keys = ['woreda','Woreda','WOREDA','woreda_name','Woreda_Name','woredaName','woreda_id','Woreda_ID','subcity','Subcity','SUBCITY','sub_city','Sub_City','zone','Zone','ZONE','name','NAME','Name','ADM3_EN','ADM2_EN','ADM1_EN','W_NAME','Z_NAME','WEREDA','WOREDA_NAM'];
+        const vals = [];
+        keys.forEach(k=>{ if (p && p[k] != null && String(p[k]).trim()!=='') vals.push(normName(p[k])); });
+        return vals;
+      }
       function findCov(p){
-        const keys = ['woreda','Woreda','WOREDA','woreda_name','Woreda_Name','woredaName','subcity','Subcity','SUBCITY','zone','Zone','ZONE','name','NAME','Name','ADM3_EN','ADM2_EN','ADM1_EN','W_NAME','Z_NAME'];
-        for (const k of keys){
-          if (p && p[k] != null){
-            const n = normName(p[k]);
-            if (covByWoreda[n] != null) return covByWoreda[n];
-            if (covByZone[n] != null) return covByZone[n];
-          }
-        }
+        const vals = propVals(p);
+        for (const n of vals){ if (covByWoreda[n] != null) return covByWoreda[n]; if (covByZone[n] != null) return covByZone[n]; }
         return null;
+      }
+      function featureInScope(feature){
+        if (!DASH_SCOPE || DASH_SCOPE.mode === 'all') return true;
+        const p = feature && feature.properties ? feature.properties : {};
+        const vals = propVals(p);
+        if (!vals.length) return true; // unknown schema: keep (avoid hiding everything)
+        const z = normName(DASH_SCOPE.zone || '');
+        const w = normName(DASH_SCOPE.woreda || '');
+        if (DASH_SCOPE.mode === 'zone') {
+          if (!z) return true;
+          return vals.some(v => v === z || v.indexOf(z) !== -1 || z.indexOf(v) !== -1);
+        }
+        if (DASH_SCOPE.mode === 'woreda') {
+          if (w) {
+            const woredaMatch = vals.some(v => v === w || v.indexOf(w) !== -1 || w.indexOf(v) !== -1);
+            if (woredaMatch) return true;
+          }
+          // if woreda name doesn't match but zone does, keep only when no woreda-level props? better exclude unless woreda match; but fallback: if only zone-level features exist, don't hide all incorrectly
+          return false;
+        }
+        return true;
+      }
+      let displayGj = gj;
+      if (gj && gj.type === 'FeatureCollection' && Array.isArray(gj.features)) {
+        const filtered = gj.features.filter(featureInScope);
+        if (DASH_SCOPE && DASH_SCOPE.mode !== 'all') {
+          displayGj = Object.assign({}, gj, { features: filtered.length ? filtered : gj.features });
+          if (!filtered.length && note) note.textContent = 'No GeoJSON features matched this login area by name; showing all features. ';
+        } else {
+          displayGj = gj;
+        }
       }
       function styleFor(feature){
         const p = feature && feature.properties ? feature.properties : {};
         const covVal = findCov(p);
         const color = covVal==null ? '#1E6BFF' : STATUS_COL[status(covVal)];
-        return { color: '#0F2552', weight: 1, fillColor: color, fillOpacity: covVal==null ? 0.25 : 0.55 };
+        return { color: '#0F2552', weight: 1.2, fillColor: color, fillOpacity: covVal==null ? 0.25 : 0.55 };
       }
       function onEach(feature, layer){
         const p = feature && feature.properties ? feature.properties : {};
-        const name = p.woreda || p.Woreda || p.woreda_name || p.name || p.NAME || p.Name || p.ADM3_EN || p.ADM2_EN || p.subcity || p.zone || 'Feature';
+        const name = p.woreda || p.Woreda || p.woreda_name || p.Woreda_Name || p.name || p.NAME || p.Name || p.ADM3_EN || p.ADM2_EN || p.subcity || p.Subcity || p.zone || p.Zone || 'Feature';
         let details = '<b>'+esc(name)+'</b>';
         const covVal = findCov(p);
         if (covVal!=null) details += '<br>Coverage: '+pct(covVal);
@@ -959,9 +990,13 @@ function renderMap(){
         details += shown.join('');
         layer.bindPopup(details);
       }
-      const layer = L.geoJSON(gj, { style: styleFor, onEachFeature: onEach }).addTo(MAP_INSTANCE);
+      const layer = L.geoJSON(displayGj, { style: styleFor, onEachFeature: onEach }).addTo(MAP_INSTANCE);
       try { MAP_INSTANCE.fitBounds(layer.getBounds(), { padding:[20,20] }); } catch(e){ MAP_INSTANCE.setView([9.03, 38.74], 11); }
-      if (note) note.textContent = 'GeoJSON loaded (' + (layer.getLayers?layer.getLayers().length:0) + ' feature(s)). Areas are colored by campaign coverage when names match woreda/zone data.';
+      const count = (displayGj && displayGj.features) ? displayGj.features.length : (layer.getLayers?layer.getLayers().length:0);
+      if (note) {
+        const scopeMsg = (!DASH_SCOPE || DASH_SCOPE.mode === 'all') ? 'Showing all areas.' : ('Filtered to login area: ' + scopeName() + '.');
+        note.textContent = (note.textContent && note.textContent.indexOf('No GeoJSON features matched')===0 ? note.textContent : '') + 'GeoJSON loaded (' + count + ' feature(s)). ' + scopeMsg + ' Areas are colored by campaign coverage when names match woreda/zone data.';
+      }
       setTimeout(()=>{ try{ MAP_INSTANCE.invalidateSize(); }catch(e){} }, 120);
     } catch(e){
       const note = document.getElementById('mapNote'); if (note) note.textContent = 'Map error: ' + (e && e.message ? e.message : e);
