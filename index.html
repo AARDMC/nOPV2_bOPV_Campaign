@@ -334,6 +334,18 @@
     .empty .err { color:#c62828; background: linear-gradient(135deg,#ffebee,#ffcdd2); padding:16px; border-radius:12px; margin:16px auto; font-family:'Courier New',monospace; font-size:12px; text-align:left; white-space:pre-wrap; word-break:break-word; max-height:220px; overflow-y:auto; max-width:500px; border-left:4px solid #ef5350; }
     .spinner { display: inline-block; width: 40px; height: 40px; border-radius: 50%; border: 4px solid rgba(102,126,234,0.15); border-top-color: #667eea; animation: spin 0.8s linear infinite; margin-bottom: 14px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* Polio droplet loader */
+    .polio-loader{display:inline-flex;align-items:flex-end;justify-content:center;gap:10px;height:54px;margin:4px 0 14px}
+    .polio-loader .drop{width:18px;height:24px;position:relative;transform-origin:center bottom;animation:dropBounce 1.1s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(79,172,254,.35))}
+    .polio-loader .drop::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 45%,#0284c7 100%);border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;transform:rotate(45deg)}
+    .polio-loader .drop::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.8);top:6px;left:5px}
+    .polio-loader .drop:nth-child(2){animation-delay:.15s;transform:scale(.9)}
+    .polio-loader .drop:nth-child(2)::before{background:linear-gradient(180deg,#c4b5fd 0%,#8b5cf6 45%,#6d28d9 100%)}
+    .polio-loader .drop:nth-child(3){animation-delay:.3s}
+    .polio-loader .drop:nth-child(3)::before{background:linear-gradient(180deg,#86efac 0%,#22c55e 45%,#15803d 100%)}
+    .polio-loader .drop:nth-child(4){animation-delay:.45s;transform:scale(.85)}
+    .polio-loader .drop:nth-child(4)::before{background:linear-gradient(180deg,#fde68a 0%,#f59e0b 45%,#d97706 100%)}
+    @keyframes dropBounce{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-14px) scale(1.05,.95)}60%{transform:translateY(2px) scale(.96,1.04)}}
     .legend { display: flex; gap: 14px; font-size: 11px; color: var(--text-light); padding: 14px 16px; flex-wrap: wrap; margin-top: 12px; background: rgba(255,255,255,0.6); border-radius: 12px; }
     .legend span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
     .legend span::before { content: ''; width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
@@ -947,7 +959,7 @@ function loadRowData() {
   if (state.rowDataCache[key]) { renderMain(state.rowDataCache[key]); return; }
   document.querySelector("#mainArea").innerHTML =
     `<div class="panel" style="background:#fff;border-radius:20px;padding:20px;margin:18px 0">
-      <div class="empty"><div class="spinner"></div><b>Loading ${escapeHtml(w.woreda)} — ${escapeHtml(state.activeDay)}…</b></div>
+      <div class="empty"><div class="polio-loader" aria-hidden="true"><span class="drop"></span><span class="drop"></span><span class="drop"></span><span class="drop"></span></div><b>Loading ${escapeHtml(w.woreda)} — ${escapeHtml(state.activeDay)}…</b></div>
     </div>`;
   google.script.run
     .withSuccessHandler(res => {
