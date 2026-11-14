@@ -1659,50 +1659,60 @@ ${ctSheets}
   return _zipStore(files);
 }
 
+function b64ToBlob_(b64, mime){
+  const bin = atob(String(b64 || ""));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
 function doDashboardExport(){
   const btn = document.getElementById('btnExport');
   if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
-  setBusy('Preparing export', 'Building filtered Excel (formulas and formatting) on your device…');
+  setBusy('Preparing export', 'Building filtered Excel from the Google Sheet (formatting, formulas & validation)…');
   const payload = {}; if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
   google.script.run
     .withSuccessHandler(function(res){
       if(!res || !res.ok){
-        if (btn) { btn.disabled = false; btn.textContent = 'Download Google Sheet'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Download Excel'; }
         setBusy(null);
         toast('Export failed: '+esc((res&&res.error)||'unknown'), true);
         return;
       }
-      // yield so the "Building…" UI paints before heavy synchronous work
       setTimeout(function(){
         try{
-          const t0 = (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now();
-          const blob = buildMirrorWorkbook(res);
-          const scope = res.scope || {};
-          let name = 'nOPV2_bOPV_Campaign';
-          if(scope.woreda) name += '_' + String(scope.woreda).replace(/[^\w.-]+/g,'_');
-          else if(scope.zone) name += '_' + String(scope.zone).replace(/[^\w.-]+/g,'_');
-          else name += '_Scoped';
-          if(scope.facilityIndex!=null && scope.facilityIndex>=0 && DASH_SCOPE.facilities && DASH_SCOPE.facilities[scope.facilityIndex]) name += '_' + String(DASH_SCOPE.facilities[scope.facilityIndex]).replace(/[^\w.-]+/g,'_');
-          name += '.xlsx';
+          let blob, name;
+          if (res.base64) {
+            blob = b64ToBlob_(res.base64, res.mimeType);
+            name = res.fileName || 'nOPV2_bOPV_Campaign.xlsx';
+          } else {
+            blob = buildMirrorWorkbook(res);
+            const scope = res.scope || {};
+            name = 'nOPV2_bOPV_Campaign';
+            if(scope.woreda) name += '_' + String(scope.woreda).replace(/[^\w.-]+/g,'_');
+            else if(scope.zone) name += '_' + String(scope.zone).replace(/[^\w.-]+/g,'_');
+            else name += '_Scoped';
+            if(scope.facilityIndex!=null && scope.facilityIndex>=0 && DASH_SCOPE.facilities && DASH_SCOPE.facilities[scope.facilityIndex]) name += '_' + String(DASH_SCOPE.facilities[scope.facilityIndex]).replace(/[^\w.-]+/g,'_');
+            name += '.xlsx';
+          }
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(()=>URL.revokeObjectURL(url), 300000);
-          if (btn) { btn.disabled = false; btn.textContent = 'Download Google Sheet'; }
+          if (btn) { btn.disabled = false; btn.textContent = 'Download Excel'; }
           setBusy(null);
           toast('Export ready: '+esc(name));
         } catch(e){
-          if (btn) { btn.disabled = false; btn.textContent = 'Download Google Sheet'; }
+          if (btn) { btn.disabled = false; btn.textContent = 'Download Excel'; }
           setBusy(null);
           toast('Export failed: '+esc(e&&e.message?e.message:e), true);
         }
       }, 0);
     })
     .withFailureHandler(function(err){
-      if (btn) { btn.disabled = false; btn.textContent = 'Download Google Sheet'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Download Excel'; }
       setBusy(null);
       toast('Export failed: '+esc(err&&err.message?err.message:err), true);
     })
-    .getDashboardExport(payload);
+    .getNativeScopedExport(payload);
 }
 
 

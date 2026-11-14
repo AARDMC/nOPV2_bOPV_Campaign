@@ -506,7 +506,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 
   var ACTIONS = [
     "authenticateUser", "loginAndGetInitialData", "getInitialData", "getRowData", "saveAndReturn",
-    "saveSettings", "getWoredaExport", "exportToExcelWithFormulas",
+    "saveSettings", "getWoredaExport", "getNativeScopedExport", "exportToExcelWithFormulas",
     "dashboardLogin", "getDashboardData"
   ];
 
@@ -681,6 +681,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     }
     if (action === "saveSettings") return { settings: args[0] || {} };
     if (action === "getWoredaExport") return { facilityIndex: args[0] || 0, woredaID: args[1] || "" };
+    if (action === "getNativeScopedExport") return (args[0] && typeof args[0] === "object") ? args[0] : { facilityIndex: args[0] || 0 };
     if (action === "dashboardLogin") return args[0] || {};
     if (action === "getDashboardData") return { force: !!args[0] };
     return {};
@@ -1507,27 +1508,40 @@ function downloadBlob_(blob, fileName) {
   document.body.appendChild(link); link.click(); link.remove();
   return url;
 }
+function base64ToBlob_(b64, mime) {
+  const bin = atob(String(b64 || ""));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
 function exportWoreda() {
   const el = document.getElementById("exportResult");
   if (!state.selectedRow || !el) return;
-  el.innerHTML = `<div class="export-result"><div class="spinner" style="width:20px;height:20px;border-width:3px;margin:0"></div><span style="color:var(--text-light);font-weight:600">Preparing your woreda Excel…</span></div>`;
+  const w = state.selectedRow;
+  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Preparing your woreda Excel (Google Sheet formatting, formulas, validation)…</span></div>`;
   google.script.run
     .withSuccessHandler(res => {
       if (!res || res.ok === false) {
         el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((res && res.error) || "Export failed")}</span></div>`;
         return;
       }
-      let blob;
-      try { blob = buildWoredaWorkbook_(res); }
-      catch (err) {
+      let blob, fileName;
+      try {
+        if (res.base64) {
+          blob = base64ToBlob_(res.base64, res.mimeType);
+          fileName = res.fileName || ("EPI_" + safeFilePart_(w.woreda) + "_" + safeFilePart_(w.healthCenter) + ".xlsx");
+        } else {
+          blob = buildWoredaWorkbook_(res);
+          fileName = "EPI_" + safeFilePart_(res.woreda) + "_" + safeFilePart_(res.healthCenter) + ".xlsx";
+        }
+      } catch (err) {
         el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
         return;
       }
-      const fileName = "EPI_" + safeFilePart_(res.woreda) + "_" + safeFilePart_(res.healthCenter) + ".xlsx";
       const url = downloadBlob_(blob, fileName);
       el.innerHTML = `
         <div class="export-result">
-          <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel ready — your woreda only</span>
+          <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel ready — your woreda only (Google Sheet formatting, formulas & validation)</span>
           <a href="${url}" download="${escapeAttr(fileName)}" class="btn btn-success" style="margin-left:auto">${ICONS.download}Download .xlsx</a>
           <a href="${url}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.excel}Open in new tab</a>
         </div>`;
@@ -1537,7 +1551,7 @@ function exportWoreda() {
     .withFailureHandler(err => {
       el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
     })
-    .getWoredaExport(state.activeFacility, (state.selectedRow && state.selectedRow.woredaID) || "");
+    .getNativeScopedExport({ facilityIndex: state.activeFacility });
 }
 function exportExcel() { exportWoreda(); }
 
