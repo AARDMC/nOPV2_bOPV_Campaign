@@ -785,8 +785,9 @@ function fillWoredas() {
     S.woreda = DASH_SCOPE.woreda; sel.value = S.woreda; sel.disabled = true;
   }
 }
-function onData(payload) {
-  if (!payload || payload.ok === false) { showError(payload && payload.error ? payload.error : 'Failed to load data'); return; }
+function onData(payload, fromCache) {
+  if (!payload || payload.ok === false) { if (!fromCache) showError(payload && payload.error ? payload.error : 'Failed to load data'); return; }
+  if (!fromCache) { try { saveDashCache(payload); } catch(e) {} }
   if (payload.scope) DASH_SCOPE = Object.assign({facilities:[],facilityCount:0,facilityIndex:-1}, payload.scope);
   if (payload.scope && payload.scope.facilityIndex != null && payload.scope.facilityIndex >= 0) DASH_FACILITY = payload.scope.facilityIndex;
   buildModel(payload);
@@ -821,11 +822,51 @@ function toast(html, isErr) {
   clearTimeout(toast.h); toast.h = setTimeout(() => { t.hidden = true; }, 12000);
 }
 
+function dashCacheKey() {
+  try {
+    const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}');
+    const mode = (DASH_SCOPE && DASH_SCOPE.mode) || info.scope || 'woreda';
+    const zone = (DASH_SCOPE && DASH_SCOPE.zone) || info.zone || '';
+    const woredaID = (DASH_SCOPE && DASH_SCOPE.woredaID) || info.woredaID || (new URLSearchParams(location.search).get('woredaID') || '');
+    const fi = (DASH_FACILITY >= 0 ? DASH_FACILITY : 'all');
+    return 'dash_cache_v1|' + mode + '|' + zone + '|' + woredaID + '|' + fi;
+  } catch(e) { return 'dash_cache_v1|default'; }
+}
+function loadDashCache() {
+  try {
+    const raw = localStorage.getItem(dashCacheKey());
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (obj && obj.payload && obj.payload.ok) return obj.payload;
+  } catch(e) {}
+  return null;
+}
+function saveDashCache(payload) {
+  try { localStorage.setItem(dashCacheKey(), JSON.stringify({ t: Date.now(), payload: payload })); } catch(e) {}
+}
+
+let _loadingFresh = false;
 function load(force) {
   $('#btnRefresh').disabled = true; $('#btnRefresh').textContent = 'Refreshing';
-  const payload = (force && typeof force === 'object') ? force : { force: !!force };
+  const forceObj = (force && typeof force === 'object') ? force : { force: !!force };
+  const isForce = !!forceObj.force;
+  if (!_loadingFresh && !isForce) {
+    const cached = loadDashCache();
+    if (cached && !M) {
+      try { onData(cached, true); } catch(e) {}
+    }
+  }
+  _loadingFresh = true;
+  const payload = Object.assign({}, forceObj);
   if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
-  google.script.run.withSuccessHandler(onData).withFailureHandler(function(err){ showError(err); }).getDashboardData(payload);
+  google.script.run
+    .withSuccessHandler(function(res){ _loadingFresh = false; onData(res, false); })
+    .withFailureHandler(function(err){
+      _loadingFresh = false;
+      if (M) { $('#btnRefresh').disabled = false; $('#btnRefresh').textContent = 'Refresh'; toast('Could not refresh: ' + esc((err && err.message) || String(err)), true); }
+      else { showError(err); }
+    })
+    .getDashboardData(payload);
 }
 
 // Login
