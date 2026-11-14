@@ -201,10 +201,10 @@ td.wrap{white-space:normal;text-align:left;min-width:240px}
 #presenter .p-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
 #presenter .slide{width:min(1220px,96vw);min-height:min(690px,80vh);background:linear-gradient(135deg,#0f2552,#123a7a);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);padding:0;display:none;flex-direction:column;overflow:hidden}
 #presenter .slide.active{display:flex}
-#presenter .s-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;background:rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.14)}
-#presenter .s-head .brand{display:flex;align-items:center;gap:10px;min-width:0}
-#presenter .s-head img{width:38px;height:38px;border-radius:50%;background:#fff;object-fit:contain;padding:3px}
-#presenter .s-head .bt{font-size:13px;line-height:1.2;color:#eaf3ff;font-weight:600}
+#presenter .s-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;background:rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.14)}
+#presenter .s-head .brand{display:flex;align-items:center;gap:12px;min-width:0}
+#presenter .s-head img{height:52px;width:auto;max-width:160px;object-fit:contain;background:#fff;border-radius:8px;padding:4px}
+#presenter .s-head .bt{font-size:14px;line-height:1.2;color:#eaf3ff;font-weight:700}
 #presenter .s-head .bt small{display:block;font-size:11px;color:#cfe0ff;font-weight:500}
 #presenter .s-head .meta{font-size:12px;color:#d7e7ff;text-align:right}
 #presenter .s-body{flex:1;padding:22px 28px;display:flex;flex-direction:column;gap:12px;min-height:0}
@@ -1402,8 +1402,8 @@ function renderPresenter(){
   if(!stage || !M) return;
   const d = buildNarrationDeck();
   const scopeFull = d.scopeTitle + (d.hcName ? (' | '+d.hcName) : '');
-  const logo = 'assets/badge.png';
-  const sHead = () => '<div class="s-head"><div class="brand"><img src="'+logo+'" alt="Logo"><div class="bt">Addis Ababa City Administration Health Bureau<small>'+esc(d.title)+'</small></div></div><div class="meta">'+esc(scopeFull)+'<br>'+esc(d.asOf)+'</div></div>';
+  const logo = 'assets/logo.jpg';
+  const sHead = () => '<div class="s-head"><div class="brand"><img src="'+logo+'" alt="Addis Ababa City Administration Health Bureau"><div class="bt">Addis Ababa City Administration Health Bureau<small>'+esc(d.title)+'</small></div></div><div class="meta">'+esc(scopeFull)+'<br>'+esc(d.asOf)+'</div></div>';
   const sFoot = () => '<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>'+esc(d.stamp || '')+'</span></div>';
   const narr = (lines) => '<div class="narr"><b>Narration:</b> ' + (lines||[]).map(esc).join(' ') + '</div>';
   const htmlSlides = d.slides.map((s, idx) => {
