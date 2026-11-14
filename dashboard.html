@@ -236,11 +236,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 
 <header class="top">
   <div class="top-inner">
-    <div class="brand" style="gap:10px;">
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <img id="logo" class="logo" src="assets/logo.jpg" alt="Health Bureau logo" style="width:68px;height:68px;">
-        <img src="assets/badge.png" alt="" style="width:58px;height:58px;object-fit:contain;flex:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));">
-      </div>
+    <div class="brand" style="gap:12px;">
+      <img id="logo" class="logo" src="assets/logo.jpg" alt="Health Bureau logo" style="width:86px;height:86px;">
       <div class="org">
         <div class="am">አዲስ አበባ ከተማ አስተዳደር<br>ጤና ቢሮ</div>
         <div class="en">ADDIS ABABA CITY ADMINISTRATION<br>HEALTH BUREAU</div>
@@ -524,7 +521,7 @@ function pctTip() { return { callbacks: { label: c => ' ' + c.dataset.label + ':
 
 const ICON_VAX = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4M15 5l4 4M3 21l5-5"/><path d="M7 17l-1-1 9-9 3 3-9 9z"/><path d="M11 9l4 4"/></svg>';
 const TAB_TITLES = { overview:'Campaign situation', geo:'Zones and woredas', vaccine:'Vaccine use', community:'Community and safety', quality:'Data quality' };
-const ART_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 220" width="300" height="220"><circle cx="150" cy="112" r="104" fill="#EAF4FD"/><circle cx="82" cy="70" r="20" fill="#EC4899"/><circle cx="82" cy="70" r="36" fill="none" stroke="#EF4444" stroke-width="6"/><line x1="57" y1="45" x2="107" y2="95" stroke="#EF4444" stroke-width="6" stroke-linecap="round"/><path d="M200 22 C200 22 160 70 160 100 a40 40 0 0 0 80 0 C240 70 200 22 200 22Z" fill="#2563EB"/><circle cx="150" cy="186" r="30" fill="#F8C291"/></svg>';
+const ART_SVG = '<img src="assets/badge.png" alt="" style="height:92px;width:auto;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));">';
 
 const panel = (cls, title, sub, body) => '<div class="panel ' + cls + '"><h2>' + title + '</h2>' + (sub ? '<p class="sub">' + sub + '</p>' : '<div style="height:10px"></div>') + body + '</div>';
 const stat = (l, v, s, c) => '<div class="stat"><div class="l">' + l + '</div><div class="v ' + (c || '') + '">' + v + '</div><div class="s">' + (s || '') + '</div></div>';
