@@ -1085,9 +1085,7 @@ function requiredFieldErrors_() {
     if (String(inp.value).trim() === "") {
       if (seen[col]) return;
       seen[col] = true;
-      const label = (inp.closest(".field") && inp.closest(".field").querySelector("label"))
-        ? inp.closest(".field").querySelector("label").textContent.replace(/\*+$/, "").trim() : col;
-      errs.push({ cols: [col], msg: label + " *" });
+      errs.push({ cols: [col], msg: "*" });
     }
   });
   return errs;
@@ -1323,7 +1321,10 @@ function saveCurrent() {
   const errs = requiredFieldErrors_().concat(validateRow(w, day, inputs));
   applyValidationHighlights(errs);
   if (errs.length) {
-    const report = errs.map((e, i) => (i + 1) + ". " + e.msg).join("<br>");
+    const onlyRequired = errs.every(e => e.msg === "*");
+    const report = onlyRequired
+      ? "Please fill in all required fields (marked with *)."
+      : errs.map((e, i) => (i + 1) + ". " + e.msg).join("<br>");
     const el = document.getElementById("exportResult");
     if (el) el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1));flex-direction:column;align-items:flex-start;gap:6px">
       <span style="color:#c62828;font-weight:700">❌ Cannot save — ${errs.length} issue${errs.length > 1 ? "s" : ""} found</span>
