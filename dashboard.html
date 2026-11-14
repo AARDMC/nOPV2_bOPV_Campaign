@@ -266,7 +266,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <div class="fld" id="hcField" style="display:none"><label for="fHC">Health center</label><select id="fHC"></select></div>
     <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
-    <button class="btn solid" id="btnExportSheet" type="button" title="Download the full Google Sheet workbook as Excel (keeps original formulas and conditional formatting)">Download Google Sheet</button>
+    <button class="btn solid" id="btnExport" type="button" title="Download the Google Sheet as Excel filtered for your login, keeping original formulas, conditional formatting, and colors">Download Google Sheet</button>
   </div>
 </div>
 <div class="tabbar">
@@ -1192,7 +1192,7 @@ function init() {
   $('#fWoreda').addEventListener('change', e => { S.woreda = e.target.value; render(); });
   $('#fDay').addEventListener('change', e => { S.upTo = Number(e.target.value); render(); });
   $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
-  $('#btnExportSheet').addEventListener('click', function(){ window.open('https://docs.google.com/spreadsheets/d/1_vn6o8K9p7TRog1Qv8f-FUzYvoaOwYRvJNBbvqOHIzg/export?format=xlsx', '_blank', 'noopener'); });
+  $('#btnExport').addEventListener('click', doDashboardExport);
   $('#btnReset').addEventListener('click', () => {
     if (DASH_SCOPE.mode === 'woreda') { S.zone = DASH_SCOPE.zone; S.woreda = DASH_SCOPE.woreda; }
     else if (DASH_SCOPE.mode === 'zone') { S.zone = DASH_SCOPE.zone; S.woreda = 'all'; }
