@@ -198,8 +198,8 @@
     }
     @keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20px,-20px) scale(1.1); } }
     @keyframes fadeInUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
-    .woreda-header .hero-top { position: relative; z-index: 2; padding-right: 84px; }
-    .woreda-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 7px; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .woreda-header .hero-top { position: relative; z-index: 2; padding-right: 84px; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+    .woreda-header h2 { font-size: 20px; font-weight: 700; margin: 0; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1 1 auto; }
     .woreda-header h2 svg { width: 22px; height: 22px; stroke: #fff; }
     .woreda-header h2 .id-badge { font-size: 12px; background: rgba(255,255,255,0.24); padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(10px); font-weight: 600; }
     .woreda-header .hero-mark {
@@ -224,8 +224,8 @@
       transition: max-height 0.28s ease, opacity 0.22s ease, margin 0.28s ease;
     }
     .woreda-header.compact { padding-top: 10px; padding-bottom: 10px; box-shadow: 0 16px 34px rgba(11,54,99,0.38); border-radius: 0 0 18px 18px; }
-    .woreda-header.compact .hero-top { padding-right: 62px; }
-    .woreda-header.compact h2 { font-size: 15px; margin-bottom: 4px; gap: 8px; }
+    .woreda-header.compact .hero-top { padding-right: 62px; gap: 8px 10px; }
+    .woreda-header.compact h2 { font-size: 15px; margin: 0; gap: 8px; }
     .woreda-header.compact h2 svg { width: 17px; height: 17px; }
     .woreda-header.compact h2 .id-badge { font-size: 10.5px; padding: 2px 9px; }
     .woreda-header.compact .hero-hc { font-size: 11px; padding: 3px 10px 3px 8px; }
