@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nOPV2 Campaign Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --ink:#0F2552; --ink2:#44577F; --ink3:#7D8CAB;
+  --line:#B7D5F0; --line2:#D9E8F7; --paper:#EAF3FC; --card:#FFFFFF;
+  --head:#0B2E6B; --teal:#1558B8; --teal-d:#0B2E6B; --teal-l:#E2F0FD;
+  --good:#1E8E4E; --warn:#E69B00; --bad:#E5262B;
+  --good-bg:#E3F5EA; --warn-bg:#FFF3D1; --bad-bg:#FDE6E6;
+  --navy:#0B2E6B;--blue:#1558B8;--sky:#4A97E0;--pale:#EAF4FD;--yel:#FFD21F;--red:#E5262B;--green:#0E7B3F;--card-line:#A9CFF0;
+  --vio:#6D28D9;--blu:#1E6BFF;--cyn:#06B6D4;--grn:#10B981;--amb:#F59E0B;--pnk:#EC4899;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:radial-gradient(900px 500px at 8% -5%,rgba(236,72,153,.16),transparent 60%),radial-gradient(900px 600px at 100% 0,rgba(6,182,212,.18),transparent 60%),linear-gradient(180deg,#F5F3FF 0,#E8F1FF 100%) fixed;color:var(--ink);font:14px/1.45 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+/* Login overlay */
+#dashLogin{position:fixed;inset:0;z-index:200;background:linear-gradient(135deg,#667eea 0%,#764ba2 50%,#4facfe 100%);display:flex;align-items:center;justify-content:center;padding:20px}
+#dashLogin.hidden{display:none}
+.login-card{background:#fff;border-radius:20px;padding:28px 24px;max-width:420px;width:100%;box-shadow:0 30px 80px rgba(15,23,42,.34)}
+.login-card h2{margin:0 0 6px;font:700 20px "Poppins",sans-serif;text-align:center}
+.login-card p{margin:0 0 16px;color:var(--ink2);font-size:13px;text-align:center}
+.login-card label{display:block;font-size:11px;font-weight:700;color:var(--ink2);text-transform:uppercase;margin-bottom:4px}
+.login-card input{width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:12px;font-size:14px;margin-bottom:12px}
+.login-card input:focus{border-color:#667eea;outline:none;box-shadow:0 0 0 3px rgba(102,126,234,.15)}
+.login-card button{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+.login-card .err{color:#c62828;font-size:12px;margin-top:8px;min-height:18px;text-align:center;font-weight:600}
+.login-card .hint{font-size:11px;color:var(--ink2);margin-top:10px;text-align:center;line-height:1.5}
+
+/* header */
+.top{background:#fff;color:var(--ink);position:relative}
+.top::after{content:"";display:block;height:8px;background:linear-gradient(90deg,#EC4899,#F59E0B 35%,#10B981 65%,#06B6D4)}
+.top-inner{max-width:none;padding:0 0 0 max(20px,calc((100vw - 1320px) / 2));display:grid;grid-template-columns:auto 1fr;gap:0 22px;align-items:stretch}
+.brand{display:flex;align-items:center;gap:12px;padding:12px 0}
+.logo{width:74px;height:74px;object-fit:contain;flex:none}
+.org .am{font-size:13px;font-weight:700;line-height:1.25;color:var(--navy)}
+.org .en{font-size:12px;font-weight:700;line-height:1.25;color:var(--navy);margin-top:3px;letter-spacing:.01em}
+.org .motto{font-size:12.5px;font-style:italic;color:var(--blue);margin-top:4px;padding-top:4px;border-top:1px solid var(--card-line)}
+.navwrap{background:linear-gradient(100deg,#4C1D95 0,#1E6BFF 62%,#06B6D4 100%);clip-path:polygon(34px 0,100% 0,100% 100%,0 100%);padding:16px 22px 16px 58px;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap;color:#fff}
+.top h1{font-size:clamp(18px,2.5vw,30px);font-weight:800;line-height:1.1;letter-spacing:0;text-transform:uppercase;margin:0;color:#fff;font-family:"Poppins",sans-serif;text-shadow:0 2px 10px rgba(0,0,0,.25)}
+.yel{display:inline-block;margin-top:8px;background:#FFD21F;color:var(--navy);font-weight:700;font-size:12.5px;border-radius:16px;padding:4px 14px;font-family:"Poppins",sans-serif;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.datebox{background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.55);border-radius:12px;padding:8px 14px;min-width:190px;font-size:12px}
+.datebox .dl{color:#BFD8F5;font-size:11.5px}
+.datebox #repDate{color:var(--yel);font-weight:700;font-size:17px;line-height:1.2}
+.datebox .mini{display:flex;gap:8px;align-items:center;margin-top:6px;color:#BFD8F5;font-size:11px;flex-wrap:wrap}
+.datebox .btn{padding:3px 10px;font-size:11.5px;border-color:rgba(255,255,255,.55)}
+.heroart svg{height:92px;width:auto;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25))}
+.heroart{flex:none}
+.navwrap>.tt{flex:1;min-width:0;display:flex;align-items:center;gap:16px}
+@media(max-width:900px){.top-inner{grid-template-columns:1fr;padding-left:0}.brand{padding:12px 20px}.navwrap{clip-path:none;padding:16px 20px}}
+
+.filters{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1.5px solid var(--card-line)}
+.filters-inner{max-width:1320px;margin:0 auto;padding:10px 20px;display:flex;gap:14px 18px;flex-wrap:wrap;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:3px;min-width:150px}
+.fld label{font-size:12px;color:var(--ink2);font-weight:500}
+.fld select{border:1.5px solid var(--card-line);background:#fff;border-radius:6px;padding:7px 10px;min-width:170px}
+.fld select:disabled{background:var(--line2);color:var(--ink3)}
+.tabs{max-width:1320px;margin:0 auto;padding:0 20px;display:flex;gap:4px;overflow-x:auto}
+.tabbar{background:var(--card);border-bottom:1.5px solid var(--card-line)}
+.tab-btn{background:none;border:0;border-bottom:3px solid transparent;padding:11px 14px;cursor:pointer;color:var(--ink2);font-weight:600;font-size:13.5px;white-space:nowrap;font-family:"Poppins",sans-serif}
+.tab-btn[aria-selected="true"]{color:var(--vio);border-bottom-color:#EC4899}
+.tab-btn:hover{color:var(--ink)}
+
+main{max-width:1320px;margin:0 auto;padding:14px 20px 40px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(12,1fr);margin-top:16px}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+@media(max-width:980px){.c4,.c5,.c6,.c7,.c8{grid-column:span 12}}
+.panel{background:#fff;border:2px solid var(--card-line);border-radius:18px;box-shadow:0 6px 18px rgba(79,70,229,.10);padding:16px;min-width:0}
+.panel h2{margin:0;display:inline-block;background:linear-gradient(90deg,#0B2E6B 0,#1E78D8 100%);color:#fff;border-radius:20px;padding:6px 18px;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;font-family:"Poppins",sans-serif}
+.panel .sub{margin:8px 0 12px;font-size:12.5px;color:var(--ink2)}
+.chart{position:relative;height:270px}
+.chart.tall{height:340px}
+.grid>.panel:nth-child(6n+1) h2{background:linear-gradient(90deg,#6D28D9,#8B5CF6)}
+.grid>.panel:nth-child(6n+2) h2{background:linear-gradient(90deg,#1E6BFF,#38BDF8)}
+.grid>.panel:nth-child(6n+3) h2{background:linear-gradient(90deg,#0891B2,#10B981)}
+.grid>.panel:nth-child(6n+4) h2{background:linear-gradient(90deg,#DB2777,#F472B6)}
+.grid>.panel:nth-child(6n+5) h2{background:linear-gradient(90deg,#D97706,#FBBF24)}
+.grid>.panel:nth-child(6n) h2{background:linear-gradient(90deg,#4F46E5,#06B6D4)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(230px,300px) 1fr;gap:28px;background:linear-gradient(135deg,#fff 0,#F3E8FF 55%,#DBEAFE 100%);border:2px solid var(--card-line);border-radius:18px;box-shadow:0 8px 22px rgba(79,70,229,.14);padding:22px 24px;position:relative;overflow:hidden}
+@media(max-width:820px){.hero{grid-template-columns:1fr;gap:18px}}
+.hero .ico{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#6D28D9,#1E6BFF);display:flex;align-items:center;justify-content:center;flex:none}
+.hero-num{font-size:68px;line-height:1;font-weight:800;letter-spacing:-.03em;font-family:"Poppins",sans-serif}
+.hero-num.good{background:linear-gradient(90deg,#059669,#10B981);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-num.warn{background:linear-gradient(90deg,#D97706,#F59E0B);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-num.bad{background:linear-gradient(90deg,#DC2626,#F43F5E);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-num.na{color:var(--ink3)}
+.hero-lab{margin-top:8px;font-size:15px;font-weight:700;color:var(--navy)}
+.hero-sub{margin-top:2px;color:var(--ink2);font-size:13px}
+.hero-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.newpill{background:linear-gradient(90deg,#EC4899,#F43F5E);color:#fff;border-radius:16px;padding:4px 12px;font:700 13px "Poppins",sans-serif;white-space:nowrap}
+.track-wrap{padding-top:22px}
+.track{position:relative;display:flex;height:40px;background:#E0E7FF;border-radius:8px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.08)}
+.seg{height:100%;min-width:0}
+.tick{position:absolute;top:-6px;bottom:-6px;width:0;border-left:2px dashed var(--navy)}
+.tick span{position:absolute;top:-17px;font-size:11.5px;font-weight:600;color:var(--ink);white-space:nowrap}
+.tick.t95 span{right:5px}.tick.t100 span{left:5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;font-size:12.5px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.legend b{font-weight:600}
+.hero-note{margin-top:14px;font-size:13.5px;color:var(--ink)}
+.hero-note.bad{color:var(--bad)}
+
+/* stat strip */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:16px}
+.stat{background:#EAF4FD;border:0;border-radius:12px;padding:14px 16px;color:#fff;box-shadow:0 6px 16px rgba(79,70,229,.18)}
+.stat .l{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.93)}
+.stat .v{font-size:28px;font-weight:800;letter-spacing:-.01em;margin-top:2px;color:#fff;font-family:"Poppins",sans-serif}
+.stat .s{font-size:12px;color:rgba(255,255,255,.93);margin-top:1px}
+.stat:nth-child(5n+1){background:linear-gradient(135deg,#6D28D9,#8B5CF6)}
+.stat:nth-child(5n+2){background:linear-gradient(135deg,#1E6BFF,#38BDF8)}
+.stat:nth-child(5n+3){background:linear-gradient(135deg,#0891B2,#10B981)}
+.stat:nth-child(5n+4){background:linear-gradient(135deg,#DB2777,#F472B6)}
+.stat:nth-child(5n+5){background:linear-gradient(135deg,#D97706,#FBBF24)}
+.stat .v.good,.stat .v.warn,.stat .v.bad{color:#fff}
+
+/* tables */
+.tbl-wrap{overflow:auto;max-height:560px;border:1px solid var(--card-line);border-radius:6px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap}
+th:first-child,td:first-child,.tl{text-align:left}
+thead th{position:sticky;top:0;background:#EDE9FE;color:#4C1D95;font-weight:600;z-index:1}
+th button{all:unset;cursor:pointer;font-weight:600;color:#4C1D95}
+tbody tr:hover{background:#F5F3FF}
+td.hc{max-width:230px;overflow:hidden;text-overflow:ellipsis;text-align:left;color:var(--ink2)}
+td.wrap{white-space:normal;text-align:left;min-width:240px}
+.covcell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.covcell .bar{width:70px;height:7px;border-radius:4px;background:var(--line2);overflow:hidden;flex:none}
+.covcell .bar i{display:block;height:100%}
+.covcell b{min-width:50px;text-align:right}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}
+.pill.good{background:var(--good-bg);color:var(--good)}.pill.warn{background:var(--warn-bg);color:#8A6200}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.toolbar input[type=search]{border:1px solid var(--card-line);border-radius:6px;padding:7px 10px;min-width:220px}
+.toolbar .grow{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--card-line);background:#fff;border-radius:16px;padding:6px 12px;cursor:pointer;font-size:13px}
+.chip b{margin-left:6px}
+.chip[aria-pressed="true"]{background:var(--teal-l);border-color:var(--blue)}
+.chip.zero{color:var(--ink3)}
+.empty{padding:26px;text-align:center;color:var(--ink2)}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:24px;max-width:720px}
+.msg.err{border-color:var(--bad);background:var(--bad-bg)}
+.msg h2{margin:0 0 6px;font-size:16px}
+.note{font-size:12.5px;color:var(--ink2);margin-top:10px}
+.btn{background:transparent;border:1px solid #7FA9E0;color:#fff;border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:500}
+.btn:hover{background:#17428F}
+.btn.dark{border-color:var(--card-line);color:var(--navy)}
+.btn.dark:hover{background:var(--teal-l)}
+.btn.solid{background:#6D28D9;border-color:#6D28D9;color:#fff}
+.btn.solid:hover{background:#4C1D95}
+.btn[disabled]{opacity:.55;cursor:wait}
+.busy{position:fixed;inset:0;background:rgba(46,16,101,.78);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.busy[hidden],.toast[hidden]{display:none}
+.busy div{background:#fff;border-radius:8px;padding:22px 26px;max-width:420px;font-size:14px}
+.busy b{display:block;font-size:16px;margin-bottom:4px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:40;background:var(--head);color:#fff;border-radius:8px;padding:12px 16px;max-width:92vw;font-size:13.5px}
+.toast.err{background:var(--bad)}
+.narr{margin-top:16px}
+.narr summary{cursor:pointer;font-weight:600;font-size:15px;color:var(--navy);font-family:"Poppins",sans-serif}
+.narr h3{margin:14px 0 4px;font-size:13.5px;color:var(--teal-d)}
+.narr ul{margin:0;padding-left:20px}
+.narr li{margin:3px 0;max-width:110ch}
+
+.bannerhost{max-width:1320px;margin:16px auto 0;padding:0 20px}
+.banner{display:flex;align-items:center;justify-content:space-between;gap:14px;background:linear-gradient(90deg,#7C3AED 0,#2563EB 58%,#06B6D4 100%);color:#fff;border-radius:14px;padding:12px 22px;overflow:hidden;position:relative;box-shadow:0 6px 18px rgba(79,70,229,.3)}
+.banner[hidden]{display:none}
+.banner .bi{display:flex;align-items:center;gap:12px;min-width:0}
+.banner .bico{width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.banner b{font-size:clamp(17px,2.2vw,26px);font-weight:800;text-transform:uppercase;line-height:1.1;font-family:"Poppins",sans-serif}
+.banner small{display:block;font-size:12.5px;color:#E0E7FF;margin-top:2px}
+.banner .sky{flex:none}.banner .sky svg{height:66px;width:auto;margin:-10px 0;display:block}
+.foot{margin-top:28px;background:linear-gradient(90deg,#4C1D95 0,#1E6BFF 60%,#06B6D4 100%);color:#fff;text-align:center;padding:14px 20px 12px;font-family:"Poppins",sans-serif}
+.foot .pillars{display:flex;justify-content:center;align-items:center;gap:22px;flex-wrap:wrap;font-weight:600;font-size:14px}
+.foot .pillars span{display:flex;align-items:center;gap:8px}
+.foot .pillars i{width:1px;height:26px;background:rgba(255,255,255,.4)}
+.foot .tag{margin-top:8px;font-style:italic;font-size:14px;font-weight:500;color:#DCEBFA}
+@media(max-width:700px){.foot .pillars i{display:none}}
+.backlink{color:#fff;text-decoration:none;font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:4px}
+</style>
+<script>
+window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1lMEcqzTLYxB3tgksV6eKyJ403wh6Yg68Kje42ZRBps4ZdqeZFbIauZk/exec";
+(function(){
+  var hasNative = !!(window.google && window.google.script && window.google.script.run);
+  if (hasNative) return;
+  function fail(msg){ var e=new Error(msg); e.campaignMessage=msg; return e; }
+  function sessionToken(){ try{ return sessionStorage.getItem('epi_token') || sessionStorage.getItem('dash_token') || ''; }catch(e){return '';} }
+  function parseJson(text){ try{return JSON.parse(text);}catch(e){} var s=text.indexOf('{'),e2=text.lastIndexOf('}'); if(s>=0&&e2>s){try{return JSON.parse(text.slice(s,e2+1));}catch(e3){}} throw fail('Unreadable server reply'); }
+  function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetch(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
+  function postViaIframe(body){ return new Promise(function(resolve,reject){ var url=window.CAMPAIGN_API_URL; if(!url){reject(fail('No server URL'));return;} var id='r'+Math.floor(Math.random()*1e9).toString(36); var iframe=document.createElement('iframe'); iframe.name=id; iframe.style.cssText='position:absolute;width:0;height:0;border:0;visibility:hidden'; var form=document.createElement('form'); form.method='POST'; form.action=url; form.target=id; form.style.display='none'; var fields={action:body.action,payload:JSON.stringify(body.payload||{}),token:body.token||'',transport:'iframe',requestId:id}; Object.keys(fields).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);}); var settled=false; var timer=setTimeout(function(){finish();reject(fail('Server not responding'));},60000); function finish(){if(settled)return; settled=true; clearTimeout(timer); window.removeEventListener('message',onMessage); setTimeout(function(){if(form.parentNode)form.parentNode.removeChild(form); if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},1500);} function onMessage(ev){var d=ev.data; if(!d||d.source!=='nopv2-campaign'||d.requestId!==id) return; finish(); resolve(d.result);} window.addEventListener('message',onMessage); document.body.appendChild(iframe); document.body.appendChild(form); form.submit(); }); }
+  function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; return postJson(body).catch(function(){return postViaIframe(body);}).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token');}catch(e){} } return out; }); }
+  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getLogo'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; if(action==='getDashboardData') p={force:!!args[0]}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
+  window.google=window.google||{}; window.google.script=window.google.script||{};
+  Object.defineProperty(window.google.script,'run',{configurable:true,get:function(){return makeRunner();}});
+})();
+</script>
+</head>
+<body>
+<div id="dashLogin">
+  <div class="login-card">
+    <h2>Dashboard Login</h2>
+    <p>Enter your Sub City ID to view the monitoring dashboard.</p>
+    <label>Sub City ID</label>
+    <input id="dashId" type="text" placeholder="e.g. AK1136" autocomplete="off">
+    <button id="dashLoginBtn">Open Dashboard</button>
+    <div class="err" id="dashErr"></div>
+    <div class="hint">Sub city officers see only their sub city. PHEM/EPHI IDs see the full Addis Ababa dashboard. Woreda officers: use the Dashboard button inside the data entry form to go directly to your woreda.</div>
+  </div>
+</div>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <img id="logo" class="logo" src="assets/logo.jpg" alt="Health Bureau logo">
+      <div class="org">
+        <div class="am">አዲስ አበባ ከተማ አስተዳደር<br>ጤና ቢሮ</div>
+        <div class="en">ADDIS ABABA CITY ADMINISTRATION<br>HEALTH BUREAU</div>
+        <div class="motto">Healthy People &nbsp; Healthy City</div>
+      </div>
+    </div>
+    <div class="navwrap">
+      <div class="tt"><div class="heroart" id="heroArt" aria-hidden="true"></div><div>
+        <h1 id="title">nOPV2 campaign update</h1>
+        <span class="yel" id="subtitle">Loading data from the campaign workbook</span>
+      </div></div>
+      <div class="datebox">
+        <div class="dl">Reporting date</div>
+        <div id="repDate">–</div>
+        <div class="mini"><span id="stamp"></span><button class="btn" id="btnRefresh" type="button">Refresh</button></div>
+        <div style="margin-top:6px"><a href="index.html" class="backlink">← Data entry</a></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="filters">
+  <div class="filters-inner">
+    <div class="fld"><label for="fZone">Zone</label><select id="fZone"></select></div>
+    <div class="fld"><label for="fWoreda">Woreda</label><select id="fWoreda" disabled></select></div>
+    <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
+    <button class="btn dark" id="btnReset" type="button">Clear filters</button>
+  </div>
+</div>
+<div class="tabbar">
+  <div class="tabs" role="tablist" id="tabs">
+    <button class="tab-btn" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+    <button class="tab-btn" role="tab" data-tab="geo" aria-selected="false">Zones and woredas</button>
+    <button class="tab-btn" role="tab" data-tab="vaccine" aria-selected="false">Vaccine use</button>
+    <button class="tab-btn" role="tab" data-tab="community" aria-selected="false">Community and safety</button>
+    <button class="tab-btn" role="tab" data-tab="quality" aria-selected="false">Data quality</button>
+  </div>
+</div>
+
+<div class="busy" id="busy" hidden role="alertdialog" aria-live="assertive"><div><b id="busyTitle">Loading</b><span id="busyMsg"></span></div></div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<div class="bannerhost"><div class="banner" id="banner" hidden>
+  <div class="bi"><span class="bico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg></span>
+    <div><b id="bannerTitle"></b><small id="bannerSub"></small></div></div>
+  <span class="sky" id="bannerArt" aria-hidden="true"></span>
+</div></div>
+
+<main id="app" aria-live="polite">
+  <div class="msg"><h2>Loading</h2><p>Reading the daily tabs of the workbook.</p></div>
+</main>
+<footer class="foot">
+  <div class="pillars">
+    <span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path d="M8.5 12l2.5 2.5L16 9.5"/></svg>Quality Coverage</span><i></i>
+    <span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Timely Reporting</span><i></i>
+    <span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.3c3 0 6 1.6 6 5.2"/></svg>Stronger Response</span>
+  </div>
+  <div class="tag">Together for a Safer, Healthier Community</div>
+</footer>
+
+<script>
+/* ===================== LOGIC ===================== */
+let CFG = null, M = null;
+const S = { zone:'all', woreda:'all', upTo:0, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all' };
+let DASH_SCOPE = { mode:'all', zone:'', woreda:'', woredaID:'' };
+
+const nf = new Intl.NumberFormat('en-US');
+const fmt = n => (n == null || !isFinite(n)) ? '–' : nf.format(Math.round(n));
+const pct = (x, d = 1) => (x == null || !isFinite(x)) ? '–' : (x * 100).toFixed(d) + '%';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const RULES = [
+  { id:'zero',      label:'No vaccination reported on a campaign day' },
+  { id:'overtarget',label:'Daily vaccinated above 150% of daily target' },
+  { id:'vials',     label:'Vials received differ from vials accounted for' },
+  { id:'wastage',   label:'Doses given exceed what the vials used can hold' },
+  { id:'agesum',    label:'Age groups do not add up to total vaccinated' },
+  { id:'sexsum',    label:'Male and female do not add up to total vaccinated' },
+  { id:'placesum',  label:'Places of vaccination do not add up to total vaccinated' },
+  { id:'teams',     label:'Teams reported above teams planned, or none reported' },
+  { id:'linkage',   label:'Linked children vaccinated above children identified' },
+  { id:'hcname',    label:'Health center name missing' },
+  { id:'cumover',   label:'Cumulative coverage far above target' }
+];
+
+function buildModel(p) {
+  CFG = p.meta.cfg;
+  const fields = p.fields;
+  const units = p.units.map(u => Object.assign({}, u, { flags: [] }));
+  const bySnU = {}; units.forEach(u => { bySnU[u.sn] = u; });
+  const recs = [];
+  p.rows.forEach(r => {
+    const u = bySnU[r[1]]; if (!u) return;
+    const o = { d: r[0], sn: r[1], u: u, flags: [] };
+    fields.forEach((k, i) => { o[k] = r[i + 2]; });
+    recs.push(o);
+  });
+  const bySn = {}; units.forEach(u => { bySn[u.sn] = []; });
+  recs.forEach(r => bySn[r.sn].push(r));
+  const days = p.meta.days;
+  let last = 0; days.forEach((d, i) => { if (recs.some(r => r.d === i && r.tot > 0)) last = i; });
+  M = { fields, units, recs, bySn, bySnU, days, last, meta: p.meta, remarks: p.remarks || [],
+        zones: Array.from(new Set(units.map(u => u.zone))).sort() };
+  recs.forEach(flagRecord); units.forEach(flagUnit);
+  return M;
+}
+
+function flagRecord(r) {
+  const camp = M.days[r.d].type === 'campaign', f = r.flags;
+  if (camp && r.tot === 0) f.push({ rule:'zero', text:'No vaccination reported' });
+  if (camp && r.dtgt > 0 && r.tot > 1.5 * r.dtgt)
+    f.push({ rule:'overtarget', text:'Vaccinated ' + fmt(r.tot) + ' against a daily target of ' + fmt(r.dtgt) + ' (' + pct(r.tot / r.dtgt, 0) + ')' });
+  const acc = r.used + r.part + r.retG + r.brk + r.retB + r.lost;
+  if (Math.abs(r.rec - acc) > 0.001) f.push({ rule:'vials', text:'Received ' + fmt(r.rec) + ' vials, accounted for ' + fmt(acc) });
+  const cap = (r.used + r.part) * CFG.dosesPerVial;
+  if (r.tot > cap * 1.02 && r.tot > 0)
+    f.push({ rule:'wastage', text:'Vaccinated ' + fmt(r.tot) + ' but vials used hold ' + fmt(cap) + ' doses' });
+  if (r.v011 + r.n011 + r.v1259 + r.n1259 !== r.tot) f.push({ rule:'agesum', text:'Age groups add up to ' + fmt(r.v011 + r.n011 + r.v1259 + r.n1259) + ', total is ' + fmt(r.tot) });
+  if (r.male + r.female !== r.tot) f.push({ rule:'sexsum', text:'Male and female add up to ' + fmt(r.male + r.female) + ', total is ' + fmt(r.tot) });
+  const pl = r.pHouse + r.pSchool + r.pMarket + r.pStreet + r.pOther;
+  if (pl !== r.tot) f.push({ rule:'placesum', text:'Places add up to ' + fmt(pl) + ', total is ' + fmt(r.tot) });
+  if (r.teamsRep > r.teams) f.push({ rule:'teams', text:r.teamsRep + ' teams reported, ' + r.teams + ' planned' });
+  else if (camp && r.teams > 0 && r.teamsRep === 0) f.push({ rule:'teams', text:'No teams reported (' + r.teams + ' planned)' });
+  if ((r.zdV > r.zdId && r.zdId > 0) || (r.uvV > r.uvId && r.uvId > 0))
+    f.push({ rule:'linkage', text:'Zero-dose ' + r.zdV + ' of ' + r.zdId + ' identified; under-vaccinated ' + r.uvV + ' of ' + r.uvId });
+}
+function flagUnit(u) {
+  if (!u.hc) u.flags.push({ rule:'hcname', text:'Health center name is blank in the sheet' });
+  const tot = M.bySn[u.sn].reduce((a, r) => a + r.tot, 0);
+  if (u.tgt > 0 && tot / u.tgt > CFG.overCoverage)
+    u.flags.push({ rule:'cumover', text:'Cumulative coverage ' + pct(tot / u.tgt) + ' of target ' + fmt(u.tgt) + '. Check the target.' });
+}
+
+const zeroObj = () => { const o = {}; M.fields.forEach(k => { o[k] = 0; }); return o; };
+function addTo(a, b) { M.fields.forEach(k => { a[k] += (b[k] || 0); }); return a; }
+function sumRecs(rs) { const a = zeroObj(); rs.forEach(r => addTo(a, r)); return a; }
+const tgtOf = us => us.reduce((s, u) => s + (u.tgt || 0), 0);
+const cov = (tot, tgt) => tgt > 0 ? tot / tgt : null;
+function wastage(a) { const cap = (a.used + a.part) * CFG.dosesPerVial; return cap > 0 ? 1 - a.tot / cap : null; }
+function status(c) { if (c == null) return 'na'; if (c >= CFG.targetCoverage) return 'good'; if (c >= CFG.warnCoverage) return 'warn'; return 'bad'; }
+const STATUS_COL = { good:'#1E8E4E', warn:'#E69B00', bad:'#E5262B', na:'#9AA9C0' };
+
+function scopeUnits() { return M.units.filter(u => (S.zone === 'all' || u.zone === S.zone) && (S.woreda === 'all' || u.woreda === S.woreda)); }
+function scopeRecs() { const set = new Set(scopeUnits().map(u => u.sn)); return M.recs.filter(r => set.has(r.sn)); }
+
+function unitRows() {
+  return scopeUnits().map(u => {
+    const rs = M.bySn[u.sn].filter(r => r.d <= S.upTo);
+    const a = sumRecs(rs), day = sumRecs(M.bySn[u.sn].filter(r => r.d === S.upTo));
+    return { u, a, day, tgt: u.tgt, cov: cov(a.tot, u.tgt), w: wastage(a),
+             flags: rs.reduce((n, r) => n + r.flags.length, 0) + u.flags.length };
+  });
+}
+function rollup(rows, keyFn) {
+  const m = new Map();
+  rows.forEach(r => {
+    const k = keyFn(r); let g = m.get(k);
+    if (!g) { g = { key:k, rows:[], a:zeroObj(), tgt:0, flags:0 }; m.set(k, g); }
+    g.rows.push(r); addTo(g.a, r.a); g.tgt += r.tgt; g.flags += r.flags;
+  });
+  return Array.from(m.values()).map(g => { g.cov = cov(g.a.tot, g.tgt); g.w = wastage(g.a); g.atTarget = g.rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length; return g; });
+}
+const groupBy = () => S.zone === 'all' ? 'zone' : 'woreda';
+function groups(rows) { return rollup(rows, r => S.zone === 'all' ? r.u.zone : r.u.woreda); }
+function dayTotals(recs) { return M.days.slice(0, M.last + 1).map((d, i) => sumRecs(recs.filter(r => r.d === i))); }
+
+function qualityItems() {
+  const set = new Set(scopeUnits().map(u => u.sn)), items = [];
+  M.recs.forEach(r => {
+    if (!set.has(r.sn) || r.d > S.upTo) return;
+    r.flags.forEach(f => items.push({ rule:f.rule, text:f.text, day:M.days[r.d].label, d:r.d, zone:r.u.zone, woreda:r.u.woreda }));
+  });
+  M.units.forEach(u => {
+    if (!set.has(u.sn)) return;
+    u.flags.forEach(f => items.push({ rule:f.rule, text:f.text, day:'All days', d:-1, zone:u.zone, woreda:u.woreda }));
+  });
+  return items;
+}
+
+function dayText(i) {
+  const d = M.days[i]; if (!d) return '';
+  if (!d.date) return d.label;
+  const dt = new Date(d.date + 'T00:00:00');
+  return d.label + ' (' + dt.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + ')';
+}
+const dayName = () => M.days[S.upTo] ? M.days[S.upTo].label : '';
+function scopeName() { return S.woreda !== 'all' ? S.zone + ', ' + S.woreda : S.zone !== 'all' ? S.zone : 'All zones'; }
+
+/* ===================== RENDERING ===================== */
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const app = () => $('#app');
+const charts = {};
+
+const RAMP_C = ['#6D28D9', '#1E6BFF', '#06B6D4', '#10B981', '#F59E0B'];
+const RAMP_M = ['#EC4899', '#F472B6', '#F9A8D4'];
+function dayColor(i) {
+  const d = M.days[i], idx = M.days.slice(0, i).filter(x => x.type === d.type).length;
+  const ramp = d.type === 'campaign' ? RAMP_C : RAMP_M;
+  return ramp[Math.min(idx, ramp.length - 1)];
+}
+
+const refLine = { id:'refLine', afterDatasetsDraw(chart, args, o) {
+  if (!o || o.value == null) return;
+  const sc = chart.scales.x, a = chart.chartArea; if (!sc) return;
+  const x = sc.getPixelForValue(o.value), ctx = chart.ctx;
+  ctx.save(); ctx.strokeStyle = '#0F2552'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#0F2552'; ctx.font = '600 11px "Public Sans", sans-serif'; ctx.fillText(o.label || '', x + 4, a.top + 10);
+  ctx.restore();
+}};
+const barLabels = { id:'barLabels', afterDatasetsDraw(chart, args, o) {
+  if (!o || !o.format) return;
+  const ctx = chart.ctx; ctx.save(); ctx.fillStyle = '#0F2552';
+  ctx.font = '600 11px "Public Sans", sans-serif'; ctx.textBaseline = 'middle';
+  chart.getDatasetMeta(0).data.forEach((bar, i) => {
+    const v = chart.data.datasets[0].data[i]; if (v == null) return;
+    ctx.fillText(o.format(v), bar.x + 5, bar.y);
+  });
+  ctx.restore();
+}};
+
+function setupChartDefaults() {
+  Chart.register(refLine, barLabels);
+  Chart.defaults.font.family = '"Public Sans", system-ui, sans-serif';
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = '#44577F';
+  Chart.defaults.borderColor = '#D9E8F7';
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.animation = false;
+  Chart.defaults.plugins.legend.labels.boxWidth = 10;
+  Chart.defaults.plugins.legend.labels.boxHeight = 10;
+}
+function draw(id, cfg) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const el = document.getElementById(id); if (!el) return;
+  charts[id] = new Chart(el.getContext('2d'), cfg);
+}
+function killCharts() { Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; }); }
+const numTip = { callbacks: { label: c => ' ' + c.dataset.label + ': ' + fmt(c.parsed.y != null && c.chart.options.indexAxis !== 'y' ? c.parsed.y : c.parsed.x) } };
+function vOpts(extra) { return Object.assign({ responsive:true, interaction:{ mode:'index', intersect:false },
+  scales:{ y:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, x:{ grid:{ display:false } } },
+  plugins:{ legend:{ position:'bottom' }, tooltip:numTip } }, extra || {}); }
+function pctTip() { return { callbacks: { label: c => ' ' + c.dataset.label + ': ' + (c.parsed.y != null && c.chart.options.indexAxis !== 'y' ? c.parsed.y : c.parsed.x).toFixed(1) + '%' } }; }
+
+const ICON_VAX = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4M15 5l4 4M3 21l5-5"/><path d="M7 17l-1-1 9-9 3 3-9 9z"/><path d="M11 9l4 4"/></svg>';
+const TAB_TITLES = { overview:'Campaign situation', geo:'Zones and woredas', vaccine:'Vaccine use', community:'Community and safety', quality:'Data quality' };
+const ART_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 220" width="300" height="220"><circle cx="150" cy="112" r="104" fill="#EAF4FD"/><circle cx="82" cy="70" r="20" fill="#EC4899"/><circle cx="82" cy="70" r="36" fill="none" stroke="#EF4444" stroke-width="6"/><line x1="57" y1="45" x2="107" y2="95" stroke="#EF4444" stroke-width="6" stroke-linecap="round"/><path d="M200 22 C200 22 160 70 160 100 a40 40 0 0 0 80 0 C240 70 200 22 200 22Z" fill="#2563EB"/><circle cx="150" cy="186" r="30" fill="#F8C291"/></svg>';
+
+const panel = (cls, title, sub, body) => '<div class="panel ' + cls + '"><h2>' + title + '</h2>' + (sub ? '<p class="sub">' + sub + '</p>' : '<div style="height:10px"></div>') + body + '</div>';
+const stat = (l, v, s, c) => '<div class="stat"><div class="l">' + l + '</div><div class="v ' + (c || '') + '">' + v + '</div><div class="s">' + (s || '') + '</div></div>';
+function covCell(c) {
+  if (c == null) return '–';
+  const w = Math.min(c, 1.3) / 1.3 * 100;
+  return '<div class="covcell"><span class="bar"><i style="width:' + w + '%;background:' + STATUS_COL[status(c)] + '"></i></span><b>' + pct(c) + '</b></div>';
+}
+
+/* ---------- Overview ---------- */
+function renderOverview() {
+  const units = scopeUnits(), recs = scopeRecs(), tgt = tgtOf(units);
+  const cumRecs = recs.filter(r => r.d <= S.upTo);
+  const cum = sumRecs(cumRecs), cur = sumRecs(recs.filter(r => r.d === S.upTo));
+  const c = cov(cum.tot, tgt), rows = unitRows(), w = wastage(cum);
+  const atT = rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length;
+  const below = rows.filter(r => r.cov != null && r.cov < CFG.warnCoverage).length;
+  const dt = dayTotals(recs).slice(0, S.upTo + 1);
+
+  const scaleMax = Math.max(1.05, (c || 0) * 1.04);
+  let segs = '', legend = '';
+  dt.forEach((a, i) => {
+    const frac = tgt > 0 ? a.tot / tgt : 0;
+    segs += '<div class="seg" title="' + esc(dayText(i)) + ': ' + fmt(a.tot) + ' children" style="width:' + (frac / scaleMax * 100) + '%;background:' + dayColor(i) + '"></div>';
+    legend += '<span><i style="background:' + dayColor(i) + '"></i>' + esc(M.days[i].label) + ' <b>' + fmt(a.tot) + '</b> (' + pct(cov(a.tot, tgt)) + ')</span>';
+  });
+  const gap = cum.tot - CFG.targetCoverage * tgt;
+  const note = gap >= 0
+    ? 'Ahead of the ' + pct(CFG.targetCoverage, 0) + ' goal by ' + fmt(gap) + ' children.'
+    : fmt(-gap) + ' more children are needed to reach the ' + pct(CFG.targetCoverage, 0) + ' goal.';
+  const hero = '<div class="hero"><div>' +
+    '<div class="hero-row"><span class="ico">' + ICON_VAX + '</span><div class="hero-num ' + status(c) + '">' + pct(c) + '</div><span class="newpill">+' + fmt(cur.tot) + ' on ' + esc(dayName()) + '</span></div>' +
+    '<div class="hero-lab">of the target reached through ' + esc(dayName()) + '</div>' +
+    '<div class="hero-sub">' + fmt(cum.tot) + ' children vaccinated. Target ' + fmt(tgt) + '. ' + esc(scopeName()) + '.</div></div>' +
+    '<div class="track-wrap"><div class="track">' + segs +
+    '<div class="tick t95" style="left:' + (CFG.targetCoverage / scaleMax * 100) + '%"><span>' + pct(CFG.targetCoverage, 0) + '</span></div>' +
+    '<div class="tick t100" style="left:' + (1 / scaleMax * 100) + '%"><span>100%</span></div></div>' +
+    '<div class="legend">' + legend + '</div>' +
+    '<div class="hero-note ' + (gap >= 0 ? '' : 'bad') + '">' + note + '</div></div></div>';
+
+  const camp = M.days[S.upTo].type === 'campaign';
+  const dayCov = camp ? cov(cur.tot, cur.dtgt) : null;
+  const fieldTeams = cur.teams > 0 ? cur.teamsRep / cur.teams : null;
+  const strip = '<div class="strip">' +
+    stat('Vaccinated on ' + esc(dayName()), fmt(cur.tot), camp ? pct(dayCov) + ' of the daily target' : 'Mop-up day, no daily target') +
+    stat('Woredas at or above ' + pct(CFG.targetCoverage, 0), atT + ' of ' + rows.length, below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
+    stat('Vaccine wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') +
+    stat('Not vaccinated before', fmt(cum.n011 + cum.n1259), '0–11m ' + fmt(cum.n011) + ', 12–59m ' + fmt(cum.n1259)) +
+    stat('AEFI reported', fmt(cum.aefiM + cum.aefiS), 'Severe ' + fmt(cum.aefiS), cum.aefiS > 0 ? 'bad' : '') +
+    stat('Teams reporting on ' + esc(dayName()), pct(fieldTeams, 0), fmt(cur.teamsRep) + ' of ' + fmt(cur.teams) + ' teams', fieldTeams != null && fieldTeams < 0.95 ? 'warn' : 'good') +
+    stat('Households visited', fmt(cum.hh), 'By social mobilizers') + '</div>';
+
+  const g = groups(rows).sort((a, b) => (b.cov == null ? -1 : b.cov) - (a.cov == null ? -1 : a.cov));
+  const gh = Math.max(240, g.length * 30 + 50);
+
+  app().innerHTML = hero + strip + '<div class="grid">' +
+    panel('c7', 'Children vaccinated each day', 'Bars show children vaccinated. The dashed line is the daily target on campaign days.', '<div class="chart"><canvas id="ch-daily"></canvas></div>') +
+    panel('c5', 'Cumulative coverage', 'Share of the planned target reached by the end of each day.', '<div class="chart"><canvas id="ch-cum"></canvas></div>') +
+    panel('c8', 'Coverage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Cumulative through ' + esc(dayName()) + '.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-group"></canvas></div>') +
+    panel('c4', 'Boys and girls', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
+    panel('c7', 'Age group by day', 'Children aged 0–11 months and 12–59 months.', '<div class="chart"><canvas id="ch-age"></canvas></div>') +
+    panel('c5', 'Where children were vaccinated', 'Through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-place"></canvas></div>') +
+    '</div>';
+
+  const labels = dt.map((a, i) => M.days[i].label);
+  draw('ch-daily', { type:'bar', data:{ labels, datasets:[
+    { type:'bar', label:'Vaccinated', data:dt.map(a => a.tot), backgroundColor:dt.map((a, i) => dayColor(i)), borderRadius:3, order:2 },
+    { type:'line', label:'Daily target', data:dt.map((a, i) => M.days[i].type === 'campaign' ? a.dtgt : null), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:3, pointBackgroundColor:'#0F2552', borderWidth:2, tension:0, order:1 }
+  ] }, options:vOpts() });
+
+  let run = 0;
+  const cumCov = dt.map(a => { run += a.tot; return tgt > 0 ? run / tgt * 100 : null; });
+  draw('ch-cum', { type:'line', data:{ labels, datasets:[
+    { label:'Cumulative coverage', data:cumCov, borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:4, tension:.25 },
+    { label:pct(CFG.targetCoverage, 0) + ' goal', data:labels.map(() => CFG.targetCoverage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5 }
+  ] }, options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip() } }) });
+
+  draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Coverage', data:g.map(x => x.cov == null ? null : x.cov * 100), backgroundColor:g.map(x => STATUS_COL[status(x.cov)]), borderRadius:3 }] },
+    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } },
+      scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
+      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' } } } });
+
+  draw('ch-sex', { type:'doughnut', data:{ labels:['Male', 'Female'], datasets:[{ data:[cum.male, cum.female], backgroundColor:['#1E6BFF', '#EC4899'], borderWidth:2, borderColor:'#fff' }] },
+    options:{ responsive:true, cutout:'62%', plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (cum.male + cum.female || 1)) + ')' } } } } });
+
+  draw('ch-age', { type:'bar', data:{ labels, datasets:[
+    { label:'0–11 months', data:dt.map(a => a.v011 + a.n011), backgroundColor:'#1E6BFF' },
+    { label:'12–59 months', data:dt.map(a => a.v1259 + a.n1259), backgroundColor:'#34D399' }
+  ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } } }) });
+
+  const pl = [['House', cum.pHouse], ['School', cum.pSchool], ['Market', cum.pMarket], ['Street', cum.pStreet], ['Other place', cum.pOther]];
+  draw('ch-place', { type:'bar', data:{ labels:pl.map(x => x[0]), datasets:[{ label:'Children', data:pl.map(x => x[1]), backgroundColor:'#1E6BFF', borderRadius:3 }] },
+    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
+      plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) } } } });
+}
+
+/* ---------- Zones and woredas ---------- */
+const GEO_COLS = [
+  { k:'zone', t:'Zone', tl:1 }, { k:'woreda', t:'Woreda', tl:1 }, { k:'hc', t:'Health centers', tl:1 },
+  { k:'tgt', t:'Target' }, { k:'tot', t:'Vaccinated' }, { k:'cov', t:'Coverage' },
+  { k:'day', t:'On selected day' }, { k:'w', t:'Wastage' }, { k:'flags', t:'Flags' }
+];
+function geoValue(r, k) {
+  switch (k) {
+    case 'zone': return r.u.zone; case 'woreda': return r.u.woreda; case 'hc': return r.u.hc || '';
+    case 'tgt': return r.tgt; case 'tot': return r.a.tot; case 'cov': return r.cov == null ? -1 : r.cov;
+    case 'day': return r.day.tot; case 'w': return r.w == null ? -9 : r.w; case 'flags': return r.flags;
+  } return 0;
+}
+function renderGeo() {
+  const rows = unitRows();
+  const zg = rollup(rows, r => r.u.zone).sort((a, b) => (a.cov == null ? -1 : a.cov) - (b.cov == null ? -1 : b.cov));
+  const low = rows.filter(r => r.cov != null).sort((a, b) => a.cov - b.cov).slice(0, 10);
+
+  const zt = '<div class="tbl-wrap"><table><thead><tr><th>Zone</th><th>Woredas</th><th>Target</th><th>Vaccinated</th><th>Coverage</th><th>At or above ' + pct(CFG.targetCoverage, 0) + '</th><th>Wastage</th><th>AEFI</th></tr></thead><tbody>' +
+    zg.map(g => '<tr><td>' + esc(g.key) + '</td><td>' + g.rows.length + '</td><td>' + fmt(g.tgt) + '</td><td>' + fmt(g.a.tot) + '</td><td>' + covCell(g.cov) + '</td><td>' + g.atTarget + ' of ' + g.rows.length + '</td><td>' + pct(g.w) + '</td><td>' + fmt(g.a.aefiM + g.a.aefiS) + '</td></tr>').join('') +
+    '</tbody></table></div>';
+
+  app().innerHTML = '<div class="grid" style="margin-top:0">' +
+    panel('c7', 'Zones', 'Cumulative through ' + esc(dayName()) + ', lowest coverage first.', zt) +
+    panel('c5', 'Ten lowest woredas', 'Where catch-up effort is most needed.', '<div class="chart tall"><canvas id="ch-low"></canvas></div>') +
+    '<div class="panel c12"><h2>Woredas</h2><p class="sub">Click a column heading to sort.</p>' +
+    '<div class="toolbar"><input type="search" id="geoQ" placeholder="Search zone, woreda or health center" value="' + esc(S.q) + '" aria-label="Search woredas"><span class="grow"></span></div>' +
+    '<div id="geoTbl"></div></div></div>';
+
+  draw('ch-low', { type:'bar', data:{ labels:low.map(r => r.u.woreda + ' (' + r.u.zone + ')'), datasets:[{ label:'Coverage', data:low.map(r => r.cov * 100), backgroundColor:low.map(r => STATUS_COL[status(r.cov)]), borderRadius:3 }] },
+    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } }, scales:{ x:{ beginAtZero:true, suggestedMax:110, ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
+      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' } } } });
+  $('#geoQ').addEventListener('input', e => { S.q = e.target.value; renderGeoTable(); });
+  renderGeoTable();
+}
+function geoRows() {
+  const q = S.q.trim().toLowerCase();
+  let rows = unitRows();
+  if (q) rows = rows.filter(r => (r.u.zone + ' ' + r.u.woreda + ' ' + (r.u.hc || '')).toLowerCase().indexOf(q) > -1);
+  const k = S.sortKey, dir = S.sortDir;
+  rows.sort((a, b) => { const x = geoValue(a, k), y = geoValue(b, k); return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir; });
+  return rows;
+}
+function renderGeoTable() {
+  const rows = geoRows();
+  const head = GEO_COLS.map(c => '<th class="' + (c.tl ? 'tl' : '') + '"><button type="button" data-sort="' + c.k + '">' + c.t + (S.sortKey === c.k ? (S.sortDir === 1 ? ' ▲' : ' ▼') : '') + '</button></th>').join('');
+  const body = rows.map(r => '<tr><td>' + esc(r.u.zone) + '</td><td>' + esc(r.u.woreda) + '</td><td class="hc" title="' + esc(r.u.hc) + '">' + (esc(r.u.hc) || '<span style="color:var(--ink3)">Not entered</span>') + '</td><td>' + fmt(r.tgt) + '</td><td>' + fmt(r.a.tot) + '</td><td>' + covCell(r.cov) + '</td><td>' + fmt(r.day.tot) + '</td><td>' + pct(r.w) + '</td><td>' + (r.flags ? '<span class="pill warn">' + r.flags + '</span>' : '') + '</td></tr>').join('');
+  $('#geoTbl').innerHTML = rows.length
+    ? '<div class="tbl-wrap"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div><p class="note">' + rows.length + ' woredas shown.</p>'
+    : '<div class="empty">No woreda matches your search.</div>';
+  $$('[data-sort]', $('#geoTbl')).forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.sort; if (S.sortKey === k) S.sortDir *= -1; else { S.sortKey = k; S.sortDir = (k === 'zone' || k === 'woreda' || k === 'hc') ? 1 : -1; if (k === 'cov') S.sortDir = 1; }
+    renderGeoTable();
+  }));
+}
+
+/* ---------- Vaccine use ---------- */
+function renderVaccine() {
+  const recs = scopeRecs(), cumRecs = recs.filter(r => r.d <= S.upTo), cum = sumRecs(cumRecs), w = wastage(cum);
+  const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const g = groups(unitRows()).filter(x => x.w != null).sort((a, b) => b.w - a.w);
+  const gh = Math.max(240, g.length * 30 + 50);
+  const loss = cum.brk + cum.retB + cum.lost;
+  const strip = '<div class="strip">' +
+    stat('Vials received', fmt(cum.rec), 'Through ' + esc(dayName())) +
+    stat('Vials used', fmt(cum.used), fmt(cum.part) + ' partially used') +
+    stat('Returned in good condition', fmt(cum.retG), 'Can be reused') +
+    stat('Broken, bad condition or lost', fmt(loss), 'Broken ' + fmt(cum.brk) + ', bad ' + fmt(cum.retB) + ', lost ' + fmt(cum.lost), loss > 0 ? 'warn' : '') +
+    stat('Doses given', fmt(cum.tot), 'Children vaccinated') +
+    stat('Wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') + '</div>';
+  const trs = dt.map((a, i) => { const x = wastage(a); return '<tr><td>' + esc(dayText(i)) + '</td><td>' + fmt(a.rec) + '</td><td>' + fmt(a.used) + '</td><td>' + fmt(a.part) + '</td><td>' + fmt(a.retG) + '</td><td>' + fmt(a.brk) + '</td><td>' + fmt(a.retB) + '</td><td>' + fmt(a.lost) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('');
+  const tbl = '<div class="tbl-wrap"><table><thead><tr><th>Day</th><th>Received</th><th>Used</th><th>Partially used</th><th>Returned, good</th><th>Broken</th><th>Returned, bad</th><th>Lost</th><th>Doses given</th><th>Wastage</th></tr></thead><tbody>' + trs + '</tbody></table></div>';
+
+  app().innerHTML = strip + '<div class="grid">' +
+    panel('c6', 'Where the vials went', 'Vials received compared with how they were used, through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-vials"></canvas></div>') +
+    panel('c6', 'Wastage by day', 'Dashed line is the ' + pct(CFG.maxWastage, 0) + ' limit.', '<div class="chart"><canvas id="ch-wday"></canvas></div>') +
+    panel('c12', 'Wastage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Highest first. Cumulative through ' + esc(dayName()) + '.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-wgrp"></canvas></div>') +
+    panel('c12', 'Vial accounting by day', null, tbl) + '</div>';
+
+  const vl = [['Received', cum.rec, '#0F2552'], ['Used', cum.used, '#1E6BFF'], ['Partially used', cum.part, '#06B6D4'], ['Returned, good', cum.retG, '#34D399'], ['Broken', cum.brk, '#E69B00'], ['Returned, bad', cum.retB, '#E5262B'], ['Lost', cum.lost, '#EC4899']];
+  draw('ch-vials', { type:'bar', data:{ labels:vl.map(x => x[0]), datasets:[{ label:'Vials', data:vl.map(x => x[1]), backgroundColor:vl.map(x => x[2]), borderRadius:3 }] },
+    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
+      plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) } } } });
+
+  draw('ch-wday', { type:'line', data:{ labels, datasets:[
+    { label:'Wastage', data:dt.map(a => { const x = wastage(a); return x == null ? null : x * 100; }), borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:5, pointBackgroundColor:dt.map((a, i) => dayColor(i)), tension:.2 },
+    { label:'Limit', data:labels.map(() => CFG.maxWastage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5 }
+  ] }, options:vOpts({ scales:{ y:{ ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip() } }) });
+
+  draw('ch-wgrp', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Wastage', data:g.map(x => x.w * 100), backgroundColor:g.map(x => x.w > CFG.maxWastage ? '#E5262B' : '#1E6BFF'), borderRadius:3 }] },
+    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } }, scales:{ x:{ ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
+      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.maxWastage * 100, label:'Limit ' + pct(CFG.maxWastage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' } } } });
+}
+
+/* ---------- Community and safety ---------- */
+function renderCommunity() {
+  const recs = scopeRecs(), cumRecs = recs.filter(r => r.d <= S.upTo), cum = sumRecs(cumRecs);
+  const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const strip = '<div class="strip">' +
+    stat('Households visited', fmt(cum.hh), 'By social mobilizers') +
+    stat('Reached in community meetings', fmt(cum.comm), 'Parents and caregivers') +
+    stat('Reached home to home', fmt(cum.h2h), 'Parents and caregivers') +
+    stat('Zero-dose children', fmt(cum.zdV) + ' of ' + fmt(cum.zdId), 'Vaccinated of identified') +
+    stat('Under-vaccinated children', fmt(cum.uvV) + ' of ' + fmt(cum.uvId), 'Vaccinated of identified') +
+    stat('AFP alerts', fmt(cum.afpA), '', cum.afpA > 0 ? 'bad' : '') +
+    stat('AEFI', fmt(cum.aefiM + cum.aefiS), 'Severe ' + fmt(cum.aefiS), cum.aefiS > 0 ? 'bad' : '') + '</div>';
+
+  app().innerHTML = strip + '<div class="grid">' +
+    panel('c6', 'Social mobilization by day', 'Households visited and parents or caregivers reached.', '<div class="chart"><canvas id="ch-mob"></canvas></div>') +
+    panel('c6', 'Zero-dose and under-vaccinated children', 'Identified vs vaccinated.', '<div class="chart"><canvas id="ch-link"></canvas></div>') +
+    panel('c6', 'Vaccination teams reporting', 'Share of planned teams that reported each day.', '<div class="chart"><canvas id="ch-teams"></canvas></div>') +
+    panel('c6', 'Children not vaccinated on the visit', 'Unvaccinated during visit and vaccinated on revisit.', '<div class="chart"><canvas id="ch-revisit"></canvas></div>') + '</div>';
+
+  draw('ch-mob', { type:'bar', data:{ labels, datasets:[
+    { label:'Households visited', data:dt.map(a => a.hh), backgroundColor:'#6D28D9' },
+    { label:'Community meetings', data:dt.map(a => a.comm), backgroundColor:'#06B6D4' },
+    { label:'Home to home', data:dt.map(a => a.h2h), backgroundColor:'#F472B6' } ] }, options:vOpts() });
+  draw('ch-link', { type:'bar', data:{ labels, datasets:[
+    { label:'Zero-dose identified', data:dt.map(a => a.zdId), backgroundColor:'#6D28D9' },
+    { label:'Zero-dose vaccinated', data:dt.map(a => a.zdV), backgroundColor:'#06B6D4' },
+    { label:'Under-vaccinated identified', data:dt.map(a => a.uvId), backgroundColor:'#A855F7' },
+    { label:'Under-vaccinated vaccinated', data:dt.map(a => a.uvV), backgroundColor:'#F472B6' } ] }, options:vOpts() });
+  draw('ch-teams', { type:'line', data:{ labels, datasets:[
+    { label:'Teams reporting', data:dt.map(a => a.teams > 0 ? a.teamsRep / a.teams * 100 : null), borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:4, tension:.2 },
+    { label:'95%', data:labels.map(() => 95), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5 } ] },
+    options:vOpts({ scales:{ y:{ min:0, max:100, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip() } }) });
+  draw('ch-revisit', { type:'bar', data:{ labels, datasets:[
+    { label:'Unvaccinated during visit', data:dt.map(a => a.unvac), backgroundColor:'#E69B00' },
+    { label:'Vaccinated on revisit', data:dt.map(a => a.revisit), backgroundColor:'#1E8E4E' } ] }, options:vOpts() });
+}
+
+/* ---------- Data quality ---------- */
+function renderQuality() {
+  const items = qualityItems();
+  const counts = {}; RULES.forEach(r => { counts[r.id] = 0; }); items.forEach(i => { counts[i.rule]++; });
+  const shown = items.filter(i => S.rule === 'all' || i.rule === S.rule)
+    .sort((a, b) => RULES.findIndex(r => r.id === a.rule) - RULES.findIndex(r => r.id === b.rule) || a.d - b.d);
+  const lab = id => (RULES.find(r => r.id === id) || {}).label || id;
+  const chips = '<div class="chips"><button type="button" class="chip" data-rule="all" aria-pressed="' + (S.rule === 'all') + '">All checks<b>' + items.length + '</b></button>' +
+    RULES.map(r => '<button type="button" class="chip ' + (counts[r.id] ? '' : 'zero') + '" data-rule="' + r.id + '" aria-pressed="' + (S.rule === r.id) + '">' + esc(r.label) + '<b>' + counts[r.id] + '</b></button>').join('') + '</div>';
+  const LIMIT = 300;
+  const tbl = shown.length
+    ? '<div class="tbl-wrap"><table><thead><tr><th class="tl">Check</th><th class="tl">Day</th><th class="tl">Zone</th><th class="tl">Woreda</th><th class="tl">What was found</th></tr></thead><tbody>' +
+      shown.slice(0, LIMIT).map(i => '<tr><td class="tl">' + esc(lab(i.rule)) + '</td><td class="tl">' + esc(i.day) + '</td><td class="tl">' + esc(i.zone) + '</td><td class="tl">' + esc(i.woreda) + '</td><td class="wrap">' + esc(i.text) + '</td></tr>').join('') + '</tbody></table></div>'
+    : '<div class="empty">No issues found for this selection.</div>';
+
+  const set = new Set(scopeUnits().map(u => u.sn));
+  const rem = M.remarks.filter(x => set.has(x[1]) && x[0] <= S.upTo);
+  const remTbl = rem.length
+    ? '<div class="tbl-wrap"><table><thead><tr><th class="tl">Day</th><th class="tl">Zone</th><th class="tl">Woreda</th><th class="tl">Remark</th></tr></thead><tbody>' +
+      rem.map(x => { const u = M.bySnU[x[1]]; return '<tr><td class="tl">' + esc(M.days[x[0]].label) + '</td><td class="tl">' + esc(u.zone) + '</td><td class="tl">' + esc(u.woreda) + '</td><td class="wrap">' + esc(x[2]) + '</td></tr>'; }).join('') + '</tbody></table></div>'
+    : '<div class="empty">No remarks entered for this selection.</div>';
+
+  app().innerHTML = '<div class="grid" style="margin-top:0">' +
+    panel('c12', 'Data checks', 'Each check runs on every woreda and day through ' + esc(dayName()) + '.', chips) +
+    panel('c12', 'Flagged records', null, tbl) +
+    panel('c12', 'Remarks entered in the sheets', null, remTbl) + '</div>';
+  $$('[data-rule]').forEach(b => b.addEventListener('click', () => { S.rule = b.dataset.rule; renderQuality(); }));
+}
+
+/* ---------- Shell ---------- */
+const RENDER = { overview:renderOverview, geo:renderGeo, vaccine:renderVaccine, community:renderCommunity, quality:renderQuality };
+function render() {
+  if (!M) return;
+  killCharts(); updateHeader();
+  try { RENDER[S.tab](); } catch (e) { showError(e); }
+}
+function updateHeader() {
+  const b = $('#banner'); if (!b) return;
+  b.hidden = false;
+  $('#bannerTitle').textContent = TAB_TITLES[S.tab] || '';
+  $('#bannerSub').textContent = scopeName() + ' | cumulative through ' + dayText(S.upTo);
+  const d = M.days[S.upTo];
+  $('#repDate').textContent = d && d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : (d ? d.label : '–');
+}
+function fillFilters() {
+  $('#fZone').innerHTML = '<option value="all">All zones</option>' + M.zones.map(z => '<option>' + esc(z) + '</option>').join('');
+  $('#fZone').value = S.zone;
+  // apply scope lock
+  if (DASH_SCOPE.mode === 'zone' || DASH_SCOPE.mode === 'woreda') {
+    if (DASH_SCOPE.zone) { S.zone = DASH_SCOPE.zone; $('#fZone').value = S.zone; $('#fZone').disabled = true; }
+  }
+  fillWoredas();
+  $('#fDay').innerHTML = M.days.map((d, i) => i > M.last ? '' : '<option value="' + i + '">' + esc(dayText(i)) + '</option>').join('');
+  $('#fDay').value = S.upTo;
+}
+function fillWoredas() {
+  const sel = $('#fWoreda');
+  if (S.zone === 'all') { sel.innerHTML = '<option value="all">Choose a zone first</option>'; sel.disabled = true; S.woreda = 'all'; return; }
+  const ws = M.units.filter(u => u.zone === S.zone).map(u => u.woreda);
+  const uniq = Array.from(new Set(ws)).sort();
+  sel.innerHTML = '<option value="all">All woredas</option>' + uniq.map(w => '<option>' + esc(w) + '</option>').join('');
+  sel.disabled = false; sel.value = S.woreda;
+  if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.woreda) {
+    S.woreda = DASH_SCOPE.woreda; sel.value = S.woreda; sel.disabled = true;
+  }
+}
+function onData(payload) {
+  if (!payload || payload.ok === false) { showError(payload && payload.error ? payload.error : 'Failed to load data'); return; }
+  if (payload.scope) DASH_SCOPE = payload.scope;
+  buildModel(payload);
+  if (!onData.done) { S.upTo = M.last; onData.done = true; }
+  if (S.upTo > M.last || !M.days[S.upTo]) S.upTo = M.last;
+  // apply scope defaults
+  if (DASH_SCOPE.zone) S.zone = DASH_SCOPE.zone;
+  if (DASH_SCOPE.woreda) S.woreda = DASH_SCOPE.woreda;
+  if (!M.zones.includes(S.zone) && S.zone !== 'all') { S.zone = M.zones[0] || 'all'; }
+  $('#title').textContent = M.meta.title;
+  const first = M.days[0] && M.days[0].date, lastD = M.days[M.last] && M.days[M.last].date;
+  const f = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  $('#subtitle').textContent = 'Round 5 | ' + M.units.length + ' woredas in ' + M.zones.length + ' zones' + (first && lastD ? ', ' + f(first) + ' to ' + f(lastD) : '');
+  $('#stamp').textContent = 'Data read ' + M.meta.generated;
+  fillFilters(); render();
+  $('#btnRefresh').disabled = false; $('#btnRefresh').textContent = 'Refresh';
+}
+function showError(e) {
+  const m = (e && e.message) ? e.message : String(e);
+  app().innerHTML = '<div class="msg err" role="alert"><h2>The dashboard could not load</h2><p>' + esc(m) + '</p></div>';
+  $('#btnRefresh').disabled = false; $('#btnRefresh').textContent = 'Refresh';
+}
+function setBusy(title, msg) {
+  const b = $('#busy');
+  if (!title) { b.hidden = true; return; }
+  $('#busyTitle').textContent = title; $('#busyMsg').textContent = msg || ''; b.hidden = false;
+}
+function toast(html, isErr) {
+  const t = $('#toast'); t.className = 'toast' + (isErr ? ' err' : ''); t.innerHTML = html; t.hidden = false;
+  clearTimeout(toast.h); toast.h = setTimeout(() => { t.hidden = true; }, 12000);
+}
+
+function load(force) {
+  $('#btnRefresh').disabled = true; $('#btnRefresh').textContent = 'Refreshing';
+  const token = sessionStorage.getItem('dash_token') || sessionStorage.getItem('epi_token') || '';
+  google.script.run.withSuccessHandler(onData).withFailureHandler(function(err){ showError(err); }).getDashboardData(!!force);
+}
+
+// Login
+function doDashLogin() {
+  const id = document.getElementById('dashId').value.trim();
+  const err = document.getElementById('dashErr');
+  err.textContent = '';
+  if (!id) { err.textContent = 'Enter your Sub City ID.'; return; }
+  document.getElementById('dashLoginBtn').disabled = true;
+  google.script.run
+    .withSuccessHandler(function(res){
+      document.getElementById('dashLoginBtn').disabled = false;
+      if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return; }
+      try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
+      document.getElementById('dashLogin').classList.add('hidden');
+      if (res.dashboard && res.dashboard.zone) { DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone, woreda: '', woredaID: '' }; }
+      load(false);
+    })
+    .withFailureHandler(function(e){ document.getElementById('dashLoginBtn').disabled = false; err.textContent = (e && e.message) || String(e); })
+    .dashboardLogin({ id: id });
+}
+
+function init() {
+  setupChartDefaults();
+  $('#heroArt').innerHTML = ART_SVG; $('#bannerArt').innerHTML = ART_SVG;
+  $('#btnRefresh').addEventListener('click', () => load(true));
+  $('#fZone').addEventListener('change', e => { S.zone = e.target.value; S.woreda = 'all'; fillWoredas(); render(); });
+  $('#fWoreda').addEventListener('change', e => { S.woreda = e.target.value; render(); });
+  $('#fDay').addEventListener('change', e => { S.upTo = Number(e.target.value); render(); });
+  $('#btnReset').addEventListener('click', () => {
+    if (DASH_SCOPE.mode === 'woreda') { S.zone = DASH_SCOPE.zone; S.woreda = DASH_SCOPE.woreda; }
+    else if (DASH_SCOPE.mode === 'zone') { S.zone = DASH_SCOPE.zone; S.woreda = 'all'; }
+    else { S.zone = 'all'; S.woreda = 'all'; }
+    S.upTo = M ? M.last : 0; S.q = ''; S.rule = 'all'; if (M) { fillFilters(); render(); }
+  });
+  $$('.tab-btn').forEach(b => b.addEventListener('click', () => {
+    S.tab = b.dataset.tab; $$('.tab-btn').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false')); render();
+  }));
+  document.getElementById('dashLoginBtn').addEventListener('click', doDashLogin);
+  document.getElementById('dashId').addEventListener('keydown', e => { if (e.key === 'Enter') doDashLogin(); });
+
+  // Auto-auth: woreda officer session -> direct to their woreda
+  const epiToken = sessionStorage.getItem('epi_token');
+  const dashToken = sessionStorage.getItem('dash_token');
+  const params = new URLSearchParams(location.search);
+  if (params.get('woredaID') && epiToken) {
+    // officer coming from data entry
+    document.getElementById('dashLogin').classList.add('hidden');
+    // scope will be set by server from token
+    load(false);
+    return;
+  }
+  if (epiToken && !dashToken) {
+    // woreda officer - let server scope it
+    document.getElementById('dashLogin').classList.add('hidden');
+    load(false);
+    return;
+  }
+  if (dashToken) {
+    document.getElementById('dashLogin').classList.add('hidden');
+    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); if (info.zone) DASH_SCOPE = { mode: info.scope, zone: info.zone, woreda:'', woredaID:'' }; } catch(e){}
+    load(false);
+    return;
+  }
+  // show login
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

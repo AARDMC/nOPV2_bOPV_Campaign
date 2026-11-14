@@ -416,6 +416,7 @@
 
     <button id="loginBtn" onclick="doLogin()"><span id="loginBtnIcon"></span><span id="loginBtnText">Sign In</span></button>
     <div class="err" id="loginErr"></div>
+    <a href="dashboard.html" class="btn" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;text-decoration:none;background:linear-gradient(135deg,#06B6D4,#1E6BFF);color:#fff;border-radius:14px;padding:13px;font-weight:700;font-size:13px;box-shadow:0 10px 26px rgba(30,107,255,.3);">Open Dashboard</a>
     <div class="login-credit">
       <div class="credit-org">Addis Ababa City Public Health Emergency Management Research and Laboratory Directorate-AAPHREML</div>
       <div class="credit-by">Designed by : <b>Addis Ababa City Data Management Center</b></div>
@@ -433,6 +434,7 @@
     <h1><span>nOPV2 / bOPV Campaign</span><span class="hdr-sub">PHEM data entry</span></h1>
     <div class="officer-chip" id="officerChip" style="display:none"></div>
     <div class="spacer"></div>
+    <button id="dashboardBtn" onclick="openDashboard()" title="Open monitoring dashboard"><span id="icoDashboard"></span><span class="lbl">Dashboard</span></button>
     <button id="settingsBtn" onclick="openSettings()" title="Campaign settings"><span id="icoSettings"></span><span class="lbl">Settings</span></button>
     <button onclick="logout()" title="Sign out"><span id="icoLogout"></span><span class="lbl">Logout</span></button>
   </header>
@@ -690,7 +692,8 @@ const ICONS = {
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
   target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
   key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
-  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>'
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>'
 };
 
 // ================= STATE =================
@@ -706,9 +709,16 @@ let state = {
 
 // Inject icons
 document.getElementById('loginBtnIcon').innerHTML = ICONS.key;
+document.getElementById('icoDashboard').innerHTML = ICONS.chart;
 document.getElementById('icoSettings').innerHTML = ICONS.settings;
 document.getElementById('icoLogout').innerHTML = ICONS.logout;
 document.getElementById('icoGear').innerHTML = ICONS.settings;
+
+function openDashboard() {
+  const wid = state.selectedRow ? state.selectedRow.woredaID : (state.officer ? state.officer.woredaID : "");
+  const url = wid ? ("dashboard.html?woredaID=" + encodeURIComponent(wid)) : "dashboard.html";
+  window.open(url, "_blank", "noopener");
+}
 
 // ================= LOGIN =================
 function doLogin() {
