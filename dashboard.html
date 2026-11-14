@@ -266,7 +266,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <div class="fld" id="hcField" style="display:none"><label for="fHC">Health center</label><select id="fHC"></select></div>
     <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
-    <button class="btn solid" id="btnExport" type="button" title="Download the Google Sheet as Excel filtered for your login, keeping original formulas, conditional formatting, and colors">Download Google Sheet</button>
+    <button class="btn solid" id="btnExport" type="button" title="Download filtered Excel on your device">Download Excel</button>
+    <button class="btn solid" id="btnExportPpt" type="button" title="Download filtered presentation (PPT) on your device">Download PPT</button>
   </div>
 </div>
 <div class="tabbar">
@@ -972,7 +973,7 @@ function doDashLogin() {
       if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return; }
       try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
       document.getElementById('dashLogin').classList.add('hidden');
-      if (res.dashboard) { DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone || '', woreda: res.dashboard.woreda || '', woredaID: res.dashboard.woredaID || '', facilities: res.dashboard.facilities || [], facilityCount: res.dashboard.facilityCount || 0, facilityIndex: -1 }; if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; }
+      if (res.dashboard) { const fiHint = (res.dashboard.facilityIndex != null && res.dashboard.facilityIndex >= 0) ? Number(res.dashboard.facilityIndex) : -1; DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone || '', woreda: res.dashboard.woreda || '', woredaID: res.dashboard.woredaID || '', facilities: res.dashboard.facilities || [], facilityCount: res.dashboard.facilityCount || 0, facilityIndex: -1 }; if (fiHint >= 0) { DASH_FACILITY = fiHint; DASH_SCOPE.facilityIndex = fiHint; } else if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) { DASH_FACILITY = 0; } }
       load(false);
     })
     .withFailureHandler(function(e){ document.getElementById('dashLoginBtn').disabled = false; err.textContent = (e && e.message) || String(e); })
@@ -1189,6 +1190,122 @@ function doDashboardExport(){
 
 
 
+function doPptExport(){
+  if(!M){ toast('Load the dashboard first.', true); return; }
+  if(typeof PptxGenJS === 'undefined'){ toast('Presentation library is still loading. Please try again in a moment.', true); return; }
+  const btn = document.getElementById('btnExportPpt');
+  if(btn){ btn.disabled = true; btn.textContent = 'Preparing…'; }
+  setBusy('Preparing presentation', 'Building PPT on your device…');
+  setTimeout(function(){
+    try{
+      const pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_WIDE';
+      pptx.author = 'AAPHREML / AARDMC';
+      pptx.company = 'Addis Ababa City Administration Health Bureau';
+      pptx.subject = 'nOPV2 + bOPV Campaign Dashboard';
+      pptx.title = M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard';
+
+      const scopeTitle = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.woreda) ? (DASH_SCOPE.zone+' / '+DASH_SCOPE.woreda) : (DASH_SCOPE.mode==='zone' && DASH_SCOPE.zone ? DASH_SCOPE.zone : 'Addis Ababa (Scoped View)');
+      const hcName = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.facilities && DASH_FACILITY>=0 && DASH_SCOPE.facilities[DASH_FACILITY]) ? DASH_SCOPE.facilities[DASH_FACILITY] : '';
+      const asOf = 'Cumulative through ' + dayText(S.upTo);
+      const stamp = M.meta && M.meta.generated ? ('Data read ' + M.meta.generated) : '';
+
+      const units = scopeUnits(), recs = scopeRecs(), tgt = tgtOf(units);
+      const cum = sumRecs(recs.filter(r=>r.d<=S.upTo));
+      const cur = sumRecs(recs.filter(r=>r.d===S.upTo));
+      const c = cov(cum.tot, tgt), w = wastage(cum), bw = bWastage(cum);
+      const rows = unitRows();
+      const atT = rows.filter(r=>r.cov!=null && r.cov>=CFG.targetCoverage).length;
+      const below = rows.filter(r=>r.cov!=null && r.cov<CFG.warnCoverage).length;
+      const dt = dayTotals(recs).slice(0,S.upTo+1);
+      const g = groups(rows).slice().sort((a,b)=> (a.cov||0)-(b.cov||0));
+      const flags = [];
+      rows.forEach(r=>{ const cnt=(r.flags||0); if(cnt>0) flags.push({name:r.u.woreda+' - '+(r.u.hc||'HC'), cov:r.cov, tot:r.a.tot, tgt:r.tgt, flags:cnt}); });
+      flags.sort((a,b)=> b.flags-a.flags || (a.cov||0)-(b.cov||0));
+
+      // Slide 1: Title
+      let s1 = pptx.addSlide();
+      s1.background = { color:'0F2552' };
+      s1.addText('Addis Ababa City Administration Health Bureau', {x:0.5,y:0.5,w:12.3,h:0.5,fontSize:20,color:'DCE8FF',bold:true});
+      s1.addText(M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard', {x:0.5,y:1.1,w:12.3,h:0.8,fontSize:34,color:'FFFFFF',bold:true});
+      s1.addText(scopeTitle + (hcName ? ('\n'+hcName) : ''), {x:0.5,y:2.1,w:12.3,h:1.0,fontSize:24,color:'A9C7FF'});
+      s1.addText(asOf + (stamp ? ('\n'+stamp) : ''), {x:0.5,y:3.2,w:12.3,h:0.8,fontSize:16,color:'E6F0FF'});
+      s1.addText('Addis Ababa City Public Health Emergency Management Research and Laboratory Directorate-AAPHREML\nDesigned by: Addis Ababa City Data Management Center', {x:0.5,y:6.2,w:12.3,h:0.8,fontSize:12,color:'CFE0FF'});
+
+      // Slide 2: Overview KPIs
+      let s2 = pptx.addSlide();
+      s2.addText('Overview (Filtered)', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
+      s2.addText(scopeTitle + (hcName ? (' | '+hcName) : '') + ' — ' + asOf, {x:0.5,y:0.8,w:12.3,h:0.3,fontSize:14,color:'4A5D73'});
+      const kpis = [
+        ['Cumulative vaccinated', fmt(cum.tot)],
+        ['Target (scope)', fmt(tgt)],
+        ['Coverage', pct(c)],
+        ['Vaccinated today/selected day', fmt(cur.tot)],
+        ['At/above target', fmt(atT)+' / '+fmt(rows.length)],
+        ['Below '+pct(CFG.warnCoverage,0), fmt(below)],
+        ['nOPV2 wastage', pct(w)],
+        ['bOPV wastage', pct(bw)],
+        ['Not vaccinated before', fmt((cum.n011||0)+(cum.n1259||0))],
+        ['AEFI reported', fmt((cum.aefiM||0)+(cum.aefiS||0))]
+      ];
+      const kRows = [['Indicator','Value']].concat(kpis);
+      s2.addTable(kRows, {x:0.5,y:1.25,w:12.3,fontSize:14,color:'0F172A',border:{pt:1,color:'D7E3F4'},fill:'FFFFFF',autoPage:true,autoPageRepeatHeader:true,colW:[8.5,3.8],rowH:0.38,align:'left',valign:'middle'});
+
+      // Slide 3: Daily totals
+      let s3 = pptx.addSlide();
+      s3.addText('Daily Performance', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
+      const dRows = [['Day','Vaccinated','Daily target','Coverage','nOPV2 wastage','bOPV wastage']].concat(dt.map((a,i)=>[dayText(i), fmt(a.tot), fmt(a.dtgt), pct(a.dtgt? a.tot/a.dtgt : null), pct(wastage(a)), pct(bWastage(a))]));
+      s3.addTable(dRows, {x:0.5,y:1.0,w:12.3,fontSize:12,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.33});
+
+      // Slide 4: Coverage by zone/woreda
+      let s4 = pptx.addSlide();
+      s4.addText('Coverage by ' + (groupBy()==='zone' ? 'Zone' : 'Woreda'), {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
+      const gRows = [['Name','Vaccinated','Target','Coverage','nOPV2 wastage','bOPV wastage','At/above target']].concat(g.map(x=>[x.key, fmt(x.a.tot), fmt(x.tgt), pct(x.cov), pct(x.w), pct(x.bw), fmt(x.atTarget)+' / '+fmt(x.rows.length)]));
+      s4.addTable(gRows.slice(0,26), {x:0.5,y:1.0,w:12.3,fontSize:11,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.3});
+
+      // Slide 5: Vaccine use summary
+      let s5 = pptx.addSlide();
+      s5.addText('Vaccine Use Summary', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
+      const vRows = [
+        ['Metric','nOPV2','bOPV'],
+        ['Vials received', fmt(cum.rec), fmt(cum.brec||0)],
+        ['Vials used', fmt(cum.used), fmt(cum.bused||0)],
+        ['Partially used', fmt(cum.part), fmt(cum.bpart||0)],
+        ['Returned (good)', fmt(cum.retG), fmt(cum.bretG||0)],
+        ['Broken/bad/lost', fmt((cum.brk||0)+(cum.retB||0)+(cum.lost||0)), fmt((cum.bbrk||0)+(cum.bretB||0)+(cum.blost||0))],
+        ['Doses given (children)', fmt(cum.tot), fmt(cum.tot)],
+        ['Wastage', pct(w), pct(bw)]
+      ];
+      s5.addTable(vRows, {x:0.5,y:1.1,w:12.3,fontSize:14,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.4});
+
+      // Slide 6: Data quality / flags (if any)
+      if(flags.length){
+        let s6 = pptx.addSlide();
+        s6.addText('Data Quality Flags (Top)', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
+        const fRows = [['Woreda / HC','Coverage','Vaccinated','Target','Flag count']].concat(flags.slice(0,20).map(f=>[f.name, pct(f.cov), fmt(f.tot), fmt(f.tgt), String(f.flags)]));
+        s6.addTable(fRows, {x:0.5,y:1.0,w:12.3,fontSize:11,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.3});
+      }
+
+      const safe = s => String(s||'').replace(/[^\w.-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
+      let name = 'nOPV2_bOPV_Dashboard';
+      if(DASH_SCOPE.woreda) name += '_' + safe(DASH_SCOPE.woreda);
+      else if(DASH_SCOPE.zone) name += '_' + safe(DASH_SCOPE.zone);
+      if(hcName) name += '_' + safe(hcName);
+      name += '.pptx';
+      pptx.writeFile({ fileName: name }).then(function(){
+        if(btn){ btn.disabled=false; btn.textContent='Download PPT'; }
+        setBusy(null); toast('Presentation ready: '+esc(name));
+      }).catch(function(e){
+        if(btn){ btn.disabled=false; btn.textContent='Download PPT'; }
+        setBusy(null); toast('PPT export failed: '+esc(e&&e.message?e.message:e), true);
+      });
+    } catch(e){
+      if(btn){ btn.disabled=false; btn.textContent='Download PPT'; }
+      setBusy(null); toast('PPT export failed: '+esc(e&&e.message?e.message:e), true);
+    }
+  }, 0);
+}
+
 function init() {
   setupChartDefaults();
   $('#heroArt').innerHTML = ART_SVG; $('#bannerArt').innerHTML = ART_SVG;
@@ -1198,6 +1315,7 @@ function init() {
   $('#fDay').addEventListener('change', e => { S.upTo = Number(e.target.value); render(); });
   $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
   $('#btnExport').addEventListener('click', doDashboardExport);
+  $('#btnExportPpt').addEventListener('click', doPptExport);
   $('#btnReset').addEventListener('click', () => {
     if (DASH_SCOPE.mode === 'woreda') { S.zone = DASH_SCOPE.zone; S.woreda = DASH_SCOPE.woreda; }
     else if (DASH_SCOPE.mode === 'zone') { S.zone = DASH_SCOPE.zone; S.woreda = 'all'; }
