@@ -1402,7 +1402,7 @@ function renderPresenter(){
   if(!stage || !M) return;
   const d = buildNarrationDeck();
   const scopeFull = d.scopeTitle + (d.hcName ? (' | '+d.hcName) : '');
-  const logo = 'assets/logo.jpg';
+  const logo = 'assets/aahb-logo.jpg';
   const sHead = () => '<div class="s-head"><div class="brand"><img src="'+logo+'" alt="Addis Ababa City Administration Health Bureau"><div class="bt">Addis Ababa City Administration Health Bureau<small>'+esc(d.title)+'</small></div></div><div class="meta">'+esc(scopeFull)+'<br>'+esc(d.asOf)+'</div></div>';
   const sFoot = () => '<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>'+esc(d.stamp || '')+'</span></div>';
   const narr = (lines) => '<div class="narr"><b>Narration:</b> ' + (lines||[]).map(esc).join(' ') + '</div>';
