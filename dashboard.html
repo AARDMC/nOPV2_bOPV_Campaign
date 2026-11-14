@@ -1809,17 +1809,16 @@ function buildNarrationDeck(){
   const low = rows.filter(r=>r.cov!=null).sort((a,b)=>a.cov-b.cov).slice(0,10);
   const places = [['house', cum.pHouse||0], ['school', cum.pSchool||0], ['market', cum.pMarket||0], ['street', cum.pStreet||0], ['other places', cum.pOther||0]].sort((a,b)=>b[1]-a[1]);
   const mf = (cum.male||0)+(cum.female||0) || 1;
-  const slides = [];
-  const units = scopeUnits(), allRows = unitRows();
   const uniqueWoredas = new Set(units.map(u => (u.zone||'') + '|' + (u.woreda||''))).size;
   const hcCount = units.filter(u => u && u.hc && String(u.hc).trim()).length || units.length || 0;
-  const teamCount = units.reduce((s,u)=>s + (Number(u.teams)||0), 0) || allRows.reduce((s,r)=>s + (Number(r.day && r.day.teams)||Number(r.u && r.u.teams)||0), 0);
+  const teamCount = units.reduce((s,u)=>s + (Number(u.teams)||0), 0) || rows.reduce((s,r)=>s + (Number(r.day && r.day.teams)||Number(r.u && r.u.teams)||0), 0);
   const scopeLabel = scopeTitle + (hcName ? (' — ' + hcName) : '');
-  const perfGroups = groups(allRows).filter(g => g.cov != null).sort((a,b)=>b.cov-a.cov);
+  const perfGroups = groups(rows).filter(g => g.cov != null).sort((a,b)=>b.cov-a.cov);
   const highPerf = perfGroups.slice(0,5);
   const lowPerf = perfGroups.slice().sort((a,b)=>a.cov-b.cov).slice(0,5);
-  const byArea = (S.zone === 'all' ? groups(allRows) : groups(allRows)).sort((a,b)=>b.a.tot-a.a.tot).slice(0,12);
+  const byArea = groups(rows).sort((a,b)=>b.a.tot-a.a.tot).slice(0,12);
   const areaChartTitle = (S.zone === 'all' && DASH_SCOPE.mode !== 'zone') ? 'Total vaccinated children by sub city/woreda' : 'Total vaccinated children by woreda/reporting area';
+  const slides = [];
 
   slides.push({ kind:'title', title:'Title', heading: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard',
     narration: [
