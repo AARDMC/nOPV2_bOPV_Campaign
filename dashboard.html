@@ -988,11 +988,15 @@ function renderMap(){
         const targetSub = canonSub(DASH_SCOPE.zone || '');
         const targetWid = String(DASH_SCOPE.woredaID == null ? '' : DASH_SCOPE.woredaID).trim();
         const targetW = normName(DASH_SCOPE.woreda || '');
-        selected = infos.filter(x => {
-          if (targetWid && x.wid && x.wid === targetWid) return !targetSub || (x.subCanon||canonSub(x.sub)) === targetSub || true;
+        // show woreda-level map for the sub-city area, and identify the matched woreda
+        let area = infos;
+        if (targetSub) area = infos.filter(x => (x.subCanon || canonSub(x.sub)) === targetSub);
+        if (!area.length) area = infos;
+        const matched = area.filter(x => {
+          if (targetWid && x.wid && String(x.wid) === targetWid) return true;
           if (targetWid && x.label) {
             const re = new RegExp('(^|[^0-9])' + targetWid.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&') + '([^0-9]|$)');
-            if (re.test(String(x.label))) return !targetSub || (x.subCanon||canonSub(x.sub)) === targetSub || true;
+            if (re.test(String(x.label))) return true;
           }
           if (targetW) {
             const nlab = normName(x.label), nw = targetW;
@@ -1000,12 +1004,17 @@ function renderMap(){
           }
           return false;
         });
-        if (!selected.length) matchNote = 'No GeoJSON features matched woreda scope "' + esc(DASH_SCOPE.woreda||DASH_SCOPE.woredaID||'') + '".';
+        selected = area.length ? area : infos; // woreda-level polygons for context
+        if (targetSub && !infos.some(x => (x.subCanon || canonSub(x.sub)) === targetSub)) {
+          matchNote = 'No GeoJSON features matched sub-city "' + esc(DASH_SCOPE.zone||'') + '". Showing all woreda-level areas.';
+        } else if (!matched.length && (targetWid || targetW)) {
+          matchNote = 'Showing woreda-level map for the area; specific woreda not uniquely matched.';
+        }
       }
 
       if (!selected.length) {
         wrap.innerHTML = '<div class="empty" style="padding:24px">No map features to display for this login area.</div>';
-        if (note) note.textContent = matchNote || ('No GeoJSON features matched this login area (' + scopeName() + ').');
+        if (note) { note.style.display = ''; note.textContent = matchNote || ('No GeoJSON features matched this login area (' + scopeName() + ').'); }
         return;
       }
 
@@ -1021,7 +1030,7 @@ function renderMap(){
 
       const selFeats = selected.map(x=>x.f);
       const proj = projector(selFeats, MAP_W);
-      if (!proj) { wrap.innerHTML = '<div class="empty">Could not compute map bounds.</div>'; return; }
+      if (!proj) { wrap.innerHTML = '<div class="empty">Could not compute map bounds.</div>'; if (note) { note.style.display=''; note.textContent='Could not compute map bounds for selected features.'; } return; }
       const {W,H,P} = proj;
 
       function magnitudeColor(cov, minV, maxV){
