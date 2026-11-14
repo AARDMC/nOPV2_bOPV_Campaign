@@ -905,7 +905,7 @@ async function loadGeoJsonData(){
 }
 function renderMap(){
   app().innerHTML = '<div class="grid" style="margin-top:0">' +
-    panel('c12', 'Campaign Map', 'Scoped geographical view with woreda boundaries and labels (rendered from GeoJSON, no external map).', '<div id="mapWrap" style="width:100%;min-height:420px;border-radius:12px;overflow:hidden;border:1px solid var(--line2);background:#F7FBFF;position:relative"></div><div id="mapLegend" style="margin-top:8px"></div><p class="note" id="mapNote" style="margin-top:10px">Loading GeoJSON…</p>') +
+    '<div class="card c12" style="padding:12px"><div id="mapWrap" style="width:100%;min-height:480px;border-radius:10px;overflow:hidden;background:#F7FBFF"></div><div id="mapLegend" style="margin-top:10px"></div><p class="note" id="mapNote" style="margin:8px 0 0;display:none"></p></div>' +
     '</div>';
   setTimeout(async function(){
     try {
@@ -1021,16 +1021,29 @@ function renderMap(){
       if (!proj) { wrap.innerHTML = '<div class="empty">Could not compute map bounds.</div>'; return; }
       const {W,H,P} = proj;
 
-      const statusColor = (cov) => {
-        try { return cov==null ? '#9DB7D5' : STATUS_COL[status(cov)]; } catch(e){ return cov==null ? '#9DB7D5' : '#1E6BFF'; }
-      };
+      function magnitudeColor(cov, minV, maxV){
+        if (cov == null || isNaN(cov)) return '#d7e3f4';
+        let t = 0.5;
+        if (maxV > minV) t = (cov - minV) / (maxV - minV);
+        t = Math.max(0, Math.min(1, t));
+        // sequential magnitude: low -> high (light yellow/green to deep teal/blue)
+        const stops = [[255,247,188],[254,196,79],[254,153,41],[217,95,14],[153,52,4]];
+        const i = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1)));
+        const lt = (t * (stops.length - 1)) - i;
+        const a = stops[i], b = stops[i+1];
+        const r = Math.round(a[0] + (b[0]-a[0])*lt), g = Math.round(a[1] + (b[1]-a[1])*lt), bl = Math.round(a[2] + (b[2]-a[2])*lt);
+        return 'rgb('+r+','+g+','+bl+')';
+      }
 
+      const covVals = selected.map(x => findCov(x.p)).filter(v => v != null && !isNaN(v));
+      const minV = covVals.length ? Math.min.apply(null, covVals) : 0;
+      const maxV = covVals.length ? Math.max.apply(null, covVals) : 100;
       const paths = selected.map(x => {
         const cov = findCov(x.p);
-        const fill = statusColor(cov);
+        const fill = magnitudeColor(cov, minV, maxV);
         const d = pathOf(x.f, P);
-        const title = esc(x.label + (cov!=null && typeof pct==='function' ? (' — Coverage: '+pct(cov)) : ''));
-        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.55" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
+        const title = esc(x.label + (cov!=null && typeof pct==='function' ? (' — Coverage: '+pct(cov)) : ' — No data'));
+        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.8" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
       }).join('');
 
       const labels = selected.map(x => {
@@ -1045,20 +1058,24 @@ function renderMap(){
       const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+(-PAD)+' '+(-PAD)+' '+(W+2*PAD).toFixed(0)+' '+(H+2*PAD).toFixed(0)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;min-height:420px;display:block;background:#F7FBFF">' + paths + labels + '</svg>';
       wrap.innerHTML = svg;
 
-      // legend
+      // legend (magnitude)
       if (legend) {
-        const items = [
-          {k:'Good coverage', c:(typeof STATUS_COL!=='undefined'?STATUS_COL.good:'#1E8E4E')},
-          {k:'Moderate', c:(typeof STATUS_COL!=='undefined'?STATUS_COL.mid:'#E69B00')},
-          {k:'Low', c:(typeof STATUS_COL!=='undefined'?STATUS_COL.low:'#E5262B')},
-          {k:'No match/data', c:'#9DB7D5'}
-        ];
-        legend.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink2)">' + items.map(it=>'<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:3px;background:'+it.c+';display:inline-block;border:1px solid #0F2552"></i>'+it.k+'</span>').join('') + '</div>';
+        const grad = 'linear-gradient(to right, rgb(255,247,188), rgb(254,196,79), rgb(254,153,41), rgb(217,95,14), rgb(153,52,4))';
+        const minLbl = covVals.length && typeof pct==='function' ? pct(minV) : (covVals.length ? (Math.round(minV*10)/10)+'%' : 'Low');
+        const maxLbl = covVals.length && typeof pct==='function' ? pct(maxV) : (covVals.length ? (Math.round(maxV*10)/10)+'%' : 'High');
+        legend.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--ink2)">' +
+          '<span style="font-weight:600;color:var(--ink)">Coverage magnitude</span>' +
+          '<span>'+esc(minLbl)+'</span>' +
+          '<span style="display:inline-block;width:180px;height:12px;border-radius:6px;background:'+grad+';border:1px solid #0F2552"></span>' +
+          '<span>'+esc(maxLbl)+'</span>' +
+          '<span style="display:inline-flex;align-items:center;gap:6px;margin-left:6px"><i style="width:12px;height:12px;border-radius:3px;background:#d7e3f4;display:inline-block;border:1px solid #0F2552"></i>No data</span>' +
+          '</div>';
       }
 
-      const scopeMsg = (scopeMode === 'all') ? 'Showing all areas.' : ('Filtered to login area: ' + scopeName() + '.');
-      if (note) note.textContent = (matchNote ? '' : '') + 'GeoJSON loaded (' + selected.length + ' feature(s)). ' + scopeMsg + ' Labels shown on each area; colors reflect coverage where names match.';
-      if (matchNote) { /* already handled */ }
+      if (note) {
+        const msg = matchNote || '';
+        if (msg) { note.style.display = ''; note.textContent = msg; } else { note.style.display = 'none'; note.textContent = ''; }
+      }
     } catch(e){
       const note = document.getElementById('mapNote'); if (note) note.textContent = 'Map error: ' + (e && e.message ? e.message : e);
     }
