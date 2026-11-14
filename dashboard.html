@@ -942,6 +942,9 @@ function renderMap(){
         for (const n of vals){ if (covByWoreda[n] != null) return covByWoreda[n]; if (covByZone[n] != null) return covByZone[n]; }
         return null;
       }
+      function normGeo(s){
+        return normName(s).replace(/\bkaliti\b/g,'kality').replace(/\bkeraniyo\b/g,'keranyo').replace(/\bnifas silk\b/g,'nifas silk lafto').replace(/\s+/g,' ').trim();
+      }
       function featureInScope(feature){
         if (!DASH_SCOPE || DASH_SCOPE.mode === 'all') return true;
         const p = feature && feature.properties ? feature.properties : {};
@@ -952,7 +955,12 @@ function renderMap(){
         const wid = String(DASH_SCOPE.woredaID == null ? '' : DASH_SCOPE.woredaID).trim();
         if (DASH_SCOPE.mode === 'zone') {
           if (!z) return true;
-          return vals.some(v => v === z || v.indexOf(z) !== -1 || z.indexOf(v) !== -1);
+          const zg = normGeo(z);
+          return vals.some(v => {
+            if (v === z || v.indexOf(z) !== -1 || z.indexOf(v) !== -1) return true;
+            const vg = normGeo(v);
+            return vg === zg || vg.indexOf(zg) !== -1 || zg.indexOf(vg) !== -1;
+          });
         }
         if (DASH_SCOPE.mode === 'woreda') {
           if (wid) {
@@ -976,8 +984,8 @@ function renderMap(){
       if (gj && gj.type === 'FeatureCollection' && Array.isArray(gj.features)) {
         const filtered = gj.features.filter(featureInScope);
         if (DASH_SCOPE && DASH_SCOPE.mode !== 'all') {
-          displayGj = Object.assign({}, gj, { features: filtered.length ? filtered : gj.features });
-          if (!filtered.length && note) note.textContent = 'No GeoJSON features matched this login area by name; showing all features. ';
+          displayGj = Object.assign({}, gj, { features: filtered });
+          if (!filtered.length && note) note.textContent = 'No GeoJSON features matched this login area (' + scopeName() + '). Check GeoJSON property names/IDs against the login scope. ';
         } else {
           displayGj = gj;
         }
@@ -991,13 +999,15 @@ function renderMap(){
       function onEach(feature, layer){
         const p = feature && feature.properties ? feature.properties : {};
         const name = p.woreda || p.Woreda || p.woreda_name || p.Woreda_Name || p.name || p.NAME || p.Name || p.ADM3_EN || p.ADM2_EN || p.subcity || p.Subcity || p.zone || p.Zone || 'Feature';
-        let details = '<b>'+esc(name)+'</b>';
+        const label = p.label || (p.subcity ? (p.subcity + (p.wid ? ' Woreda ' + p.wid : '')) : name);
+        let details = '<b>'+esc(label || name)+'</b>';
         const covVal = findCov(p);
         if (covVal!=null) details += '<br>Coverage: '+pct(covVal);
         const shown = [];
-        Object.keys(p).slice(0,10).forEach(k=>{ if (p[k]!=null && String(p[k]).trim()!=='') shown.push('<br>'+esc(k)+': '+esc(p[k])); });
-        details += shown.join('');
+        ['subcity','wid','pathid','label'].concat(Object.keys(p)).forEach(k=>{ if (shown.length >= 12) return; if (p[k]!=null && String(p[k]).trim()!=='') { const row = '<br>'+esc(k)+': '+esc(p[k]); if (details.indexOf(row)===-1 && shown.indexOf(row)===-1) shown.push(row); } });
+        details += shown.slice(0,8).join('');
         layer.bindPopup(details);
+        try { layer.bindTooltip(String(label || name), { permanent: true, direction: 'center', className: 'map-label' }); } catch(e){}
       }
       const layer = L.geoJSON(displayGj, { style: styleFor, onEachFeature: onEach }).addTo(MAP_INSTANCE);
       try { MAP_INSTANCE.fitBounds(layer.getBounds(), { padding:[20,20] }); } catch(e){ MAP_INSTANCE.setView([9.03, 38.74], 11); }
