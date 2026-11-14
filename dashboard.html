@@ -8,9 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap"></noscript>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
 <style>
 :root{
   --ink:#0F2552; --ink2:#44577F; --ink3:#7D8CAB;
@@ -886,8 +884,8 @@ function renderQuality() {
   $$('[data-rule]').forEach(b => b.addEventListener('click', () => { S.rule = b.dataset.rule; renderQuality(); }));
 }
 
-/* ---------- Map ---------- */
-let MAP_INSTANCE = null, MAP_GEOJSON = null;
+/* ---------- Map (SVG style, bulletin-inspired: normalize, canonical match, scoped render, labels) ---------- */
+let MAP_GEOJSON = null;
 async function loadGeoJsonData(){
   if (MAP_GEOJSON) return MAP_GEOJSON;
   const urls = [
@@ -906,119 +904,161 @@ async function loadGeoJsonData(){
   return null;
 }
 function renderMap(){
-  if (typeof L === 'undefined') {
-    app().innerHTML = '<div class="msg"><h2>Loading map</h2><p>Map library is still loading. Please open the Map tab again in a moment.</p></div>';
-    return;
-  }
   app().innerHTML = '<div class="grid" style="margin-top:0">' +
-    panel('c12', 'Campaign Map', 'GeoJSON boundaries with campaign scope context.', '<div id="mapWrap" style="height:70vh;min-height:420px;border-radius:12px;overflow:hidden;border:1px solid var(--line2)"></div><p class="note" id="mapNote" style="margin-top:10px">Loading GeoJSON…</p>') +
+    panel('c12', 'Campaign Map', 'Scoped geographical view with woreda boundaries and labels (rendered from GeoJSON, no external map).', '<div id="mapWrap" style="width:100%;min-height:420px;border-radius:12px;overflow:hidden;border:1px solid var(--line2);background:#F7FBFF;position:relative"></div><div id="mapLegend" style="margin-top:8px"></div><p class="note" id="mapNote" style="margin-top:10px">Loading GeoJSON…</p>') +
     '</div>';
   setTimeout(async function(){
     try {
-      const wrap = document.getElementById('mapWrap'); if (!wrap) return;
-      if (MAP_INSTANCE) { try { MAP_INSTANCE.remove(); } catch(e){} MAP_INSTANCE = null; }
-      MAP_INSTANCE = L.map('mapWrap', { zoomControl: true });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(MAP_INSTANCE);
-      const gj = await loadGeoJsonData();
+      const wrap = document.getElementById('mapWrap');
       const note = document.getElementById('mapNote');
+      const legend = document.getElementById('mapLegend');
+      if (!wrap) return;
+      const gj = await loadGeoJsonData();
       if (!gj) {
-        MAP_INSTANCE.setView([9.03, 38.74], 11);
-        if (note) note.innerHTML = 'GeoJSON could not be loaded automatically (the provided Google Drive link may require access). To display it, add the file to <code>campaign-portal/assets/campaign-map.geojson</code> (public in this site) and refresh. Source: <a href="https://drive.google.com/file/d/1-uZLtooHFozwC95s0opEH2KRdrJiWd6u/view?usp=drive_link" target="_blank" rel="noopener">Google Drive GeoJSON</a>';
-        setTimeout(()=>{ try{ MAP_INSTANCE.invalidateSize(); }catch(e){} }, 120);
+        wrap.innerHTML = '<div class="empty">GeoJSON not available.</div>';
+        if (note) note.innerHTML = 'Add the file to <code>campaign-portal/assets/campaign-map.geojson</code> (public in this site) and refresh.';
         return;
       }
+      const features = gj.type === 'FeatureCollection' ? (gj.features || []) : gj.type === 'Feature' ? [gj] : [];
+      if (!features.length) { wrap.innerHTML = '<div class="empty">No features found in GeoJSON.</div>'; return; }
+
+      // ---- normalization / canonical sub-city matching (bulletin style) ----
       const normName = s => String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim();
+      const geoNorm = s => String(s==null?'':s).toLowerCase().replace(/sub[\s_\-]*city/g,'').replace(/kifle[\s_\-]*ketema/g,'').replace(/[^a-z0-9]/g,'');
+      const subAliases = {
+        'Addis Ketema':['addisketema','addisketemaa','addiskitema'],
+        'Akaki Kality':['akakikality','akakikaliti','akakikalit'],
+        'Arada':['arada','aradaa'],
+        'Bole':['bole'],
+        'Gulele':['gulele','gullele'],
+        'Kirkos':['kirkos','kirkoss','kirkus'],
+        'Kolfe Keranyo':['kolfekeranyo','kolfekeranio','kolfekeraniyo','kolfekerania'],
+        'Lemi Kura':['lemikura','lemikuraa','lemikurra','lemmikura'],
+        'Lideta':['lideta','lidetta'],
+        'Nifas Silk Lafto':['nifassilklafto','nifassilk','nifasilklafto'],
+        'Yeka':['yeka','yekaa']
+      };
+      const canonSub = name => {
+        const n = geoNorm(name); if (!n) return '';
+        const keys = Object.keys(subAliases);
+        for (const s of keys) if (geoNorm(s) === n) return s;
+        for (const s of keys) if ((subAliases[s]||[]).indexOf(n) >= 0) return s;
+        // starts-with fallback
+        for (const s of keys) { const m = geoNorm(s); if (n.length>4 && (m.indexOf(n)===0 || n.indexOf(m)===0)) return s; }
+        return '';
+      };
+      const woredaNum = s => { const m = String(s||'').match(/(?:woreda|wereda|wor)[\s_\-\.]*0*(\d+)/i) || String(s||'').match(/(\d+)\s*$/); return m ? String(parseInt(m[1],10)) : ''; };
+
+      // ---- coverage lookup (by normalized woreda/zone from dashboard data) ----
       const covByWoreda = {}, covByZone = {};
       try {
-        rollup(unitRows(), r => r.u.woreda).forEach(g => { covByWoreda[normName(g.key)] = g.cov; });
-        rollup(unitRows(), r => r.u.zone).forEach(g => { covByZone[normName(g.key)] = g.cov; });
+        if (typeof unitRows === 'function' && typeof rollup === 'function') {
+          rollup(unitRows(), r => r.u.woreda).forEach(g => { covByWoreda[normName(g.key)] = g.cov; });
+          rollup(unitRows(), r => r.u.zone).forEach(g => { covByZone[normName(g.key)] = g.cov; });
+        }
       } catch(e){}
-      function propVals(p){
-        const keys = ['woreda','Woreda','WOREDA','woreda_name','Woreda_Name','woredaName','woreda_id','Woreda_ID','wid','WID','Wid','id','ID','label','Label','LABEL','pathid','PathId','PATHID','subcity','Subcity','SUBCITY','sub_city','Sub_City','zone','Zone','ZONE','name','NAME','Name','ADM3_EN','ADM2_EN','ADM1_EN','W_NAME','Z_NAME','WEREDA','WOREDA_NAM'];
-        const vals = [];
-        keys.forEach(k=>{ if (p && p[k] != null && String(p[k]).trim()!=='') vals.push(normName(p[k])); });
-        return vals;
-      }
       function findCov(p){
-        const vals = propVals(p);
-        for (const n of vals){ if (covByWoreda[n] != null) return covByWoreda[n]; if (covByZone[n] != null) return covByZone[n]; }
+        const candidates = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,p.subcity,p.Subcity,p.zone,p.Zone];
+        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (covByWoreda[n]!=null) return covByWoreda[n]; if (covByZone[n]!=null) return covByZone[n]; }
         return null;
       }
-      function normGeo(s){
-        return normName(s).replace(/\bkaliti\b/g,'kality').replace(/\bkeraniyo\b/g,'keranyo').replace(/\bnifas silk\b/g,'nifas silk lafto').replace(/\s+/g,' ').trim();
+
+      // ---- scope -> feature index mapping ----
+      function featureInfo(f, i){
+        const p = f.properties || {};
+        const sub = canonSub(p.subcity || p.Subcity || p.SUBCITY || p.zone || p.Zone || '') || String(p.subcity||p.zone||'').trim();
+        const wid = p.wid!=null ? String(p.wid).trim() : (p.WID!=null ? String(p.WID).trim() : '');
+        const label = p.label || (sub ? (sub + (wid ? ' W'+wid : '')) : (p.name||'Feature'));
+        return { i, f, p, sub, subCanon: canonSub(sub) || canonSub(p.subcity), wid, label, pathid: p.pathid||'' };
       }
-      function featureInScope(feature){
-        if (!DASH_SCOPE || DASH_SCOPE.mode === 'all') return true;
-        const p = feature && feature.properties ? feature.properties : {};
-        const vals = propVals(p);
-        if (!vals.length) return true; // unknown schema: keep (avoid hiding everything)
-        const z = normName(DASH_SCOPE.zone || '');
-        const w = normName(DASH_SCOPE.woreda || '');
-        const wid = String(DASH_SCOPE.woredaID == null ? '' : DASH_SCOPE.woredaID).trim();
-        if (DASH_SCOPE.mode === 'zone') {
-          if (!z) return true;
-          const zg = normGeo(z);
-          return vals.some(v => {
-            if (v === z || v.indexOf(z) !== -1 || z.indexOf(v) !== -1) return true;
-            const vg = normGeo(v);
-            return vg === zg || vg.indexOf(zg) !== -1 || zg.indexOf(vg) !== -1;
-          });
+      const infos = features.map((f,i)=>featureInfo(f,i)).filter(x => x.f && x.f.geometry && (x.f.geometry.type==='Polygon' || x.f.geometry.type==='MultiPolygon'));
+      const scopeMode = DASH_SCOPE ? DASH_SCOPE.mode : 'all';
+      let selected = infos;
+      let matchNote = '';
+      if (scopeMode === 'zone') {
+        const target = canonSub(DASH_SCOPE.zone || '');
+        if (target) {
+          selected = infos.filter(x => (x.subCanon || canonSub(x.sub)) === target);
+          if (!selected.length) matchNote = 'No GeoJSON features matched sub-city "' + esc(DASH_SCOPE.zone||'') + '".';
         }
-        if (DASH_SCOPE.mode === 'woreda') {
-          if (wid) {
-            const fw = p.wid != null ? String(p.wid).trim() : (p.WID != null ? String(p.WID).trim() : (p.woreda_id != null ? String(p.woreda_id).trim() : (p.Woreda_ID != null ? String(p.Woreda_ID).trim() : '')));
-            if (fw && fw === wid) return true;
-            const widNorm = normName(wid);
-            const widRe = new RegExp('(^|[^0-9])' + wid.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + '([^0-9]|$)');
-            if (p.label && widRe.test(String(p.label))) return true;
-            if (p.pathid && (String(p.pathid).indexOf('-' + wid) !== -1 || String(p.pathid).indexOf('Woreda-' + wid) !== -1 || normName(p.pathid).indexOf(widNorm) !== -1)) return true;
-            if (vals.some(v => v === widNorm)) return true;
+      } else if (scopeMode === 'woreda') {
+        const targetSub = canonSub(DASH_SCOPE.zone || '');
+        const targetWid = String(DASH_SCOPE.woredaID == null ? '' : DASH_SCOPE.woredaID).trim();
+        const targetW = normName(DASH_SCOPE.woreda || '');
+        selected = infos.filter(x => {
+          if (targetWid && x.wid && x.wid === targetWid) return !targetSub || (x.subCanon||canonSub(x.sub)) === targetSub || true;
+          if (targetWid && x.label) {
+            const re = new RegExp('(^|[^0-9])' + targetWid.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&') + '([^0-9]|$)');
+            if (re.test(String(x.label))) return !targetSub || (x.subCanon||canonSub(x.sub)) === targetSub || true;
           }
-          if (w) {
-            const woredaMatch = vals.some(v => v === w || v.indexOf(w) !== -1 || w.indexOf(v) !== -1);
-            if (woredaMatch) return true;
+          if (targetW) {
+            const nlab = normName(x.label), nw = targetW;
+            if (nlab.indexOf(nw)!==-1 || nw.indexOf(nlab)!==-1) return true;
           }
           return false;
-        }
-        return true;
+        });
+        if (!selected.length) matchNote = 'No GeoJSON features matched woreda scope "' + esc(DASH_SCOPE.woreda||DASH_SCOPE.woredaID||'') + '".';
       }
-      let displayGj = gj;
-      if (gj && gj.type === 'FeatureCollection' && Array.isArray(gj.features)) {
-        const filtered = gj.features.filter(featureInScope);
-        if (DASH_SCOPE && DASH_SCOPE.mode !== 'all') {
-          displayGj = Object.assign({}, gj, { features: filtered });
-          if (!filtered.length && note) note.textContent = 'No GeoJSON features matched this login area (' + scopeName() + '). Check GeoJSON property names/IDs against the login scope. ';
-        } else {
-          displayGj = gj;
-        }
+
+      if (!selected.length) {
+        wrap.innerHTML = '<div class="empty" style="padding:24px">No map features to display for this login area.</div>';
+        if (note) note.textContent = matchNote || ('No GeoJSON features matched this login area (' + scopeName() + ').');
+        return;
       }
-      function styleFor(feature){
-        const p = feature && feature.properties ? feature.properties : {};
-        const covVal = findCov(p);
-        const color = covVal==null ? '#1E6BFF' : STATUS_COL[status(covVal)];
-        return { color: '#0F2552', weight: 1.2, fillColor: color, fillOpacity: covVal==null ? 0.25 : 0.55 };
+
+      // ---- projection (bulletin style) ----
+      const MAP_W = 900, MAP_PAD = 0.03, MAP_PCT = 0.01;
+      function collectCoords(feats){ const lons=[], lats=[]; const walk=c=>{ if(typeof c[0]==='number'){ lons.push(c[0]); lats.push(c[1]); } else c.forEach(walk); }; feats.forEach(f=>walk(f.geometry.coordinates)); return {lons,lats}; }
+      function percentile(arr,q){ if(!arr.length) return 0; const i=Math.min(arr.length-1, Math.max(0, Math.floor(arr.length*q))); return arr[i]; }
+      function robustBbox(feats){ const {lons,lats}=collectCoords(feats); if(!lons.length) return null; const ls=lons.slice().sort((a,b)=>a-b), ts=lats.slice().sort((a,b)=>a-b); let x0=percentile(ls,MAP_PCT),x1=percentile(ls,1-MAP_PCT),y0=percentile(ts,MAP_PCT),y1=percentile(ts,1-MAP_PCT); if(x1-x0<1e-6){x0=ls[0];x1=ls[ls.length-1];} if(y1-y0<1e-6){y0=ts[0];y1=ts[ts.length-1];} const dx=(x1-x0)*MAP_PAD, dy=(y1-y0)*MAP_PAD; return {x0:x0-dx,x1:x1+dx,y0:y0-dy,y1:y1+dy}; }
+      function projector(feats,W){ const bb=robustBbox(feats); if(!bb) return null; const lonR=bb.x1-bb.x0, latR=bb.y1-bb.y0; if(lonR<=0||latR<=0) return null; const midLat=(bb.y0+bb.y1)/2; const cosLat=Math.cos(midLat*Math.PI/180)||1; const H=W*latR/(lonR*cosLat); const P=([lon,lat])=>[(lon-bb.x0)/lonR*W,(bb.y1-lat)/latR*H]; return {W,H,P}; }
+      function ringsOf(f){ return f.geometry.type==='Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates; }
+      function pathOf(f,P){ const oneRing=ring=>{ if(!ring||!ring.length) return ''; return 'M'+ring.map(p=>{const xy=P(p); return xy[0].toFixed(1)+','+xy[1].toFixed(1);}).join('L')+'Z'; }; return ringsOf(f).map(poly=>poly.map(oneRing).join('')).join(''); }
+      function centroidOf(f,P){ const polys=ringsOf(f); let best=null,bestLen=0; polys.forEach(poly=>{const r=poly[0]; if(r&&r.length>bestLen){best=r;bestLen=r.length;}}); if(!best||!best.length) return null; let sx=0,sy=0,n=0; for(let i=0;i<best.length;i++){ if(i===best.length-1 && best.length>1 && best[i][0]===best[0][0] && best[i][1]===best[0][1]) break; const xy=P(best[i]); sx+=xy[0]; sy+=xy[1]; n++; } return n?[sx/n,sy/n]:null; }
+
+      const selFeats = selected.map(x=>x.f);
+      const proj = projector(selFeats, MAP_W);
+      if (!proj) { wrap.innerHTML = '<div class="empty">Could not compute map bounds.</div>'; return; }
+      const {W,H,P} = proj;
+
+      const statusColor = (cov) => {
+        try { return cov==null ? '#9DB7D5' : STATUS_COL[status(cov)]; } catch(e){ return cov==null ? '#9DB7D5' : '#1E6BFF'; }
+      };
+
+      const paths = selected.map(x => {
+        const cov = findCov(x.p);
+        const fill = statusColor(cov);
+        const d = pathOf(x.f, P);
+        const title = esc(x.label + (cov!=null && typeof pct==='function' ? (' — Coverage: '+pct(cov)) : ''));
+        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.55" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
+      }).join('');
+
+      const labels = selected.map(x => {
+        const c = centroidOf(x.f, P); if (!c) return '';
+        const fs = selected.length > 40 ? 8 : selected.length > 15 ? 9 : 10;
+        const txt = esc(String(x.label));
+        return '<g><rect x="'+(c[0]-txt.length*fs*0.3)+'" y="'+(c[1]-fs*0.8)+'" width="'+Math.max(18, txt.length*fs*0.62)+'" height="'+(fs*1.5)+'" rx="4" ry="4" fill="#ffffff" fill-opacity="0.92" stroke="#0F2552" stroke-width="0.6"></rect>' +
+               '<text x="'+c[0].toFixed(1)+'" y="'+(c[1]+fs*0.35).toFixed(1)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" fill="#0F2552" font-family="Arial, sans-serif">'+txt+'</text></g>';
+      }).join('');
+
+      const PAD = 30;
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+(-PAD)+' '+(-PAD)+' '+(W+2*PAD).toFixed(0)+' '+(H+2*PAD).toFixed(0)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;min-height:420px;display:block;background:#F7FBFF">' + paths + labels + '</svg>';
+      wrap.innerHTML = svg;
+
+      // legend
+      if (legend) {
+        const items = [
+          {k:'Good coverage', c:(typeof STATUS_COL!=='undefined'?STATUS_COL.good:'#1E8E4E')},
+          {k:'Moderate', c:(typeof STATUS_COL!=='undefined'?STATUS_COL.mid:'#E69B00')},
+          {k:'Low', c:(typeof STATUS_COL!=='undefined'?STATUS_COL.low:'#E5262B')},
+          {k:'No match/data', c:'#9DB7D5'}
+        ];
+        legend.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink2)">' + items.map(it=>'<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:3px;background:'+it.c+';display:inline-block;border:1px solid #0F2552"></i>'+it.k+'</span>').join('') + '</div>';
       }
-      function onEach(feature, layer){
-        const p = feature && feature.properties ? feature.properties : {};
-        const name = p.woreda || p.Woreda || p.woreda_name || p.Woreda_Name || p.name || p.NAME || p.Name || p.ADM3_EN || p.ADM2_EN || p.subcity || p.Subcity || p.zone || p.Zone || 'Feature';
-        const label = p.label || (p.subcity ? (p.subcity.replace(/\s+Sub\s*City$/i,'') + (p.wid ? ' W' + p.wid : '')) : name);
-        let details = '<b>'+esc(label || name)+'</b>';
-        const covVal = findCov(p);
-        if (covVal!=null) details += '<br>Coverage: '+pct(covVal);
-        const shown = [];
-        ['subcity','wid','pathid','label'].concat(Object.keys(p)).forEach(k=>{ if (shown.length >= 12) return; if (p[k]!=null && String(p[k]).trim()!=='') { const row = '<br>'+esc(k)+': '+esc(p[k]); if (details.indexOf(row)===-1 && shown.indexOf(row)===-1) shown.push(row); } });
-        details += shown.slice(0,8).join('');
-        layer.bindPopup(details);
-        try { layer.bindTooltip(String(label || name), { permanent: true, direction: 'center', className: 'map-label' }); } catch(e){}
-      }
-      const layer = L.geoJSON(displayGj, { style: styleFor, onEachFeature: onEach }).addTo(MAP_INSTANCE);
-      try { MAP_INSTANCE.fitBounds(layer.getBounds(), { padding:[20,20] }); } catch(e){ MAP_INSTANCE.setView([9.03, 38.74], 11); }
-      const count = (displayGj && displayGj.features) ? displayGj.features.length : (layer.getLayers?layer.getLayers().length:0);
-      if (note) {
-        const scopeMsg = (!DASH_SCOPE || DASH_SCOPE.mode === 'all') ? 'Showing all areas.' : ('Filtered to login area: ' + scopeName() + '.');
-        note.textContent = (note.textContent && note.textContent.indexOf('No GeoJSON features matched')===0 ? note.textContent : '') + 'GeoJSON loaded (' + count + ' feature(s)). ' + scopeMsg + ' Areas are colored by campaign coverage when names match woreda/zone data.';
-      }
-      setTimeout(()=>{ try{ MAP_INSTANCE.invalidateSize(); }catch(e){} }, 120);
+
+      const scopeMsg = (scopeMode === 'all') ? 'Showing all areas.' : ('Filtered to login area: ' + scopeName() + '.');
+      if (note) note.textContent = (matchNote ? '' : '') + 'GeoJSON loaded (' + selected.length + ' feature(s)). ' + scopeMsg + ' Labels shown on each area; colors reflect coverage where names match.';
+      if (matchNote) { /* already handled */ }
     } catch(e){
       const note = document.getElementById('mapNote'); if (note) note.textContent = 'Map error: ' + (e && e.message ? e.message : e);
     }
