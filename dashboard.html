@@ -334,10 +334,25 @@ main,.bannerhost,.filters-inner,.tabs,.top-inner{max-width:100%}
 #presenter .slide h1{margin:0;font-size:44px;line-height:1.12;color:#0f2552}
 #presenter .slide h2{margin:0;font-size:30px;line-height:1.2;color:#0f2552}
 #presenter:fullscreen,#presenter:-webkit-full-screen{height:100vh}
-#presenter:fullscreen .p-stage,#presenter:-webkit-full-screen .p-stage{flex:1;min-height:0;padding:8px;align-items:stretch;justify-content:center;overflow:hidden}
+#presenter:fullscreen .p-top,#presenter:-webkit-full-screen .p-top,#presenter:fullscreen .p-foot,#presenter:-webkit-full-screen .p-foot{display:none}
+#presenter:fullscreen .p-stage,#presenter:-webkit-full-screen .p-stage{flex:1;min-height:0;padding:0;align-items:stretch;justify-content:center;overflow:hidden}
 #presenter:fullscreen .slide,#presenter:-webkit-full-screen .slide{width:100%;height:100%;min-height:0;max-width:none;border-radius:0;border:none}
 #presenter:fullscreen .slide.active,#presenter:-webkit-full-screen .slide.active{display:flex}
-#presenter:fullscreen .s-body,#presenter:-webkit-full-screen .s-body{flex:1;min-height:0;overflow:auto;padding:18px 28px}
+#presenter:fullscreen .s-body,#presenter:-webkit-full-screen .s-body{flex:1;min-height:0;overflow:auto;padding:24px 36px;gap:16px}
+#presenter:fullscreen .slide h1,#presenter:-webkit-full-screen .slide h1{font-size:56px}
+#presenter:fullscreen .slide h2,#presenter:-webkit-full-screen .slide h2{font-size:38px}
+#presenter:fullscreen .slide .muted,#presenter:-webkit-full-screen .slide .muted{font-size:22px}
+#presenter:fullscreen .narr,#presenter:-webkit-full-screen .narr{font-size:20px;line-height:1.5;padding:14px 18px}
+#presenter:fullscreen .kcard .l,#presenter:-webkit-full-screen .kcard .l{font-size:16px}
+#presenter:fullscreen .kcard .v,#presenter:-webkit-full-screen .kcard .v{font-size:36px}
+#presenter:fullscreen .kcard .s,#presenter:-webkit-full-screen .kcard .s{font-size:14px}
+#presenter:fullscreen table,#presenter:-webkit-full-screen table{font-size:17px}
+#presenter:fullscreen th,#presenter:-webkit-full-screen th,#presenter:fullscreen td,#presenter:-webkit-full-screen td{padding:12px 14px}
+#presenter:fullscreen .chart-card h3,#presenter:-webkit-full-screen .chart-card h3{font-size:18px}
+#presenter:fullscreen .s-head .bt,#presenter:-webkit-full-screen .s-head .bt{font-size:16px}
+#presenter:fullscreen .s-head .bt small,#presenter:-webkit-full-screen .s-head .bt small{font-size:13px}
+#presenter:fullscreen .s-head .meta,#presenter:-webkit-full-screen .s-head .meta{font-size:14px}
+#presenter:fullscreen .s-foot,#presenter:-webkit-full-screen .s-foot{font-size:14px;padding:12px 24px}
 #presenter .slide .muted{color:#4a6286;font-size:18px}
 #presenter .narr{background:#f4f8fd;border:1px solid #d9e5f2;border-radius:12px;padding:12px 14px;color:#1f3558;font-size:16px;line-height:1.45}
 #presenter .narr b{color:#0f2552}
