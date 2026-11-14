@@ -354,10 +354,15 @@ function flagRecord(r) {
   if (camp && r.dtgt > 0 && r.tot > 1.5 * r.dtgt)
     f.push({ rule:'overtarget', text:'Vaccinated ' + fmt(r.tot) + ' against a daily target of ' + fmt(r.dtgt) + ' (' + pct(r.tot / r.dtgt, 0) + ')' });
   const acc = r.used + r.part + r.retG + r.brk + r.retB + r.lost;
-  if (Math.abs(r.rec - acc) > 0.001) f.push({ rule:'vials', text:'Received ' + fmt(r.rec) + ' vials, accounted for ' + fmt(acc) });
+  if (Math.abs(r.rec - acc) > 0.001) f.push({ rule:'vials', text:'nOPV2: Received ' + fmt(r.rec) + ' vials, accounted for ' + fmt(acc) });
   const cap = (r.used + r.part) * CFG.dosesPerVial;
   if (r.tot > cap * 1.02 && r.tot > 0)
-    f.push({ rule:'wastage', text:'Vaccinated ' + fmt(r.tot) + ' but vials used hold ' + fmt(cap) + ' doses' });
+    f.push({ rule:'wastage', text:'nOPV2: Vaccinated ' + fmt(r.tot) + ' but vials used hold ' + fmt(cap) + ' doses' });
+  const bacc = (r.bused||0) + (r.bpart||0) + (r.bretG||0) + (r.bbrk||0) + (r.bretB||0) + (r.blost||0);
+  if (Math.abs((r.brec||0) - bacc) > 0.001) f.push({ rule:'vials', text:'bOPV: Received ' + fmt(r.brec||0) + ' vials, accounted for ' + fmt(bacc) });
+  const bcap = ((r.bused||0) + (r.bpart||0)) * (CFG.bopvDosesPerVial || 20);
+  if (r.tot > bcap * 1.02 && r.tot > 0 && bcap > 0)
+    f.push({ rule:'wastage', text:'bOPV: Vaccinated ' + fmt(r.tot) + ' but vials used hold ' + fmt(bcap) + ' doses' });
   if (r.v011 + r.n011 + r.v1259 + r.n1259 !== r.tot) f.push({ rule:'agesum', text:'Age groups add up to ' + fmt(r.v011 + r.n011 + r.v1259 + r.n1259) + ', total is ' + fmt(r.tot) });
   if (r.male + r.female !== r.tot) f.push({ rule:'sexsum', text:'Male and female add up to ' + fmt(r.male + r.female) + ', total is ' + fmt(r.tot) });
   const pl = r.pHouse + r.pSchool + r.pMarket + r.pStreet + r.pOther;
@@ -380,6 +385,7 @@ function sumRecs(rs) { const a = zeroObj(); rs.forEach(r => addTo(a, r)); return
 const tgtOf = us => us.reduce((s, u) => s + (u.tgt || 0), 0);
 const cov = (tot, tgt) => tgt > 0 ? tot / tgt : null;
 function wastage(a) { const cap = (a.used + a.part) * CFG.dosesPerVial; return cap > 0 ? 1 - a.tot / cap : null; }
+function bWastage(a) { const cap = ((a.bused||0) + (a.bpart||0)) * (CFG.bopvDosesPerVial || 20); return cap > 0 ? 1 - a.tot / cap : null; }
 function status(c) { if (c == null) return 'na'; if (c >= CFG.targetCoverage) return 'good'; if (c >= CFG.warnCoverage) return 'warn'; return 'bad'; }
 const STATUS_COL = { good:'#1E8E4E', warn:'#E69B00', bad:'#E5262B', na:'#9AA9C0' };
 
@@ -390,7 +396,7 @@ function unitRows() {
   return scopeUnits().map(u => {
     const rs = M.bySn[u.sn].filter(r => r.d <= S.upTo);
     const a = sumRecs(rs), day = sumRecs(M.bySn[u.sn].filter(r => r.d === S.upTo));
-    return { u, a, day, tgt: u.tgt, cov: cov(a.tot, u.tgt), w: wastage(a),
+    return { u, a, day, tgt: u.tgt, cov: cov(a.tot, u.tgt), w: wastage(a), bw: bWastage(a),
              flags: rs.reduce((n, r) => n + r.flags.length, 0) + u.flags.length };
   });
 }
@@ -401,7 +407,7 @@ function rollup(rows, keyFn) {
     if (!g) { g = { key:k, rows:[], a:zeroObj(), tgt:0, flags:0 }; m.set(k, g); }
     g.rows.push(r); addTo(g.a, r.a); g.tgt += r.tgt; g.flags += r.flags;
   });
-  return Array.from(m.values()).map(g => { g.cov = cov(g.a.tot, g.tgt); g.w = wastage(g.a); g.atTarget = g.rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length; return g; });
+  return Array.from(m.values()).map(g => { g.cov = cov(g.a.tot, g.tgt); g.w = wastage(g.a); g.bw = bWastage(g.a); g.atTarget = g.rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length; return g; });
 }
 const groupBy = () => S.zone === 'all' ? 'zone' : 'woreda';
 function groups(rows) { return rollup(rows, r => S.zone === 'all' ? r.u.zone : r.u.woreda); }
@@ -568,7 +574,8 @@ function renderOverview() {
   const strip = '<div class="strip">' +
     stat('Vaccinated on ' + esc(dayName()), fmt(cur.tot), camp ? pct(dayCov) + ' of the daily target' : 'Mop-up day, no daily target') +
     stat('Woredas at or above ' + pct(CFG.targetCoverage, 0), atT + ' of ' + rows.length, below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
-    stat('Vaccine wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') +
+    stat('nOPV2 wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') +
+    stat('bOPV wastage', pct(bWastage(cum)), 'Limit ' + pct(CFG.maxWastage, 0), bWastage(cum) != null && bWastage(cum) > CFG.maxWastage ? 'bad' : 'good') +
     stat('Not vaccinated before', fmt(cum.n011 + cum.n1259), '0–11m ' + fmt(cum.n011) + ', 12–59m ' + fmt(cum.n1259)) +
     stat('AEFI reported', fmt(cum.aefiM + cum.aefiS), 'Severe ' + fmt(cum.aefiS), cum.aefiS > 0 ? 'bad' : '') +
     stat('Teams reporting on ' + esc(dayName()), pct(fieldTeams, 0), fmt(cur.teamsRep) + ' of ' + fmt(cur.teams) + ' teams', fieldTeams != null && fieldTeams < 0.95 ? 'warn' : 'good') +
@@ -676,40 +683,77 @@ function renderGeoTable() {
 
 /* ---------- Vaccine use ---------- */
 function renderVaccine() {
-  const recs = scopeRecs(), cumRecs = recs.filter(r => r.d <= S.upTo), cum = sumRecs(cumRecs), w = wastage(cum);
+  const recs = scopeRecs(), cumRecs = recs.filter(r => r.d <= S.upTo), cum = sumRecs(cumRecs);
+  const w = wastage(cum), bw = bWastage(cum);
   const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
-  const g = groups(unitRows()).filter(x => x.w != null).sort((a, b) => b.w - a.w);
-  const gh = Math.max(240, g.length * 30 + 50);
-  const loss = cum.brk + cum.retB + cum.lost;
-  const strip = '<div class="strip">' +
-    stat('Vials received', fmt(cum.rec), 'Through ' + esc(dayName())) +
-    stat('Vials used', fmt(cum.used), fmt(cum.part) + ' partially used') +
-    stat('Returned in good condition', fmt(cum.retG), 'Can be reused') +
-    stat('Broken, bad condition or lost', fmt(loss), 'Broken ' + fmt(cum.brk) + ', bad ' + fmt(cum.retB) + ', lost ' + fmt(cum.lost), loss > 0 ? 'warn' : '') +
-    stat('Doses given', fmt(cum.tot), 'Children vaccinated') +
-    stat('Wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') + '</div>';
-  const trs = dt.map((a, i) => { const x = wastage(a); return '<tr><td>' + esc(dayText(i)) + '</td><td>' + fmt(a.rec) + '</td><td>' + fmt(a.used) + '</td><td>' + fmt(a.part) + '</td><td>' + fmt(a.retG) + '</td><td>' + fmt(a.brk) + '</td><td>' + fmt(a.retB) + '</td><td>' + fmt(a.lost) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('');
-  const tbl = '<div class="tbl-wrap"><table><thead><tr><th>Day</th><th>Received</th><th>Used</th><th>Partially used</th><th>Returned, good</th><th>Broken</th><th>Returned, bad</th><th>Lost</th><th>Doses given</th><th>Wastage</th></tr></thead><tbody>' + trs + '</tbody></table></div>';
+  const gN = groups(unitRows()).filter(x => x.w != null).sort((a, b) => b.w - a.w);
+  const gB = groups(unitRows()).filter(x => x.bw != null).sort((a, b) => b.bw - a.bw);
+  const ghN = Math.max(220, gN.length * 28 + 50);
+  const ghB = Math.max(220, gB.length * 28 + 50);
+  const loss = (cum.brk||0) + (cum.retB||0) + (cum.lost||0);
+  const bloss = (cum.bbrk||0) + (cum.bretB||0) + (cum.blost||0);
 
-  app().innerHTML = strip + '<div class="grid">' +
-    panel('c6', 'Where the vials went', 'Vials received compared with how they were used, through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-vials"></canvas></div>') +
-    panel('c6', 'Wastage by day', 'Dashed line is the ' + pct(CFG.maxWastage, 0) + ' limit.', '<div class="chart"><canvas id="ch-wday"></canvas></div>') +
-    panel('c12', 'Wastage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Highest first. Cumulative through ' + esc(dayName()) + '.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-wgrp"></canvas></div>') +
-    panel('c12', 'Vial accounting by day', null, tbl) + '</div>';
+  const stripN = '<div class="strip">' +
+    stat('nOPV2 vials received', fmt(cum.rec), 'Through ' + esc(dayName())) +
+    stat('nOPV2 vials used', fmt(cum.used), fmt(cum.part) + ' partially used') +
+    stat('nOPV2 returned (good)', fmt(cum.retG), 'Can be reused') +
+    stat('nOPV2 broken/bad/lost', fmt(loss), 'Broken ' + fmt(cum.brk) + ', bad ' + fmt(cum.retB) + ', lost ' + fmt(cum.lost), loss > 0 ? 'warn' : '') +
+    stat('nOPV2 wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0) + ' · 50 doses/vial', w != null && w > CFG.maxWastage ? 'bad' : 'good') + '</div>';
 
-  const vl = [['Received', cum.rec, '#0F2552'], ['Used', cum.used, '#1E6BFF'], ['Partially used', cum.part, '#06B6D4'], ['Returned, good', cum.retG, '#34D399'], ['Broken', cum.brk, '#E69B00'], ['Returned, bad', cum.retB, '#E5262B'], ['Lost', cum.lost, '#EC4899']];
-  draw('ch-vials', { type:'bar', data:{ labels:vl.map(x => x[0]), datasets:[{ label:'Vials', data:vl.map(x => x[1]), backgroundColor:vl.map(x => x[2]), borderRadius:3 }] },
-    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
-      plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) } } } });
+  const stripB = '<div class="strip">' +
+    stat('bOPV vials received', fmt(cum.brec||0), 'Through ' + esc(dayName())) +
+    stat('bOPV vials used', fmt(cum.bused||0), fmt(cum.bpart||0) + ' partially used') +
+    stat('bOPV returned (good)', fmt(cum.bretG||0), 'Can be reused') +
+    stat('bOPV broken/bad/lost', fmt(bloss), 'Broken ' + fmt(cum.bbrk||0) + ', bad ' + fmt(cum.bretB||0) + ', lost ' + fmt(cum.blost||0), bloss > 0 ? 'warn' : '') +
+    stat('bOPV wastage', pct(bw), 'Limit ' + pct(CFG.maxWastage, 0) + ' · 20 doses/vial', bw != null && bw > CFG.maxWastage ? 'bad' : 'good') + '</div>';
 
-  draw('ch-wday', { type:'line', data:{ labels, datasets:[
-    { label:'Wastage', data:dt.map(a => { const x = wastage(a); return x == null ? null : x * 100; }), borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:5, pointBackgroundColor:dt.map((a, i) => dayColor(i)), tension:.2 },
-    { label:'Limit', data:labels.map(() => CFG.maxWastage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5 }
-  ] }, options:vOpts({ scales:{ y:{ ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip() } }) });
+  const trsN = dt.map((a, i) => { const x = wastage(a); return '<tr><td>' + esc(dayText(i)) + '</td><td>' + fmt(a.rec) + '</td><td>' + fmt(a.used) + '</td><td>' + fmt(a.part) + '</td><td>' + fmt(a.retG) + '</td><td>' + fmt(a.brk) + '</td><td>' + fmt(a.retB) + '</td><td>' + fmt(a.lost) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('');
+  const tblN = '<div class="tbl-wrap"><table><thead><tr><th>Day</th><th>Received</th><th>Used</th><th>Partially used</th><th>Returned, good</th><th>Broken</th><th>Returned, bad</th><th>Lost</th><th>Doses given</th><th>Wastage</th></tr></thead><tbody>' + trsN + '</tbody></table></div>';
 
-  draw('ch-wgrp', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Wastage', data:g.map(x => x.w * 100), backgroundColor:g.map(x => x.w > CFG.maxWastage ? '#E5262B' : '#1E6BFF'), borderRadius:3 }] },
-    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } }, scales:{ x:{ ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
-      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.maxWastage * 100, label:'Limit ' + pct(CFG.maxWastage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' } } } });
+  const trsB = dt.map((a, i) => { const x = bWastage(a); return '<tr><td>' + esc(dayText(i)) + '</td><td>' + fmt(a.brec||0) + '</td><td>' + fmt(a.bused||0) + '</td><td>' + fmt(a.bpart||0) + '</td><td>' + fmt(a.bretG||0) + '</td><td>' + fmt(a.bbrk||0) + '</td><td>' + fmt(a.bretB||0) + '</td><td>' + fmt(a.blost||0) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('');
+  const tblB = '<div class="tbl-wrap"><table><thead><tr><th>Day</th><th>Received</th><th>Used</th><th>Partially used</th><th>Returned, good</th><th>Broken</th><th>Returned, bad</th><th>Lost</th><th>Doses given</th><th>Wastage</th></tr></thead><tbody>' + trsB + '</tbody></table></div>';
+
+  app().innerHTML =
+    panel('c12', 'nOPV2 vaccine use', 'Vial accounting and wastage (50 doses/vial), cumulative through ' + esc(dayName()) + '.', stripN) +
+    '<div class="grid">' +
+      panel('c6', 'nOPV2: Where the vials went', 'Vials received compared with how they were used.', '<div class="chart"><canvas id="ch-vials-n"></canvas></div>') +
+      panel('c6', 'nOPV2: Wastage by day', 'Dashed line is the ' + pct(CFG.maxWastage, 0) + ' limit.', '<div class="chart"><canvas id="ch-wday-n"></canvas></div>') +
+      panel('c12', 'nOPV2: Wastage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Highest first. Cumulative through ' + esc(dayName()) + '.', '<div class="chart" style="height:' + ghN + 'px"><canvas id="ch-wgrp-n"></canvas></div>') +
+      panel('c12', 'nOPV2: Vial accounting by day', null, tblN) +
+    '</div>' +
+    panel('c12', 'bOPV vaccine use', 'Vial accounting and wastage (20 doses/vial), cumulative through ' + esc(dayName()) + '.', stripB) +
+    '<div class="grid">' +
+      panel('c6', 'bOPV: Where the vials went', 'Vials received compared with how they were used.', '<div class="chart"><canvas id="ch-vials-b"></canvas></div>') +
+      panel('c6', 'bOPV: Wastage by day', 'Dashed line is the ' + pct(CFG.maxWastage, 0) + ' limit.', '<div class="chart"><canvas id="ch-wday-b"></canvas></div>') +
+      panel('c12', 'bOPV: Wastage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Highest first. Cumulative through ' + esc(dayName()) + '.', '<div class="chart" style="height:' + ghB + 'px"><canvas id="ch-wgrp-b"></canvas></div>') +
+      panel('c12', 'bOPV: Vial accounting by day', null, tblB) +
+    '</div>';
+
+  function drawVials(id, cumObj, prefix) {
+    const r = prefix ? {rec:cumObj.brec||0,used:cumObj.bused||0,part:cumObj.bpart||0,retG:cumObj.bretG||0,brk:cumObj.bbrk||0,retB:cumObj.bretB||0,lost:cumObj.blost||0} : {rec:cumObj.rec,used:cumObj.used,part:cumObj.part,retG:cumObj.retG,brk:cumObj.brk,retB:cumObj.retB,lost:cumObj.lost};
+    const vl = [['Received', r.rec, '#0F2552'], ['Used', r.used, '#1E6BFF'], ['Partially used', r.part, '#06B6D4'], ['Returned, good', r.retG, '#34D399'], ['Broken', r.brk, '#E69B00'], ['Returned, bad', r.retB, '#E5262B'], ['Lost', r.lost, '#EC4899']];
+    draw(id, { type:'bar', data:{ labels:vl.map(x => x[0]), datasets:[{ label:'Vials', data:vl.map(x => x[1]), backgroundColor:vl.map(x => x[2]), borderRadius:3 }] },
+      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
+        plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) } } } });
+  }
+  function drawWday(id, isB) {
+    draw(id, { type:'line', data:{ labels, datasets:[
+      { label:'Wastage', data:dt.map(a => { const x = isB ? bWastage(a) : wastage(a); return x == null ? null : x * 100; }), borderColor: isB ? '#10B981' : '#1E6BFF', backgroundColor: isB ? '#10B981' : '#1E6BFF', borderWidth:3, pointRadius:5, pointBackgroundColor:dt.map((a, i) => dayColor(i)), tension:.2 },
+      { label:'Limit', data:labels.map(() => CFG.maxWastage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5 }
+    ] }, options:vOpts({ scales:{ y:{ ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip() } }) });
+  }
+  function drawWgrp(id, g, isB) {
+    draw(id, { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Wastage', data:g.map(x => (isB ? x.bw : x.w) * 100), backgroundColor:g.map(x => (isB ? x.bw : x.w) > CFG.maxWastage ? '#E5262B' : (isB ? '#10B981' : '#1E6BFF')), borderRadius:3 }] },
+      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } }, scales:{ x:{ ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
+        plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.maxWastage * 100, label:'Limit ' + pct(CFG.maxWastage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' } } } });
+  }
+
+  drawVials('ch-vials-n', cum, false);
+  drawWday('ch-wday-n', false);
+  drawWgrp('ch-wgrp-n', gN, false);
+  drawVials('ch-vials-b', cum, true);
+  drawWday('ch-wday-b', true);
+  drawWgrp('ch-wgrp-b', gB, true);
 }
 
 /* ---------- Community and safety ---------- */
@@ -1128,6 +1172,7 @@ function init() {
   $('#fWoreda').addEventListener('change', e => { S.woreda = e.target.value; render(); });
   $('#fDay').addEventListener('change', e => { S.upTo = Number(e.target.value); render(); });
   $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
+  $('#btnExport').addEventListener('click', doDashboardExport);
   $('#btnReset').addEventListener('click', () => {
     if (DASH_SCOPE.mode === 'woreda') { S.zone = DASH_SCOPE.zone; S.woreda = DASH_SCOPE.woreda; }
     else if (DASH_SCOPE.mode === 'zone') { S.zone = DASH_SCOPE.zone; S.woreda = 'all'; }
