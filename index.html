@@ -493,7 +493,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   window.CAMPAIGN_STATIC = true;
 
   var ACTIONS = [
-    "authenticateUser", "getInitialData", "getRowData", "saveAndReturn",
+    "authenticateUser", "loginAndGetInitialData", "getInitialData", "getRowData", "saveAndReturn",
     "saveSettings", "getWoredaExport", "exportToExcelWithFormulas",
     "dashboardLogin", "getDashboardData"
   ];
@@ -623,7 +623,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   }
 
   function payloadFor(action, args) {
-    if (action === "authenticateUser") return args[0] || {};
+    if (action === "authenticateUser" || action === "loginAndGetInitialData") return args[0] || {};
     if (action === "getRowData") {
       return { sheetName: args[0], rowIndex: args[1], facilityIndex: args[3] };
     }
@@ -781,6 +781,10 @@ function doLogin() {
       sessionStorage.setItem('epi_officer', JSON.stringify(res.officer));
       if (res.token) sessionStorage.setItem('epi_token', res.token);
       sessionStorage.removeItem('epi_notice');
+      // Fast path: combined login + initial data in one round trip
+      if (res.plan) {
+        state._initialData = { ok: true, plan: res.plan, settings: res.settings || {} };
+      }
       openApp();
     })
     .withFailureHandler(err => {
@@ -788,7 +792,7 @@ function doLogin() {
       document.getElementById('loginBtnText').textContent = "Sign In";
       errEl.textContent = "Server error: " + (err && err.message ? err.message : err);
     })
-    .authenticateUser({ name, email, phone, woredaID });
+    .loginAndGetInitialData({ name, email, phone, woredaID });
 }
 
 // Enter key chain
@@ -861,6 +865,12 @@ function boot() {
     `<div class="panel" style="background:#fff;border-radius:20px;padding:20px;margin:18px 0">
       <div class="empty"><div class="spinner"></div><b>Loading…</b></div>
     </div>`;
+  if (state._initialData) {
+    const data = state._initialData;
+    state._initialData = null;
+    handleInitialData(data);
+    return;
+  }
   google.script.run.withSuccessHandler(handleInitialData).withFailureHandler(handleFatal).getInitialData();
 }
 
