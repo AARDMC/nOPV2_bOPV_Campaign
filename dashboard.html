@@ -198,11 +198,25 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   function fail(msg){ var e=new Error(msg); e.campaignMessage=msg; return e; }
   function sessionToken(){ try{ return sessionStorage.getItem('epi_token') || sessionStorage.getItem('dash_token') || ''; }catch(e){return '';} }
   function parseJson(text){ try{return JSON.parse(text);}catch(e){} var s=text.indexOf('{'),e2=text.lastIndexOf('}'); if(s>=0&&e2>s){try{return JSON.parse(text.slice(s,e2+1));}catch(e3){}} throw fail('Unreadable server reply'); }
-  function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetch(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+  function isRetryableError(err){
+    if(!err) return true;
+    var msg=String((err&&(err.campaignMessage||err.message))||err||'');
+    if(/AUTH_REQUIRED|session has expired|sign in again|Unknown|Validation|not connected/i.test(msg)) return false;
+    return true;
+  }
+  function fetchWithTimeout(url,opts,timeoutMs){
+    if(typeof AbortController==='undefined') return fetch(url,opts);
+    var ctrl=new AbortController(); var t=setTimeout(function(){try{ctrl.abort();}catch(e){}},timeoutMs);
+    opts=Object.assign({},opts||{},{signal:ctrl.signal});
+    return fetch(url,opts).finally(function(){clearTimeout(t);});
+  }
+  function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetchWithTimeout(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)},45000).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
   function postViaIframe(body){ return new Promise(function(resolve,reject){ var url=window.CAMPAIGN_API_URL; if(!url){reject(fail('No server URL'));return;} var id='r'+Math.floor(Math.random()*1e9).toString(36); var iframe=document.createElement('iframe'); iframe.name=id; iframe.style.cssText='position:absolute;width:0;height:0;border:0;visibility:hidden'; var form=document.createElement('form'); form.method='POST'; form.action=url; form.target=id; form.style.display='none'; var fields={action:body.action,payload:JSON.stringify(body.payload||{}),token:body.token||'',transport:'iframe',requestId:id}; Object.keys(fields).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);}); var settled=false; var timer=setTimeout(function(){finish();reject(fail('Server not responding'));},60000); function finish(){if(settled)return; settled=true; clearTimeout(timer); window.removeEventListener('message',onMessage); setTimeout(function(){if(form.parentNode)form.parentNode.removeChild(form); if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},1500);} function onMessage(ev){var d=ev.data; if(!d||d.source!=='nopv2-campaign'||d.requestId!==id) return; finish(); resolve(d.result);} window.addEventListener('message',onMessage); document.body.appendChild(iframe); document.body.appendChild(form); form.submit(); }); }
-  function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; return postJson(body).catch(function(){return postViaIframe(body);}).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token');}catch(e){} } return out; }); }
-  [object Object]
-  window.google=window.google||{}; window.google.script=window.google.script||{};
+  function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; var attempts=0,maxAttempts=3; function attempt(){ attempts++; return postJson(body).catch(function(err){ if(err&&err.campaignMessage&&/unreadable/i.test(err.campaignMessage)) throw err; if(attempts<maxAttempts&&isRetryableError(err)) return sleep(Math.min(1500*Math.pow(2,attempts-1),6000)).then(attempt); return postViaIframe(body).catch(function(err2){ if(attempts<maxAttempts&&isRetryableError(err2)){ attempts++; return sleep(Math.min(1500*Math.pow(2,attempts-2),6000)).then(function(){return postViaIframe(body);}); } throw err2||err; }); }).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token');}catch(e){} } return out; }); } return attempt(); }
+  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getLogo'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; else if(action==='getDashboardData') p=(args[0]&&typeof args[0]==='object')?args[0]:{force:!!args[0]}; else if(action==='getDashboardExport') p=args[0]||{}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
+
+    window.google=window.google||{}; window.google.script=window.google.script||{};
   Object.defineProperty(window.google.script,'run',{configurable:true,get:function(){return makeRunner();}});
 })();
 </script>
@@ -463,12 +477,45 @@ function setupChartDefaults() {
   Chart.defaults.plugins.legend.labels.boxWidth = 10;
   Chart.defaults.plugins.legend.labels.boxHeight = 10;
 }
-function draw(id, cfg) {
-  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
-  const el = document.getElementById(id); if (!el) return;
-  charts[id] = new Chart(el.getContext('2d'), cfg);
+const _drawQueue = [];
+let _drawScheduled = false;
+function _flushDrawQueue() {
+  _drawScheduled = false;
+  if (typeof Chart === 'undefined') {
+    // Chart.js still loading (deferred) - retry shortly
+    if (_drawQueue.length) { _drawScheduled = true; setTimeout(_flushDrawQueue, 50); }
+    return;
+  }
+  const job = _drawQueue.shift();
+  if (!job) return;
+  const { id, cfg, token } = job;
+  if (token !== _drawQueue.token) { if (_drawQueue.length) { _drawScheduled = true; setTimeout(_flushDrawQueue, 0); } return; }
+  const el = document.getElementById(id);
+  if (el) {
+    try {
+      if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+      charts[id] = new Chart(el.getContext('2d'), cfg);
+    } catch (e) { /* ignore chart errors */ }
+  }
+  if (_drawQueue.length) {
+    _drawScheduled = true;
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(_flushDrawQueue);
+    else setTimeout(_flushDrawQueue, 16);
+  }
 }
-function killCharts() { Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; }); }
+function draw(id, cfg) {
+  _drawQueue.push({ id, cfg, token: _drawQueue.token });
+  if (!_drawScheduled) {
+    _drawScheduled = true;
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(_flushDrawQueue);
+    else setTimeout(_flushDrawQueue, 0);
+  }
+}
+function killCharts() {
+  _drawQueue.length = 0;
+  _drawQueue.token = (_drawQueue.token || 0) + 1;
+  Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch(e) {} delete charts[k]; });
+}
 const numTip = { callbacks: { label: c => ' ' + c.dataset.label + ': ' + fmt(c.parsed.y != null && c.chart.options.indexAxis !== 'y' ? c.parsed.y : c.parsed.x) } };
 function vOpts(extra) { return Object.assign({ responsive:true, interaction:{ mode:'index', intersect:false },
   scales:{ y:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, x:{ grid:{ display:false } } },
