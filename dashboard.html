@@ -1665,10 +1665,9 @@ function b64ToBlob_(b64, mime){
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new Blob([bytes], { type: mime || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
-function doDashboardExport(){
+function fallbackDashboardExport_(reason){
   const btn = document.getElementById('btnExport');
-  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
-  setBusy('Preparing export', 'Building filtered Excel from the Google Sheet (formatting, formulas & validation)…');
+  setBusy('Preparing export', 'Google Sheet export unavailable (' + String(reason || 'not authorized yet') + ') — building it locally…');
   const payload = {}; if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
   google.script.run
     .withSuccessHandler(function(res){
@@ -1680,20 +1679,14 @@ function doDashboardExport(){
       }
       setTimeout(function(){
         try{
-          let blob, name;
-          if (res.base64) {
-            blob = b64ToBlob_(res.base64, res.mimeType);
-            name = res.fileName || 'nOPV2_bOPV_Campaign.xlsx';
-          } else {
-            blob = buildMirrorWorkbook(res);
-            const scope = res.scope || {};
-            name = 'nOPV2_bOPV_Campaign';
-            if(scope.woreda) name += '_' + String(scope.woreda).replace(/[^\w.-]+/g,'_');
-            else if(scope.zone) name += '_' + String(scope.zone).replace(/[^\w.-]+/g,'_');
-            else name += '_Scoped';
-            if(scope.facilityIndex!=null && scope.facilityIndex>=0 && DASH_SCOPE.facilities && DASH_SCOPE.facilities[scope.facilityIndex]) name += '_' + String(DASH_SCOPE.facilities[scope.facilityIndex]).replace(/[^\w.-]+/g,'_');
-            name += '.xlsx';
-          }
+          const blob = buildMirrorWorkbook(res);
+          const scope = res.scope || {};
+          let name = 'nOPV2_bOPV_Campaign';
+          if(scope.woreda) name += '_' + String(scope.woreda).replace(/[^\w.-]+/g,'_');
+          else if(scope.zone) name += '_' + String(scope.zone).replace(/[^\w.-]+/g,'_');
+          else name += '_Scoped';
+          if(scope.facilityIndex!=null && scope.facilityIndex>=0 && DASH_SCOPE.facilities && DASH_SCOPE.facilities[scope.facilityIndex]) name += '_' + String(DASH_SCOPE.facilities[scope.facilityIndex]).replace(/[^\w.-]+/g,'_');
+          name += '.xlsx';
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(()=>URL.revokeObjectURL(url), 300000);
@@ -1711,6 +1704,39 @@ function doDashboardExport(){
       if (btn) { btn.disabled = false; btn.textContent = 'Download Excel'; }
       setBusy(null);
       toast('Export failed: '+esc(err&&err.message?err.message:err), true);
+    })
+    .getDashboardExport(payload);
+}
+function doDashboardExport(){
+  const btn = document.getElementById('btnExport');
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  setBusy('Preparing export', 'Building filtered Excel from the Google Sheet (formatting, formulas & validation)…');
+  const payload = {}; if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(!res || !res.ok){
+        fallbackDashboardExport_((res&&res.error)||'native export rejected');
+        return;
+      }
+      if (!res.base64) { fallbackDashboardExport_('native export not supported by server'); return; }
+      setTimeout(function(){
+        try{
+          const blob = b64ToBlob_(res.base64, res.mimeType);
+          const name = res.fileName || 'nOPV2_bOPV_Campaign.xlsx';
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(()=>URL.revokeObjectURL(url), 300000);
+          if (btn) { btn.disabled = false; btn.textContent = 'Download Excel'; }
+          setBusy(null);
+          toast('Export ready: '+esc(name));
+        } catch(e){
+          fallbackDashboardExport_(e&&e.message?e.message:String(e));
+        }
+      }, 0);
+    })
+    .withFailureHandler(function(err){
+      if (btn) { btn.disabled = false; btn.textContent = 'Download Excel'; }
+      fallbackDashboardExport_(err&&err.message?err.message:String(err));
     })
     .getNativeScopedExport(payload);
 }

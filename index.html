@@ -1514,28 +1514,56 @@ function base64ToBlob_(b64, mime) {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new Blob([bytes], { type: mime || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
-function exportWoreda() {
-  const el = document.getElementById("exportResult");
+function fallbackLocalWoredaExport_(el, reason) {
   if (!state.selectedRow || !el) return;
   const w = state.selectedRow;
-  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Preparing your woreda Excel (Google Sheet formatting, formulas, validation)…</span></div>`;
+  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Google Sheet export unavailable (${escapeHtml(reason || "not authorized yet")}) — building export locally…</span></div>`;
   google.script.run
     .withSuccessHandler(res => {
       if (!res || res.ok === false) {
         el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((res && res.error) || "Export failed")}</span></div>`;
         return;
       }
+      let blob;
+      try { blob = buildWoredaWorkbook_(res); }
+      catch (err) {
+        el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
+        return;
+      }
+      const fileName = "EPI_" + safeFilePart_(res.woreda) + "_" + safeFilePart_(res.healthCenter) + ".xlsx";
+      const url = downloadBlob_(blob, fileName);
+      el.innerHTML = `
+        <div class="export-result">
+          <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel ready — your woreda only</span>
+          <a href="${url}" download="${escapeAttr(fileName)}" class="btn btn-success" style="margin-left:auto">${ICONS.download}Download .xlsx</a>
+          <a href="${url}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.excel}Open in new tab</a>
+        </div>`;
+      toast("Your woreda Excel was exported");
+      setTimeout(() => URL.revokeObjectURL(url), 300000);
+    })
+    .withFailureHandler(err => {
+      el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
+    })
+    .getWoredaExport(state.activeFacility, (state.selectedRow && state.selectedRow.woredaID) || "");
+}
+function exportWoreda() {
+  const el = document.getElementById("exportResult");
+  if (!state.selectedRow || !el) return;
+  const w = state.selectedRow;
+  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Preparing your woreda Excel from the Google Sheet…</span></div>`;
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res || res.ok === false) {
+        fallbackLocalWoredaExport_(el, (res && res.error) || "native export rejected");
+        return;
+      }
+      if (!res.base64) { fallbackLocalWoredaExport_(el, "native export not supported by server"); return; }
       let blob, fileName;
       try {
-        if (res.base64) {
-          blob = base64ToBlob_(res.base64, res.mimeType);
-          fileName = res.fileName || ("EPI_" + safeFilePart_(w.woreda) + "_" + safeFilePart_(w.healthCenter) + ".xlsx");
-        } else {
-          blob = buildWoredaWorkbook_(res);
-          fileName = "EPI_" + safeFilePart_(res.woreda) + "_" + safeFilePart_(res.healthCenter) + ".xlsx";
-        }
+        blob = base64ToBlob_(res.base64, res.mimeType);
+        fileName = res.fileName || ("EPI_" + safeFilePart_(w.woreda) + "_" + safeFilePart_(w.healthCenter) + ".xlsx");
       } catch (err) {
-        el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
+        fallbackLocalWoredaExport_(el, (err && err.message) || String(err));
         return;
       }
       const url = downloadBlob_(blob, fileName);
@@ -1549,7 +1577,7 @@ function exportWoreda() {
       setTimeout(() => URL.revokeObjectURL(url), 300000);
     })
     .withFailureHandler(err => {
-      el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
+      fallbackLocalWoredaExport_(el, (err && err.message) || String(err));
     })
     .getNativeScopedExport({ facilityIndex: state.activeFacility });
 }
