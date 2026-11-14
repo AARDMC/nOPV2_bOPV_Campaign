@@ -27,7 +27,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body {
       font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
-      color: var(--text); font-size: 13px; height: 100vh; overflow: hidden; background: var(--bg);
+      color: var(--text); font-size: 13px; height: 100vh; height: 100dvh; min-height: 100dvh; overflow: hidden; background: var(--bg);
       background-image:
         radial-gradient(at 0% 0%, rgba(102,126,234,0.13) 0px, transparent 50%),
         radial-gradient(at 100% 0%, rgba(240,147,251,0.11) 0px, transparent 50%),
@@ -121,7 +121,7 @@
     .login-credit .credit-by b { color: #667eea; font-weight: 800; }
 
     /* ============ APP SHELL ============ */
-    #app { display: grid; grid-template-columns: 1fr; grid-template-rows: 68px 1fr; height: 100vh; }
+    #app { display: grid; grid-template-columns: 1fr; grid-template-rows: 68px 1fr; height: 100vh; height: 100dvh; min-height: 0; }
     #app.hidden { display: none; }
     header {
       grid-column: 1/-1; background: linear-gradient(120deg, #5f6fe0 0%, #764ba2 58%, #8b5cab 100%);
@@ -177,7 +177,7 @@
     header button:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
 
     /* Main */
-    .main { overflow-y: auto; padding: 0 24px 28px; }
+    .main { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; padding: 0 24px calc(28px + env(safe-area-inset-bottom, 0px)); min-height: 0; }
     .main::-webkit-scrollbar { width: 10px; }
     .main::-webkit-scrollbar-thumb { background: var(--grad-primary); border-radius: 5px; }
     .woreda-header {
@@ -376,7 +376,7 @@
       header .officer-chip .chip-text { display: none; }
       header button { padding: 8px 10px; font-size: 11px; }
       header button .lbl { display: none; }
-      .main { padding: 0 12px 20px; }
+      .main { padding: 0 12px calc(32px + env(safe-area-inset-bottom, 0px)); }
       .woreda-header { padding: 14px 16px 16px; margin: 0 -12px 14px; border-radius: 0 0 16px 16px; }
       .woreda-header .hero-top { padding-right: 62px; }
       .woreda-header h2 { font-size: 15.5px; gap: 8px; }
