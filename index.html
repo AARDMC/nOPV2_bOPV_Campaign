@@ -985,8 +985,9 @@ function computeRow(w, day, r) {
   const N = M === null ? null : L - M;
   const O = dt === 0 ? null : L / dt;
   const P = (Number(w.totalPlanned) || 0) === 0 ? null : L / Number(w.totalPlanned);
+  // nOPV2 wastage rate: use =((Q-T)*50-L)/((Q-T)*50) for all sheets
   const nopvNet = n(r.Q) - n(r.T);
-  const nopvDen = nopvNet * (Number(S.nopvDosesPerVial) || 50);
+  const nopvDen = nopvNet * 50;
   const X = nopvDen === 0 ? null : (nopvDen - L) / nopvDen;
   const Y = n(r.Q) - (n(r.R)+n(r.S)+n(r.T)+n(r.U)+n(r.V)+n(r.W));
   const bopvNet = n(r.Z) - n(r.AC);
@@ -1027,8 +1028,8 @@ function validateRow(w, day, r) {
   const bopvAcc = n(r.AA) + n(r.AB) + n(r.AC) + n(r.AD) + n(r.AE) + n(r.AF);
   if (n(r.Z) > 0 && n(r.Z) !== bopvAcc) add(["Z","AA","AB","AC","AD","AE","AF"], "bOPV vials: received (" + n(r.Z) + ") does not match accounted (" + bopvAcc + ").");
 
-  // Wastage sanity: doses given cannot exceed vials used capacity
-  const nopvCap = (n(r.R) + n(r.S)) * (Number(state.settings && state.settings.nopvDosesPerVial) || 50);
+  // Wastage sanity: doses given cannot exceed vials used capacity (X uses =((Q-T)*50-L)/((Q-T)*50))
+  const nopvCap = (n(r.R) + n(r.S)) * 50;
   if (nopvCap > 0 && L > nopvCap) add(["Q","R","S","H","I","J","K"], "nOPV2: total vaccinated (" + L + ") exceeds vial capacity (" + nopvCap + " doses).");
   const bopvCap = (n(r.AA) + n(r.AB)) * (Number(state.settings && state.settings.bopvDosesPerVial) || 20);
   if (bopvCap > 0 && L > bopvCap) add(["Z","AA","AB","H","I","J","K"], "bOPV: total vaccinated (" + L + ") exceeds vial capacity (" + bopvCap + " doses).");
@@ -1432,6 +1433,10 @@ function excelCell_(ref, value, style) {
   if (typeof value === "number" && isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`;
   return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEscape_(value)}</t></is></c>`;
 }
+function excelFormulaCell_(ref, formula, style) {
+  const s = style ? ` s="${style}"` : "";
+  return `<c r="${ref}"${s}><f>${xmlEscape_(formula)}</f></c>`;
+}
 function sheetXmlForDay_(day, res, w) {
   const totalCols = 7 + EXPORT_COLUMNS.length; const lastCol = exportColName_(totalCols); const rows = [];
   const title = "nOPV2 & bOPV Campaign — " + (res.woreda || "") + " (ID #" + (res.woredaID || "") + ") — " + day;
@@ -1450,7 +1455,17 @@ function sheetXmlForDay_(day, res, w) {
     const v = c[key]; if (v == null || isNaN(v)) { values.push(""); return; }
     values.push(kind === "pct" ? Number((v * 100).toFixed(2)) : v);
   });
-  rows.push(`<row r="4">${values.map((v, j) => excelCell_(exportColName_(j + 1) + "4", v, 0)).join("")}</row>`);
+  // In this fallback export layout data is on row 4 and columns H.. map to Q,R,S,T,... as per EXPORT_COLUMNS order.
+  // X (nOPV2 wastage %) is exported as column index 7 (0-based in headers/values: Day,Region,Zone,Woreda,HC,Planned,Teams + EXPORT_COLUMNS)
+  const xColIndex = 7 + EXPORT_COLUMNS.findIndex(col => col[0] === "X");
+  const qCol = exportColName_(7 + EXPORT_COLUMNS.findIndex(col => col[0] === "Q") + 1);
+  const tCol = exportColName_(7 + EXPORT_COLUMNS.findIndex(col => col[0] === "T") + 1);
+  const lCol = exportColName_(7 + EXPORT_COLUMNS.findIndex(col => col[0] === "L") + 1);
+  const xFormula = `(((${qCol}4-${tCol}4)*50)-${lCol}4)/(((${qCol}4-${tCol}4)*50))`;
+  rows.push(`<row r="4">${values.map((v, j) => {
+    if (j === xColIndex) return excelFormulaCell_(exportColName_(j + 1) + "4", xFormula, 0);
+    return excelCell_(exportColName_(j + 1) + "4", v, 0);
+  }).join("")}</row>`);
   const colsXml = `<cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="5" width="16" customWidth="1"/><col min="6" max="7" width="12" customWidth="1"/><col min="8" max="${totalCols}" width="20" customWidth="1"/></cols>`;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
