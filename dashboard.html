@@ -313,44 +313,46 @@ main,.bannerhost,.filters-inner,.tabs,.top-inner{max-width:100%}
 .backlink{color:#fff;text-decoration:none;font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:4px}
 
 /* Presenter */
-#presenter{position:fixed;inset:0;background:#08152e;color:#fff;z-index:10000;display:none;flex-direction:column}
+#presenter{position:fixed;inset:0;background:#eef3f8;color:#0f2552;z-index:10000;display:none;flex-direction:column}
 #presenter.show{display:flex}
-#presenter .p-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.12)}
-#presenter .p-title{font-size:14px;font-weight:600;color:#e6f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55vw}
+#presenter .p-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:#ffffff;border-bottom:1px solid #d9e5f2;box-shadow:0 2px 8px rgba(15,37,82,.06)}
+#presenter .p-title{font-size:14px;font-weight:700;color:#0f2552;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55vw}
 #presenter .p-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-#presenter .p-btn{border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;font:inherit}
-#presenter .p-btn:hover{background:rgba(255,255,255,0.16)}
-#presenter .p-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
-#presenter .slide{width:min(1220px,96vw);min-height:min(690px,80vh);background:linear-gradient(135deg,#0f2552,#123a7a);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);padding:0;display:none;flex-direction:column;overflow:hidden}
+#presenter .p-btn{border:1px solid #c9d9ec;background:#f8fbff;color:#0f2552;border-radius:10px;padding:8px 12px;cursor:pointer;font:inherit;font-weight:600}
+#presenter .p-btn:hover{background:#eaf3ff}
+#presenter .p-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
+#presenter .slide{width:min(1380px,98vw);min-height:min(820px,88vh);background:#ffffff;border:1px solid #d9e5f2;border-radius:16px;box-shadow:0 14px 36px rgba(15,37,82,.10);padding:0;display:none;flex-direction:column;overflow:hidden}
 #presenter .slide.active{display:flex}
-#presenter .s-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;background:rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.14)}
+#presenter .s-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;background:linear-gradient(180deg,#f8fbff,#ffffff);border-bottom:1px solid #d9e5f2}
 #presenter .s-head .brand{display:flex;align-items:center;gap:12px;min-width:0}
-#presenter .s-head img{height:52px;width:auto;max-width:160px;object-fit:contain;background:#fff;border-radius:8px;padding:4px}
-#presenter .s-head .bt{font-size:14px;line-height:1.2;color:#eaf3ff;font-weight:700}
-#presenter .s-head .bt small{display:block;font-size:11px;color:#cfe0ff;font-weight:500}
-#presenter .s-head .meta{font-size:12px;color:#d7e7ff;text-align:right}
-#presenter .s-body{flex:1;padding:22px 28px;display:flex;flex-direction:column;gap:12px;min-height:0}
-#presenter .s-foot{display:flex;justify-content:space-between;gap:10px;padding:10px 22px;background:rgba(255,255,255,0.06);border-top:1px solid rgba(255,255,255,0.12);font-size:12px;color:#d7e7ff}
-#presenter .slide h1{margin:0;font-size:40px;line-height:1.15;color:#fff}
-#presenter .slide h2{margin:0;font-size:28px;line-height:1.2;color:#fff}
-#presenter .slide .muted{color:#cfe0ff;font-size:17px}
-#presenter .narr{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:12px;padding:12px 14px;color:#f3f8ff;font-size:16px;line-height:1.45}
-#presenter .narr b{color:#fff}
-#presenter .kgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:4px}
-#presenter .kcard{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:14px}
-#presenter .kcard .l{font-size:13px;color:#d7e7ff;margin-bottom:6px}
-#presenter .kcard .v{font-size:26px;font-weight:700;color:#fff}
-#presenter .kcard .s{font-size:12px;color:#cfe0ff;margin-top:4px}
-#presenter .tblwrap{background:rgba(255,255,255,0.96);border-radius:12px;overflow:auto;max-height:40vh}
+#presenter .s-head img{height:48px;width:auto;max-width:150px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;border:1px solid #e2ebf6}
+#presenter .s-head .bt{font-size:14px;line-height:1.2;color:#0f2552;font-weight:700}
+#presenter .s-head .bt small{display:block;font-size:11px;color:#4a6286;font-weight:600}
+#presenter .s-head .meta{font-size:12px;color:#35527a;text-align:right;font-weight:600}
+#presenter .s-body{flex:1;padding:18px 24px;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+#presenter .s-foot{display:flex;justify-content:space-between;gap:10px;padding:10px 22px;background:#f8fbff;border-top:1px solid #d9e5f2;font-size:12px;color:#4a6286}
+#presenter .slide h1{margin:0;font-size:44px;line-height:1.12;color:#0f2552}
+#presenter .slide h2{margin:0;font-size:30px;line-height:1.2;color:#0f2552}
+#presenter .slide .muted{color:#4a6286;font-size:18px}
+#presenter .narr{background:#f4f8fd;border:1px solid #d9e5f2;border-radius:12px;padding:12px 14px;color:#1f3558;font-size:16px;line-height:1.45}
+#presenter .narr b{color:#0f2552}
+#presenter .kgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:4px}
+#presenter .kcard{background:#f8fbff;border:1px solid #d9e5f2;border-radius:14px;padding:14px}
+#presenter .kcard .l{font-size:13px;color:#4a6286;margin-bottom:6px;font-weight:600}
+#presenter .kcard .v{font-size:28px;font-weight:800;color:#0f2552}
+#presenter .kcard .s{font-size:12px;color:#4a6286;margin-top:4px}
+#presenter .tblwrap{background:#fff;border:1px solid #d9e5f2;border-radius:12px;overflow:auto;max-height:46vh}
 #presenter table{width:100%;border-collapse:collapse;font-size:14px;color:#0f172a}
 #presenter th,#presenter td{padding:9px 11px;border-bottom:1px solid #dbe5f3;text-align:left;vertical-align:top}
-#presenter th{background:#eaf2ff;color:#0f2552;font-weight:700;position:sticky;top:0}
-#presenter .bars{display:flex;flex-direction:column;gap:8px;margin-top:4px}
-#presenter .barrow{display:grid;grid-template-columns:180px 1fr 70px;gap:10px;align-items:center;font-size:13px;color:#eaf3ff}
-#presenter .bar{height:12px;background:rgba(255,255,255,0.15);border-radius:999px;overflow:hidden}
-#presenter .bar i{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#22c55e);border-radius:999px}
-#presenter .p-foot{padding:8px 14px;color:#cfe0ff;font-size:13px;text-align:center;border-top:1px solid rgba(255,255,255,0.12)}
-@media (max-width:800px){#presenter .s-body{padding:16px}#presenter .slide h1{font-size:28px}#presenter .slide h2{font-size:22px}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}#presenter .barrow{grid-template-columns:120px 1fr 56px}#presenter .p-title{max-width:40vw}}
+#presenter th{background:#eef5ff;color:#0f2552;font-weight:700;position:sticky;top:0}
+#presenter .chart-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;align-items:stretch}
+#presenter .chart-card{background:#fff;border:1px solid #d9e5f2;border-radius:12px;padding:10px 12px;min-height:320px;display:flex;flex-direction:column}
+#presenter .chart-card h3{margin:0 0 8px;font-size:15px;color:#0f2552}
+#presenter .chart-box{position:relative;flex:1;min-height:260px}
+#presenter .chart-box canvas{width:100% !important;height:100% !important}
+#presenter .p-foot{padding:8px 14px;color:#4a6286;font-size:13px;text-align:center;border-top:1px solid #d9e5f2;background:#fff}
+@media (max-width:1000px){#presenter .chart-grid{grid-template-columns:1fr}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:800px){#presenter .s-body{padding:14px}#presenter .slide h1{font-size:30px}#presenter .slide h2{font-size:22px}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}#presenter .p-title{max-width:40vw}}
 </style>
 <script>
 window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1lMEcqzTLYxB3tgksV6eKyJ403wh6Yg68Kje42ZRBps4ZdqeZFbIauZk/exec";
@@ -1891,6 +1893,64 @@ function buildNarrationDeck(){
   if ((cum.afpA||0) > 0) disc.push('Follow up ' + fmt(cum.afpA) + ' AFP alerts with surveillance.');
   if (items.length) disc.push('Ask focal persons to correct the ' + pl(items.length,'flagged data entry').replace('entrys','entries') + '.');
   if (!disc.length) disc.push('No urgent issues were found. Maintain current performance and keep reporting daily.');
+
+  // Explanatory chart slides
+  const dayLabels = dt.map((a,i)=>dayText(i));
+  const dayVacc = dt.map(a=>a.tot||0);
+  const dayTarget = dt.map(a=>a.dtgt||0);
+  const placeLabels = ['House','School','Market','Street','Other'];
+  const placeVals = [cum.pHouse||0, cum.pSchool||0, cum.pMarket||0, cum.pStreet||0, cum.pOther||0];
+  const ageLabels = ['0–11m vaccinated before','0–11m not vaccinated before','12–59m vaccinated before','12–59m not vaccinated before'];
+  const ageVals = [cum.v011||0, cum.n011||0, cum.v1259||0, cum.n1259||0];
+  const sexLabels = ['Male','Female'];
+  const sexVals = [cum.male||0, cum.female||0];
+  const topGroups = (gs.length?gs.slice(0,8):[]);
+  const lowUnits = low.slice(0,8);
+
+  slides.push({ kind:'chart', title:'Charts: daily progress', heading:'Daily progress (column charts)',
+    narration: [
+      'Column charts compare children vaccinated per day and daily targets to show progress and workload.',
+      dt.length ? (M.days[peakI].label + ' recorded the highest daily vaccinations (' + fmt(dt[peakI].tot) + ').') : 'No daily data available.'
+    ],
+    charts: [
+      { id:'ch_day_vacc', type:'bar', title:'Children vaccinated by day', labels: dayLabels, datasets:[{label:'Vaccinated', data: dayVacc, backgroundColor:'#2563EB'}] },
+      { id:'ch_day_target', type:'bar', title:'Vaccinated vs daily target', labels: dayLabels, datasets:[{label:'Vaccinated', data: dayVacc, backgroundColor:'#10B981'},{label:'Daily target', data: dayTarget, backgroundColor:'#94A3B8'}] }
+    ]
+  });
+
+  slides.push({ kind:'chart', title:'Charts: place & demographics', heading:'Where and who was vaccinated (pie/column charts)',
+    narration: [
+      'Charts show vaccination by place, age/history groups, and sex distribution to explain reach and coverage patterns.',
+      'Most children were vaccinated at ' + (places[0] ? places[0][0] : 'reported places') + '.'
+    ],
+    charts: [
+      { id:'ch_place', type:'pie', title:'Vaccination by place', labels: placeLabels, datasets:[{data: placeVals, backgroundColor:['#2563EB','#10B981','#F59E0B','#EC4899','#8B5CF6']}] },
+      { id:'ch_age', type:'bar', title:'Age & vaccination history', labels: ageLabels, datasets:[{label:'Children', data: ageVals, backgroundColor:['#0EA5E9','#38BDF8','#22C55E','#86EFAC']}] }
+    ]
+  });
+
+  slides.push({ kind:'chart', title:'Charts: coverage comparison', heading:'Coverage comparison charts',
+    narration: [
+      'These charts highlight highest and lowest coverage areas to support targeted follow-up and supervision.',
+      gs.length ? ('Highest: ' + gs[0].key + ' (' + pct(gs[0].cov) + '), lowest: ' + gs[gs.length-1].key + ' (' + pct(gs[gs.length-1].cov) + ').') : 'Coverage comparison data is limited.'
+    ],
+    charts: [
+      { id:'ch_cov_top', type:'bar', title:'Top coverage (' + word + 's)', labels: topGroups.map(g=>g.key), datasets:[{label:'Coverage %', data: topGroups.map(g=>Math.round((g.cov||0)*1000)/10), backgroundColor:'#16A34A'}], yPercent:true },
+      { id:'ch_cov_low', type:'bar', title:'Lowest coverage reporting units', labels: lowUnits.map(r=>r.u.woreda || r.u.zone || 'Unit'), datasets:[{label:'Coverage %', data: lowUnits.map(r=>Math.round((r.cov||0)*1000)/10), backgroundColor:'#DC2626'}], yPercent:true }
+    ]
+  });
+
+  slides.push({ kind:'chart', title:'Charts: vaccine & sex', heading:'Vaccine use and sex distribution charts',
+    narration: [
+      'Charts summarize nOPV2/bOPV vial status and sex distribution of vaccinated children.',
+      'nOPV2 wastage: ' + pct(w) + ', bOPV wastage: ' + pct(bw) + '.'
+    ],
+    charts: [
+      { id:'ch_vials', type:'bar', title:'Vial status (nOPV2 vs bOPV)', labels:['Received','Used','Partially used','Returned good','Broken/bad/lost'], datasets:[{label:'nOPV2', data:[cum.rec||0,cum.used||0,cum.part||0,cum.retG||0,lossN], backgroundColor:'#2563EB'},{label:'bOPV', data:[cum.brec||0,cum.bused||0,cum.bpart||0,cum.bretG||0,lossB], backgroundColor:'#F59E0B'}] },
+      { id:'ch_sex', type:'pie', title:'Sex distribution (vaccinated)', labels: sexLabels, datasets:[{data: sexVals, backgroundColor:['#3B82F6','#EC4899']}] }
+    ]
+  });
+
   slides.push({ kind:'list', title:'Points for discussion', heading:'Points for discussion & next actions', bullets: disc,
     narration: disc.concat(['Agree an owner and a date for each point before closing the meeting.']) });
 
@@ -1898,6 +1958,32 @@ function buildNarrationDeck(){
 }
 
 let PRESENT_INDEX = 0;
+let PRESENT_CHARTS = [];
+function destroyPresenterCharts_(){ (PRESENT_CHARTS||[]).forEach(ch => { try { ch.destroy(); } catch(e){} }); PRESENT_CHARTS = []; }
+function renderPresenterCharts_(){
+  destroyPresenterCharts_();
+  if (typeof Chart === 'undefined') return;
+  document.querySelectorAll('#presentStage canvas[data-chart]').forEach(cv => {
+    let cfg = null;
+    try { cfg = JSON.parse(cv.getAttribute('data-chart') || 'null'); } catch(e){ cfg = null; }
+    if (!cfg) return;
+    const ctx = cv.getContext('2d');
+    const type = cfg.type || 'bar';
+    const isPie = type === 'pie' || type === 'doughnut';
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: isPie ? 'bottom' : 'top', labels: { boxWidth: 12 } } }
+    };
+    if (!isPie) {
+      options.scales = { x: { ticks: { maxRotation: 0, autoSkip: true } }, y: { beginAtZero: true } };
+      if (cfg.yPercent) options.scales.y.ticks = { callback: v => v + '%' };
+    }
+    try {
+      PRESENT_CHARTS.push(new Chart(ctx, { type, data: { labels: cfg.labels || [], datasets: cfg.datasets || [] }, options }));
+    } catch(e){}
+  });
+}
 function renderPresenter(){
   const stage = document.getElementById('presentStage');
   if(!stage || !M) return;
@@ -1907,6 +1993,10 @@ function renderPresenter(){
   const sHead = () => '<div class="s-head"><div class="brand"><img src="'+logo+'" alt="Addis Ababa City Administration Health Bureau"><div class="bt">Addis Ababa City Administration Health Bureau<small>'+esc(d.title)+'</small></div></div><div class="meta">'+esc(scopeFull)+'<br>'+esc(d.asOf)+'</div></div>';
   const sFoot = () => '<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>'+esc(d.stamp || '')+'</span></div>';
   const narr = (lines) => '<div class="narr"><b>Narration:</b> ' + (lines||[]).map(esc).join(' ') + '</div>';
+  const chartCard = (ch) => {
+    const payload = JSON.stringify({ type: ch.type, labels: ch.labels||[], datasets: ch.datasets||[], yPercent: !!ch.yPercent }).replace(/"/g,'&quot;');
+    return '<div class="chart-card"><h3>'+esc(ch.title||'Chart')+'</h3><div class="chart-box"><canvas data-chart="'+payload+'"></canvas></div></div>';
+  };
   const htmlSlides = d.slides.map((s, idx) => {
     const active = idx===0 ? ' active' : '';
     if (s.kind === 'title') {
@@ -1914,6 +2004,9 @@ function renderPresenter(){
       return '<section class="slide'+active+'">'+sHead()+body+'<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>Protect every child through polio vaccination</span></div></section>';
     } else if (s.kind === 'kpis') {
       const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="kgrid">'+(s.kpis||[]).map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div></div>').join('')+'</div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+    } else if (s.kind === 'chart') {
+      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="chart-grid">'+(s.charts||[]).map(chartCard).join('')+'</div>'+narr(s.narration)+'</div>';
       return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
     } else if (s.kind === 'table') {
       const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="tblwrap"><table><thead><tr>'+((s.headers||[]).map(h=>'<th>'+esc(h)+'</th>').join(''))+'</tr></thead><tbody>'+((s.rows||[]).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join(''))+'</tbody></table></div>'+narr(s.narration)+'</div>';
@@ -1927,6 +2020,7 @@ function renderPresenter(){
   });
   stage.innerHTML = htmlSlides.join('');
   PRESENT_INDEX = 0;
+  renderPresenterCharts_();
   updatePresenter();
   document.getElementById('presentTitle').textContent = d.title + ' — ' + scopeFull;
 }
@@ -1934,6 +2028,8 @@ function updatePresenter(){
   const slides = document.querySelectorAll('#presentStage .slide');
   slides.forEach((s,i)=>s.classList.toggle('active', i===PRESENT_INDEX));
   const c = document.getElementById('slideCount'); if(c) c.textContent = (slides.length ? (PRESENT_INDEX+1)+' / '+slides.length : '0 / 0');
+  // ensure charts size correctly when slide becomes visible
+  setTimeout(() => { (PRESENT_CHARTS||[]).forEach(ch => { try { ch.resize(); } catch(e){} }); }, 30);
 }
 function openPresenter(){
   if(!M){ toast('Load the dashboard first.', true); return; }
@@ -1942,6 +2038,7 @@ function openPresenter(){
   p.classList.add('show'); p.setAttribute('aria-hidden','false');
 }
 function closePresenter(){
+  destroyPresenterCharts_();
   const p = document.getElementById('presenter'); if(!p) return;
   p.classList.remove('show'); p.setAttribute('aria-hidden','true');
   if(document.fullscreenElement && document.exitFullscreen){ document.exitFullscreen().catch(function(){}); }
