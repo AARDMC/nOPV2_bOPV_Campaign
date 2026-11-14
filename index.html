@@ -1069,6 +1069,23 @@ function applyValidationHighlights(errs) {
   });
 }
 
+function requiredFieldErrors_() {
+  const errs = [];
+  const seen = {};
+  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+    const col = inp.dataset.col;
+    if (!col || FORMULA_COLS.indexOf(col) !== -1) return;
+    if (String(inp.value).trim() === "") {
+      if (seen[col]) return;
+      seen[col] = true;
+      const label = (inp.closest(".field") && inp.closest(".field").querySelector("label"))
+        ? inp.closest(".field").querySelector("label").textContent.trim() : col;
+      errs.push({ cols: [col], msg: label + " is required." });
+    }
+  });
+  return errs;
+}
+
 function refreshValidation() {
   const w = state.selectedRow;
   if (!w) return;
@@ -1078,7 +1095,7 @@ function refreshValidation() {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
     inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
   });
-  const errs = validateRow(w, day, inputs);
+  const errs = requiredFieldErrors_().concat(validateRow(w, day, inputs));
   applyValidationHighlights(errs);
 }
 
@@ -1288,8 +1305,8 @@ function saveCurrent() {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
     inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
   });
-  // Validate before saving
-  const errs = validateRow(w, day, inputs);
+  // Validate before saving (all fields mandatory)
+  const errs = requiredFieldErrors_().concat(validateRow(w, day, inputs));
   applyValidationHighlights(errs);
   if (errs.length) {
     const report = errs.map((e, i) => (i + 1) + ". " + e.msg).join("<br>");
