@@ -1,4 +1,4 @@
-# nOPV2 / bOPV Campaign — PHEM Data Entry
+# nOPV2 & bOPV Campaign — PHEM Data Entry
 
 Daily campaign data entry for PHEM officers, served as a static site on GitHub
 Pages and backed by the campaign's Google Apps Script project + Google Sheets.
@@ -89,7 +89,7 @@ emails:
 ADMIN_EMAILS = admin@example.org, epi-lead@example.org
 ```
 
-Administrators additionally see **Settings** (nOPV2/bOPV doses per vial,
+Administrators additionally see **Settings** (nOPV2 & bOPV doses per vial,
 revisit counting, wastage limit, campaign length) and the full-workbook
 **Export Excel** (city-wide). Everyone else gets the settings button hidden and
 the woreda-scoped Excel export only.

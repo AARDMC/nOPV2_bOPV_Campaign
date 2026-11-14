@@ -5,8 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#667eea">
-  <meta name="description" content="nOPV2 / bOPV campaign daily data entry for PHEM officers — AARDMC.">
-  <title>nOPV2 / bOPV Campaign — PHEM Data Entry</title>
+  <meta name="description" content="nOPV2 & bOPV campaign daily data entry for PHEM officers — AARDMC.">
+  <title>nOPV2 & bOPV Campaign — PHEM Data Entry</title>
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/badge.png">
   <style>
@@ -418,7 +418,7 @@
       <div class="lb-logo"><img src="assets/logo.jpg" alt="Addis Ababa Regional Health Bureau"></div>
       <div class="lb-badge"><img src="assets/badge.png" alt="Polio vaccination campaign badge"></div>
     </div>
-    <h2>nOPV2 / bOPV Campaign</h2>
+    <h2>nOPV2 & bOPV Campaign</h2>
     <div class="subtitle">Addis Ababa PHEM officer sign-in</div>
 
     <div class="field"><label>Full Name</label><input type="text" id="logName" placeholder="Full name" autocomplete="name"></div>
@@ -450,7 +450,7 @@
       <span class="brand-logo"><img src="assets/logo.jpg" alt="Addis Ababa Regional Health Bureau"></span>
       <span class="brand-badge"><img src="assets/badge.png" alt=""></span>
     </div>
-    <h1><span>nOPV2 / bOPV Campaign</span><span class="hdr-sub">PHEM data entry</span></h1>
+    <h1><span>nOPV2 & bOPV Campaign</span><span class="hdr-sub">PHEM data entry</span></h1>
     <div class="officer-chip" id="officerChip" style="display:none"></div>
     <div class="spacer"></div>
     <button id="dashboardBtn" onclick="openDashboard()" title="Open monitoring dashboard"><span id="icoDashboard"></span><span class="lbl">Dashboard</span></button>
@@ -1417,7 +1417,7 @@ function excelCell_(ref, value, style) {
 }
 function sheetXmlForDay_(day, res, w) {
   const totalCols = 7 + EXPORT_COLUMNS.length; const lastCol = exportColName_(totalCols); const rows = [];
-  const title = "nOPV2 / bOPV Campaign — " + (res.woreda || "") + " (ID #" + (res.woredaID || "") + ") — " + day;
+  const title = "nOPV2 & bOPV Campaign — " + (res.woreda || "") + " (ID #" + (res.woredaID || "") + ") — " + day;
   const titleCells = [excelCell_("A1", title, 2)]; for (let c = 2; c <= totalCols; c++) titleCells.push(excelCell_(exportColName_(c) + "1", "", 2));
   rows.push(`<row r="1" ht="28" customHeight="1">${titleCells.join("")}</row>`);
   const meta = ["Health center: " + (res.healthCenter || "—"), "Region: " + (res.region || "—"), "Zone: " + (res.zone || "—"), "Total planned: " + (res.totalPlanned == null ? "—" : res.totalPlanned), "Teams: " + (res.teams == null ? "—" : res.teams), "Day: " + day];
