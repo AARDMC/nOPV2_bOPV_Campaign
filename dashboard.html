@@ -947,6 +947,11 @@ function renderMap(){
         for (const s of keys) { const m = geoNorm(s); if (n.length>4 && (m.indexOf(n)===0 || n.indexOf(m)===0)) return s; }
         return '';
       };
+      const woredaNum = val => {
+        const s = String(val == null ? '' : val);
+        const m = s.match(/(?:woreda|wereda|wor)[\s_\-\.]*0*(\d+)/i) || s.match(/\b0*(\d+)\b/);
+        return m ? String(parseInt(m[1], 10)) : '';
+      };
       const woredaNum = s => { const m = String(s||'').match(/(?:woreda|wereda|wor)[\s_\-\.]*0*(\d+)/i) || String(s||'').match(/(\d+)\s*$/); return m ? String(parseInt(m[1],10)) : ''; };
 
       // ---- coverage lookup (by normalized woreda/zone from dashboard data) ----
@@ -978,38 +983,64 @@ function renderMap(){
       const scopeMode = DASH_SCOPE ? DASH_SCOPE.mode : 'all';
       let selected = infos;
       let matchNote = '';
-      if (scopeMode === 'zone') {
-        const target = canonSub(DASH_SCOPE.zone || '');
-        if (target) {
-          selected = infos.filter(x => (x.subCanon || canonSub(x.sub)) === target);
-          if (!selected.length) matchNote = 'No GeoJSON features matched sub-city "' + esc(DASH_SCOPE.zone||'') + '".';
-        }
-      } else if (scopeMode === 'woreda') {
-        const targetSub = canonSub(DASH_SCOPE.zone || '');
-        const targetWid = String(DASH_SCOPE.woredaID == null ? '' : DASH_SCOPE.woredaID).trim();
-        const targetW = normName(DASH_SCOPE.woreda || '');
-        // show woreda-level map for the sub-city area, and identify the matched woreda
-        let area = infos;
-        if (targetSub) area = infos.filter(x => (x.subCanon || canonSub(x.sub)) === targetSub);
-        if (!area.length) area = infos;
-        const matched = area.filter(x => {
-          if (targetWid && x.wid && String(x.wid) === targetWid) return true;
-          if (targetWid && x.label) {
-            const re = new RegExp('(^|[^0-9])' + targetWid.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&') + '([^0-9]|$)');
-            if (re.test(String(x.label))) return true;
+
+      function bySubcity(list, zoneName){
+        const target = canonSub(zoneName || '');
+        if (!target) return list;
+        const m = list.filter(x => (x.subCanon || canonSub(x.sub)) === target);
+        return m.length ? m : [];
+      }
+      function byWoreda(list, zoneName, woredaName, woredaID){
+        let area = bySubcity(list, zoneName);
+        if (!area.length) area = list;
+        const wid = String(woredaID == null ? '' : woredaID).trim();
+        const wNum = woredaNum(woredaName || wid || '');
+        const wNorm = normName(woredaName || '');
+        const m = area.filter(x => {
+          if (wid && x.wid && String(x.wid) === wid) return true;
+          if (wNum && x.wid && String(parseInt(x.wid,10)) === String(parseInt(wNum,10))) return true;
+          if (wid) {
+            const re = new RegExp('(^|[^0-9])' + wid.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&') + '([^0-9]|$)');
+            if (x.label && re.test(String(x.label))) return true;
+            if (x.pathid && re.test(String(x.pathid))) return true;
           }
-          if (targetW) {
-            const nlab = normName(x.label), nw = targetW;
-            if (nlab.indexOf(nw)!==-1 || nw.indexOf(nlab)!==-1) return true;
+          if (wNorm) {
+            const xl = normName(x.label), xs = normName(x.short||'');
+            if (xl === wNorm || xs === wNorm) return true;
+            if (xl.indexOf(wNorm) !== -1 || wNorm.indexOf(xl) !== -1) return true;
+            // try matching number inside woreda name like "Woreda 01"
+            if (wNum && (String(x.wid) === wNum || (x.label && woredaNum(x.label) === wNum))) return true;
           }
           return false;
         });
-        selected = area.length ? area : infos; // woreda-level polygons for context
-        if (targetSub && !infos.some(x => (x.subCanon || canonSub(x.sub)) === targetSub)) {
-          matchNote = 'No GeoJSON features matched sub-city "' + esc(DASH_SCOPE.zone||'') + '". Showing all woreda-level areas.';
-        } else if (!matched.length && (targetWid || targetW)) {
-          matchNote = 'Showing woreda-level map for the area; specific woreda not uniquely matched.';
+        return m;
+      }
+
+      // Prefer current dashboard filter (S.zone/S.woreda); fall back to login scope
+      const fZone = (typeof S !== 'undefined' && S.zone && S.zone !== 'all') ? S.zone : (DASH_SCOPE && DASH_SCOPE.zone ? DASH_SCOPE.zone : '');
+      const fWoreda = (typeof S !== 'undefined' && S.woreda && S.woreda !== 'all') ? S.woreda : (scopeMode === 'woreda' && DASH_SCOPE ? DASH_SCOPE.woreda : '');
+      const fWid = (scopeMode === 'woreda' && DASH_SCOPE ? DASH_SCOPE.woredaID : '');
+
+      if (fWoreda) {
+        const m = byWoreda(infos, fZone, fWoreda, fWid);
+        if (m.length) {
+          selected = m; // only the selected woreda (e.g. Addis Ketema Woreda 01)
+        } else {
+          // fallback: show woreda-level polygons in zone if specific woreda not matched
+          const area = bySubcity(infos, fZone);
+          selected = area.length ? area : infos;
+          matchNote = 'Specific woreda not matched in map; showing woreda-level areas for ' + esc(fZone || scopeName()) + '.';
         }
+      } else if (fZone) {
+        const m = bySubcity(infos, fZone);
+        if (m.length) {
+          selected = m; // woreda-level polygons within sub-city
+        } else {
+          selected = infos;
+          matchNote = 'No GeoJSON features matched sub-city "' + esc(fZone) + '". Showing all woreda-level areas.';
+        }
+      } else {
+        selected = infos; // all woreda-level areas
       }
 
       if (!selected.length) {
