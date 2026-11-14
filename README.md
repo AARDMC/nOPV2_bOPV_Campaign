@@ -33,17 +33,18 @@ Woreda ID.
 2. The app loads the officer's own woreda row from the `Day 1` plan.
 3. Pick a campaign day, enter the numbers, press **Save**.
 4. **Export my woreda (Excel)** builds a `.xlsx` file in the browser containing
-   only the signed-in officer's woreda — download it or open it in a new tab.
+   only the signed-in officer's woreda (downloaded to your device).
 5. **Dashboard** opens the monitoring dashboard scoped to the officer's woreda.
 6. **Logout** clears the session.
 
 ## Dashboard access
 
-- **Woreda officers**: sign in to data entry and click **Dashboard** (scoped to your woreda), or open `dashboard.html` and sign in with your **Woreda ID**.
+- **Woreda officers**: sign in to data entry and click **Dashboard** (scoped to your woreda), or open `dashboard.html` and sign in with your **Woreda ID**. For multi–health-center woredas, select the health center in the dashboard to view that facility’s data.
 - **Sub city / PHEM / EPHI**: open `dashboard.html` or use the "Dashboard access" field on the login page and enter your ID:
   - `AK1136` Addis Ketema, `AK1137` Akaki Kality, `A1138` Arada, `B1139` Bole, `G1140` Gulele, `K1141` Kirkos, `KK1142` Kolfe Keranyo, `LK1143` Lemi Kura, `L1144` Lideta, `NSL1145` Nifas Silk Lafto, `Y1146` Yeka (each sees only their sub city)
   - `@AAPHEM123` Addis Ababa PHEM, `@EPHI123` EPHI (see the full city dashboard)
 - Dashboard data is read from the campaign workbook (entered data). Scope is enforced by signed token.
+- **Dashboard exports/presentation:** **Download Excel** generates a login/scope-filtered Excel file locally on your device (no Google Drive temp copy). **Download PPT** generates a scoped presentation locally. **Present** opens a full-screen, narrated online presentation (with AAHB header/logo, footer, and data-driven narration) for the current scope.
 
 Officers can only read and write their own woreda row and only the input
 columns (coverage, vials, alerts, places). Plan data, identifiers, settings and
