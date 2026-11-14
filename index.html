@@ -1093,10 +1093,11 @@ function renderMain(rowData) {
     `<div class="tab ${d === day ? 'active' : ''}" data-day="${escapeAttr(d)}"><span>${escapeHtml(d)}</span></div>`
   ).join("");
 
-  const field = (col, label) => {
+  const field = (col, label, forceReadonly = false) => {
     const v = rowData[col] ?? "";
+    const ro = readonly || forceReadonly;
     return `<div class="field"><label>${escapeHtml(label)}</label>
-      <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="9" data-col="${col}" value="${escapeAttr(v)}" ${readonly ? 'readonly' : ''}></div>`;
+      <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="9" data-col="${col}" value="${escapeAttr(v)}" ${ro ? 'readonly' : ''}></div>`;
   };
   const calc = (id, label, value, cls = "") =>
     `<div class="field"><label>${escapeHtml(label)}</label>
@@ -1169,7 +1170,7 @@ function renderMain(rowData) {
         <div class="form-grid">
           ${field("AT","Children Vaccinated in House")}${field("AU","Children Vaccinated in School")}
           ${field("AV","Children Vaccinated in Market")}${field("AW","Children Vaccinated in Street")}
-          ${field("AX","Children Vaccinated in Other Place")}${field("AY","Children Unvaccinated During Visit")}
+          ${field("AX","Children Vaccinated in Other Place")}${field("AY","Children Unvaccinated During Visit", day === "Day 1")}
           ${calc("BA","Total Vaccinated by Place", fmtNum(c.BA), "flag-green")}
         </div>
       </div>
