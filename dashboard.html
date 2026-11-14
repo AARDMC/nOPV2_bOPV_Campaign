@@ -210,12 +210,12 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 <div id="dashLogin">
   <div class="login-card">
     <h2>Dashboard Login</h2>
-    <p>Enter your Sub City ID to view the monitoring dashboard.</p>
-    <label>Sub City ID</label>
-    <input id="dashId" type="text" placeholder="e.g. AK1136" autocomplete="off">
+    <p>Enter your Sub City ID, PHEM/EPHI ID, or Woreda ID to view the monitoring dashboard.</p>
+    <label>Sub City / PHEM / EPHI / Woreda ID</label>
+    <input id="dashId" type="text" placeholder="e.g. AK1136, @AAPHEM123, or 1000" autocomplete="off">
     <button id="dashLoginBtn">Open Dashboard</button>
     <div class="err" id="dashErr"></div>
-    <div class="hint">Sub city officers see only their sub city. PHEM/EPHI IDs see the full Addis Ababa dashboard. Woreda officers: use the Dashboard button inside the data entry form to go directly to your woreda.</div>
+    <div class="hint">Sub city officers see only their sub city. PHEM/EPHI IDs see the full Addis Ababa dashboard. Woreda officers can sign in with their Woreda ID to see only their woreda.</div>
   </div>
 </div>
 
@@ -816,7 +816,7 @@ function doDashLogin() {
       if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return; }
       try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
       document.getElementById('dashLogin').classList.add('hidden');
-      if (res.dashboard && res.dashboard.zone) { DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone, woreda: '', woredaID: '' }; }
+      if (res.dashboard) { DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone || '', woreda: res.dashboard.woreda || '', woredaID: res.dashboard.woredaID || '' }; }
       load(false);
     })
     .withFailureHandler(function(e){ document.getElementById('dashLoginBtn').disabled = false; err.textContent = (e && e.message) || String(e); })
@@ -861,7 +861,7 @@ function init() {
   }
   if (dashToken) {
     document.getElementById('dashLogin').classList.add('hidden');
-    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); if (info.zone) DASH_SCOPE = { mode: info.scope, zone: info.zone, woreda:'', woredaID:'' }; } catch(e){}
+    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '' }; } catch(e){}
     load(false);
     return;
   }

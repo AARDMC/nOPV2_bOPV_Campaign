@@ -416,7 +416,14 @@
 
     <button id="loginBtn" onclick="doLogin()"><span id="loginBtnIcon"></span><span id="loginBtnText">Sign In</span></button>
     <div class="err" id="loginErr"></div>
-    <a href="dashboard.html" class="btn" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;text-decoration:none;background:linear-gradient(135deg,#06B6D4,#1E6BFF);color:#fff;border-radius:14px;padding:13px;font-weight:700;font-size:13px;box-shadow:0 10px 26px rgba(30,107,255,.3);">Open Dashboard</a>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;">Dashboard access (Sub City / PHEM / EPHI / Woreda ID)</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="dashIdLogin" placeholder="e.g. AK1136, @AAPHEM123, 1000" style="flex:1;padding:11px 12px;border:2px solid var(--border);border-radius:12px;font-size:13px;font-family:inherit;" autocomplete="off">
+        <button type="button" onclick="openDashboardFromLogin()" style="padding:11px 14px;border:none;border-radius:12px;background:linear-gradient(135deg,#06B6D4,#1E6BFF);color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;">Open Dashboard</button>
+      </div>
+      <div id="dashLoginErr" style="color:#c62828;font-size:11px;margin-top:6px;min-height:16px;text-align:center;font-weight:600;"></div>
+    </div>
     <div class="login-credit">
       <div class="credit-org">Addis Ababa City Public Health Emergency Management Research and Laboratory Directorate-AAPHREML</div>
       <div class="credit-by">Designed by : <b>Addis Ababa City Data Management Center</b></div>
@@ -487,7 +494,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 
   var ACTIONS = [
     "authenticateUser", "getInitialData", "getRowData", "saveAndReturn",
-    "saveSettings", "getWoredaExport", "exportToExcelWithFormulas"
+    "saveSettings", "getWoredaExport", "exportToExcelWithFormulas",
+    "dashboardLogin", "getDashboardData"
   ];
 
   function fail(message) {
@@ -628,6 +636,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     }
     if (action === "saveSettings") return { settings: args[0] || {} };
     if (action === "getWoredaExport") return { facilityIndex: args[0] || 0, woredaID: args[1] || "" };
+    if (action === "dashboardLogin") return args[0] || {};
+    if (action === "getDashboardData") return { force: !!args[0] };
     return {};
   }
 
@@ -718,6 +728,21 @@ function openDashboard() {
   const wid = state.selectedRow ? state.selectedRow.woredaID : (state.officer ? state.officer.woredaID : "");
   const url = wid ? ("dashboard.html?woredaID=" + encodeURIComponent(wid)) : "dashboard.html";
   window.open(url, "_blank", "noopener");
+}
+
+function openDashboardFromLogin() {
+  const id = (document.getElementById('dashIdLogin').value || '').trim();
+  const err = document.getElementById('dashLoginErr');
+  err.textContent = '';
+  if (!id) { err.textContent = 'Enter a Sub City, PHEM/EPHI, or Woreda ID.'; return; }
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return; }
+      try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard || {})); } catch(e) {}
+      window.location.href = 'dashboard.html';
+    })
+    .withFailureHandler(function(e) { err.textContent = (e && e.message) || String(e); })
+    .dashboardLogin({ id: id });
 }
 
 // ================= LOGIN =================
