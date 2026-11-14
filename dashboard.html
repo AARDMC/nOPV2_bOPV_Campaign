@@ -968,8 +968,9 @@ function renderMap(){
         const p = f.properties || {};
         const sub = canonSub(p.subcity || p.Subcity || p.SUBCITY || p.zone || p.Zone || '') || String(p.subcity||p.zone||'').trim();
         const wid = p.wid!=null ? String(p.wid).trim() : (p.WID!=null ? String(p.WID).trim() : '');
-        const label = p.label || (sub ? (sub + (wid ? ' W'+wid : '')) : (p.name||'Feature'));
-        return { i, f, p, sub, subCanon: canonSub(sub) || canonSub(p.subcity), wid, label, pathid: p.pathid||'' };
+        const short = p.label || (sub ? (sub.replace(/\s+Sub\s*City$/i,'') + (wid ? ' W'+wid : '')) : (p.name||'Feature'));
+        const label = wid ? (sub ? (sub + ' - Woreda ' + wid) : ('Woreda ' + wid)) : short;
+        return { i, f, p, sub, subCanon: canonSub(sub) || canonSub(p.subcity), wid, label, short, pathid: p.pathid||'' };
       }
       const infos = features.map((f,i)=>featureInfo(f,i)).filter(x => x.f && x.f.geometry && (x.f.geometry.type==='Polygon' || x.f.geometry.type==='MultiPolygon'));
       const scopeMode = DASH_SCOPE ? DASH_SCOPE.mode : 'all';
@@ -1048,9 +1049,10 @@ function renderMap(){
 
       const labels = selected.map(x => {
         const c = centroidOf(x.f, P); if (!c) return '';
-        const fs = selected.length > 40 ? 8 : selected.length > 15 ? 9 : 10;
-        const txt = esc(String(x.label));
-        return '<g><rect x="'+(c[0]-txt.length*fs*0.3)+'" y="'+(c[1]-fs*0.8)+'" width="'+Math.max(18, txt.length*fs*0.62)+'" height="'+(fs*1.5)+'" rx="4" ry="4" fill="#ffffff" fill-opacity="0.92" stroke="#0F2552" stroke-width="0.6"></rect>' +
+        const fs = selected.length > 40 ? 7 : selected.length > 15 ? 8 : 9;
+        const txt = esc(String(x.short || x.label));
+        const w = Math.max(18, txt.length*fs*0.62);
+        return '<g><rect x="'+(c[0]-w/2)+'" y="'+(c[1]-fs*0.85)+'" width="'+w+'" height="'+(fs*1.55)+'" rx="4" ry="4" fill="#ffffff" fill-opacity="0.94" stroke="#0F2552" stroke-width="0.6"></rect>' +
                '<text x="'+c[0].toFixed(1)+'" y="'+(c[1]+fs*0.35).toFixed(1)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" fill="#0F2552" font-family="Arial, sans-serif">'+txt+'</text></g>';
       }).join('');
 
