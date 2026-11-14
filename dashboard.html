@@ -1246,111 +1246,188 @@ function doDashboardExport(){
 
 
 
-function buildPresentationSlides(){
+function buildNarrationDeck(){
   const scopeTitle = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.woreda) ? (DASH_SCOPE.zone+' / '+DASH_SCOPE.woreda) : (DASH_SCOPE.mode==='zone' && DASH_SCOPE.zone ? DASH_SCOPE.zone : 'Addis Ababa (Scoped View)');
   const hcName = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.facilities && DASH_FACILITY>=0 && DASH_SCOPE.facilities[DASH_FACILITY]) ? DASH_SCOPE.facilities[DASH_FACILITY] : '';
   const asOf = 'Cumulative through ' + dayText(S.upTo);
   const stamp = M.meta && M.meta.generated ? ('Data read ' + M.meta.generated) : '';
-  const units = scopeUnits(), recs = scopeRecs(), tgt = tgtOf(units);
-  const cum = sumRecs(recs.filter(r=>r.d<=S.upTo));
-  const cur = sumRecs(recs.filter(r=>r.d===S.upTo));
-  const c = cov(cum.tot, tgt), w = wastage(cum), bw = bWastage(cum);
-  const rows = unitRows();
-  const atT = rows.filter(r=>r.cov!=null && r.cov>=CFG.targetCoverage).length;
-  const below = rows.filter(r=>r.cov!=null && r.cov<CFG.warnCoverage).length;
-  const dt = dayTotals(recs).slice(0,S.upTo+1);
-  const g = groups(rows).slice().sort((a,b)=> (a.cov||0)-(b.cov||0));
-  const flags = [];
-  rows.forEach(r=>{ const cnt=(r.flags||0); if(cnt>0) flags.push({name:r.u.woreda+' - '+(r.u.hc||'HC'), cov:r.cov, tot:r.a.tot, tgt:r.tgt, flags:cnt}); });
-  flags.sort((a,b)=> b.flags-a.flags || (a.cov||0)-(b.cov||0));
-  return { scopeTitle, hcName, asOf, stamp, tgt, cum, cur, c, w, bw, rows, atT, below, dt, g, flags };
+  const recs = scopeRecs(), units = scopeUnits(), tgt = tgtOf(units);
+  const cum = sumRecs(recs.filter(r => r.d <= S.upTo)), cur = sumRecs(recs.filter(r => r.d === S.upTo));
+  const rows = unitRows(), dt = dayTotals(recs).slice(0, S.upTo + 1);
+  const c = cov(cum.tot, tgt), w = wastage(cum), bw = bWastage(cum), den = cum.tot || 1;
+  const T = pct(CFG.targetCoverage, 0), Wn = pct(CFG.warnCoverage, 0), WL = pct(CFG.maxWastage, 0);
+  const belowT = rows.filter(r => r.cov != null && r.cov < CFG.targetCoverage).sort((a,b)=>a.cov-b.cov);
+  const belowWarn = rows.filter(r => r.cov != null && r.cov < CFG.warnCoverage);
+  const atT = rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length;
+  const gap = cum.tot - CFG.targetCoverage * tgt;
+  const word = groupBy();
+  const listOf = (arr,n)=> arr.length<=n ? arr.join(', ') : arr.slice(0,n).join(', ') + ' and ' + (arr.length-n) + ' more';
+  const wname = r => r.u.woreda + (r.u.zone ? ' ('+r.u.zone+')' : '');
+  const pl = (n,wd)=> n + ' ' + wd + (n===1?'':'s');
+  const isAre = n => n===1 ? 'is' : 'are';
+  const items = qualityItems ? qualityItems() : [];
+  const cnt = {}; items.forEach(i => { cnt[i.rule] = (cnt[i.rule]||0)+1; });
+  const ruleRows = (typeof RULES!=='undefined'?RULES:[]).filter(r=>cnt[r.id]).map(r=>({label:r.label,count:cnt[r.id]})).sort((a,b)=>b.count-a.count);
+  const woredasFlagged = new Set(items.map(i => (i.zone||'')+'|'+(i.woreda||''))).size;
+  const campIdx = dt.map((a,i)=>i).filter(i => M.days[i].type === 'campaign');
+  const mopIdx = dt.map((a,i)=>i).filter(i => M.days[i].type !== 'campaign');
+  const campTot = campIdx.reduce((s,i)=>s+dt[i].tot,0), mopTot = mopIdx.reduce((s,i)=>s+dt[i].tot,0);
+  const peakI = dt.length ? dt.reduce((b,a,i)=> a.tot > dt[b].tot ? i : b, 0) : 0;
+  const lossN = (cum.brk||0)+(cum.retB||0)+(cum.lost||0);
+  const lossB = (cum.bbrk||0)+(cum.bretB||0)+(cum.blost||0);
+  const sev = recs.filter(r => r.d <= S.upTo && (r.aefiS||0) > 0).map(r => (r.u.woreda||'') + (r.u.zone?(' ('+r.u.zone+')'):'') + ', ' + M.days[r.d].label);
+  let crossI = -1, run = 0;
+  for (let i=0;i<dt.length;i++){ run += dt[i].tot; if(tgt>0 && run/tgt >= CFG.targetCoverage){ crossI=i; break; } }
+  const gs = groups(rows).filter(g=>g.cov!=null).sort((a,b)=>b.cov-a.cov);
+  const gBelow = gs.filter(g=>g.cov < CFG.targetCoverage);
+  const low = rows.filter(r=>r.cov!=null).sort((a,b)=>a.cov-b.cov).slice(0,10);
+  const places = [['house', cum.pHouse||0], ['school', cum.pSchool||0], ['market', cum.pMarket||0], ['street', cum.pStreet||0], ['other places', cum.pOther||0]].sort((a,b)=>b[1]-a[1]);
+  const mf = (cum.male||0)+(cum.female||0) || 1;
+  const slides = [];
+
+  slides.push({ kind:'title', title:'Title', heading: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard',
+    narration: [
+      'This presentation reviews campaign performance against targets for ' + scopeTitle + (hcName?(' — '+hcName):'') + '.',
+      'It covers all data entered through ' + dayText(S.upTo) + '. ' + (stamp || ''),
+      'Figures are based on the campaign workbook/dashboard data and can be traced back to reported entries.'
+    ]});
+
+  slides.push({ kind:'kpis', title:'Headline results', heading:'Headline results',
+    narration: [
+      fmt(cum.tot) + ' children were vaccinated against a target of ' + fmt(tgt) + ', which is ' + pct(c) + ' coverage.',
+      atT + ' of ' + pl(rows.length,'reporting unit') + ' ' + isAre(atT) + ' at or above ' + T + '. ' + belowWarn.length + ' ' + isAre(belowWarn.length) + ' below ' + Wn + '.',
+      gap >= 0 ? 'The campaign is ahead of the ' + T + ' goal by ' + fmt(gap) + ' children.' : fmt(-gap) + ' more children are needed to reach the ' + T + ' goal.',
+      campIdx.length ? 'Campaign days delivered ' + fmt(campTot) + ' children (' + pct(cov(campTot,tgt)) + ' of target).' : 'No campaign days have been reported yet.',
+      mopIdx.length ? 'Mop-up days added ' + fmt(mopTot) + ' children (' + pct(cov(mopTot,tgt)) + ' of target).' : '',
+      'nOPV2 wastage is ' + pct(w) + ' and bOPV wastage is ' + pct(bw) + ' against a limit of ' + WL + '.'
+    ].filter(Boolean),
+    kpis: [
+      ['Coverage', pct(c)], ['Children vaccinated', fmt(cum.tot)], ['Target', fmt(tgt)],
+      ['At/above '+T, atT + ' of ' + rows.length], ['Below '+Wn, String(belowWarn.length)],
+      ['nOPV2 wastage', pct(w)], ['bOPV wastage', pct(bw)], ['Selected day', fmt(cur.tot)]
+    ]});
+
+  slides.push({ kind:'table', title:'Progress day by day', heading:'Progress day by day',
+    headers:['Day','Vaccinated','Daily target','Coverage','nOPV2 wastage','bOPV wastage'],
+    rows: dt.map((a,i)=>[dayText(i), fmt(a.tot), fmt(a.dtgt), pct(a.dtgt? a.tot/a.dtgt : null), pct(wastage(a)), pct(bWastage(a))]),
+    narration: [
+      dt.length ? (M.days[peakI].label + ' was the busiest day, with ' + fmt(dt[peakI].tot) + ' children vaccinated.') : 'No daily data available.',
+      crossI >= 0 ? 'Cumulative coverage passed ' + T + ' on ' + M.days[crossI].label + '.' : 'Cumulative coverage has not yet reached ' + T + '.',
+      'On ' + dayText(S.upTo) + ', ' + fmt(cur.tot) + ' children were vaccinated' + (cur.dtgt ? (' against a daily target of ' + fmt(cur.dtgt) + ' (' + pct(cur.dtgt?cur.tot/cur.dtgt:null) + ').') : '.'),
+      'Daily coverage compares children vaccinated with that day’s target; mop-up days may not have a daily target.'
+    ]});
+
+  slides.push({ kind:'table', title:'Coverage by '+word, heading:'Coverage by '+word,
+    headers:['Name','Vaccinated','Target','Coverage','At/above '+T],
+    rows: (gs.length?gs:[]).slice(0,14).map(g=>[g.key, fmt(g.a.tot), fmt(g.tgt), pct(g.cov), g.atTarget + ' of ' + g.rows.length]),
+    narration: gs.length ? [
+      'Highest coverage: ' + gs[0].key + ' at ' + pct(gs[0].cov) + '. Lowest coverage: ' + gs[gs.length-1].key + ' at ' + pct(gs[gs.length-1].cov) + '.',
+      gBelow.length ? gBelow.length + ' of ' + pl(gs.length,word) + ' ' + isAre(gBelow.length) + ' under ' + T + ': ' + listOf(gBelow.map(g=>g.key),4) + '.' : 'All ' + gs.length + ' ' + word + 's are at or above ' + T + '.',
+      'The gap between highest and lowest is ' + ((gs[0].cov - gs[gs.length-1].cov)*100).toFixed(1) + ' percentage points; prioritize supervision and catch-up where coverage is low.'
+    ] : ['No grouped coverage data available for this view.']});
+
+  slides.push({ kind:'table', title:'Reach and follow-up', heading:'Who was reached and where follow-up is needed',
+    headers:['Lowest reporting units','Coverage','Vaccinated','Target','Flags'],
+    rows: low.map(r=>[wname(r), pct(r.cov), fmt(r.a.tot), fmt(r.tgt), String(r.flags||0)]),
+    narration: [
+      low.length ? ('Lowest: ' + wname(low[0]) + ' at ' + pct(low[0].cov) + '. ' + (belowT.length ? pl(belowT.length,'unit') + ' ' + isAre(belowT.length) + ' under ' + T + ': ' + listOf(belowT.slice(0,5).map(wname),5) + '.' : 'No unit is under ' + T + '.')) : 'Coverage comparison is limited by available data.',
+      pct(((cum.v011||0)+(cum.n011||0))/den,0) + ' of children were 0–11 months and ' + pct(((cum.v1259||0)+(cum.n1259||0))/den,0) + ' were 12–59 months. ' + pct((cum.female||0)/mf,0) + ' were girls and ' + pct((cum.male||0)/mf,0) + ' were boys.',
+      'Most children were vaccinated at ' + places[0][0] + ' (' + pct(places[0][1]/den,0) + '). ' + fmt((cum.n011||0)+(cum.n1259||0)) + ' children had not been vaccinated before.'
+    ]});
+
+  slides.push({ kind:'table', title:'Vaccine use', heading:'Vaccine use (nOPV2 & bOPV)',
+    headers:['Metric','nOPV2','bOPV'],
+    rows:[
+      ['Vials received', fmt(cum.rec), fmt(cum.brec||0)],
+      ['Vials used', fmt(cum.used), fmt(cum.bused||0)],
+      ['Partially used', fmt(cum.part), fmt(cum.bpart||0)],
+      ['Returned (good)', fmt(cum.retG), fmt(cum.bretG||0)],
+      ['Broken/bad/lost', fmt(lossN), fmt(lossB)],
+      ['Doses given (children)', fmt(cum.tot), fmt(cum.tot)],
+      ['Wastage', pct(w), pct(bw)]
+    ],
+    narration: [
+      'nOPV2: ' + fmt(cum.rec) + ' vials received; ' + fmt(cum.used) + ' used and ' + fmt(cum.part) + ' partially used; ' + fmt(cum.retG) + ' returned in good condition. Wastage is ' + pct(w) + ' against a ' + WL + ' limit.',
+      'bOPV: ' + fmt(cum.brec||0) + ' vials received; ' + fmt(cum.bused||0) + ' used and ' + fmt(cum.bpart||0) + ' partially used; ' + fmt(cum.bretG||0) + ' returned in good condition. Wastage is ' + pct(bw) + ' against a ' + WL + ' limit.',
+      (lossN>0 || lossB>0) ? ('Account for losses: nOPV2 ' + fmt(lossN) + ', bOPV ' + fmt(lossB) + ' vials broken/bad/lost.') : 'No vials were broken, returned in bad condition or lost (nOPV2/bOPV).',
+      'Wastage follows doses-per-vial assumptions (' + (CFG.dosesPerVial||50) + ' nOPV2, ' + (CFG.bopvDosesPerVial||20) + ' bOPV); mop-up days can show higher wastage with low vial use.'
+    ]});
+
+  slides.push({ kind:'table', title:'Community and safety', heading:'Community engagement, teams and safety',
+    headers:['Indicator','Value','Notes'],
+    rows:[
+      ['Households visited', fmt(cum.hh||0), 'Social mobilizers'],
+      ['Community meetings', fmt(cum.comm||0), 'Parents/caregivers'],
+      ['Home-to-home reached', fmt(cum.h2h||0), 'Parents/caregivers'],
+      ['Zero-dose vaccinated / identified', fmt(cum.zdV||0)+' / '+fmt(cum.zdId||0), 'Linkage'],
+      ['Under-vaccinated vaccinated / identified', fmt(cum.uvV||0)+' / '+fmt(cum.uvId||0), 'Linkage'],
+      ['Teams reporting (selected day)', fmt(cur.teamsRep||0)+' of '+fmt(cur.teams||0), pct((cur.teams||0)>0 ? (cur.teamsRep||0)/(cur.teams||1) : null,0)],
+      ['AFP signals / alerts', fmt(cum.afpS||0)+' / '+fmt(cum.afpA||0), (cum.afpA||0)>0?'Follow up alerts':''],
+      ['AEFI mild / severe', fmt(cum.aefiM||0)+' / '+fmt(cum.aefiS||0), sev.length?('Severe in: '+listOf(sev,2)):((cum.aefiS||0)>0?'Confirm investigation':'No severe AEFI')]
+    ],
+    narration: [
+      'Social mobilization reached ' + fmt(cum.hh||0) + ' households, ' + fmt(cum.comm||0) + ' caregivers in meetings and ' + fmt(cum.h2h||0) + ' home-to-home.',
+      (cum.zdId||0)>0 ? (fmt(cum.zdV||0)+' of '+fmt(cum.zdId||0)+' zero-dose children identified were vaccinated.') : 'No zero-dose children were identified and linked in this view.',
+      (cum.uvId||0)>0 ? (fmt(cum.uvV||0)+' of '+fmt(cum.uvId||0)+' under-vaccinated children identified were vaccinated.') : 'No under-vaccinated children were identified and linked in this view.',
+      sev.length ? ('Severe AEFI reported in: '+sev.join('; ')+'. Confirm each was investigated.') : ((cum.aefiS||0)>0 ? 'Severe AEFI reported; confirm investigations.' : 'No severe AEFI were reported in this selection.')
+    ]});
+
+  slides.push({ kind:'table', title:'Data quality', heading:'Data quality checks',
+    headers:['Check','Records'],
+    rows: ruleRows.length ? ruleRows.map(r=>[r.label, String(r.count)]) : [['All checks','0']],
+    narration: items.length ? [
+      pl(items.length,'data check') + ' ' + (items.length===1?'was':'were') + ' flagged in ' + pl(woredasFlagged,'reporting unit') + '.',
+      'Most common: ' + ruleRows[0].label.toLowerCase() + ' (' + ruleRows[0].count + ').',
+      'A flag asks for a second look at the entry (vials, totals, age/sex/place sums, teams, linkage, targets); it does not always mean the figure is wrong.'
+    ] : ['All data checks passed for this selection.']});
+
+  const disc = [];
+  if (belowT.length) disc.push('Follow up ' + pl(belowT.length,'unit') + ' under ' + T + ': ' + listOf(belowT.slice(0,5).map(wname),5) + '.');
+  if (w != null && w > CFG.maxWastage) disc.push('Review nOPV2 vial handling: wastage is ' + pct(w) + ', above the ' + WL + ' limit.');
+  if (bw != null && bw > CFG.maxWastage) disc.push('Review bOPV vial handling: wastage is ' + pct(bw) + ', above the ' + WL + ' limit.');
+  if ((cur.teams||0) > 0 && (cur.teamsRep||0)/(cur.teams||1) < 0.95 && M.days[S.upTo] && M.days[S.upTo].type === 'campaign') disc.push('Improve team reporting: ' + pct((cur.teamsRep||0)/(cur.teams||1),0) + ' reported on ' + dayName() + '.');
+  if ((cum.aefiS||0) > 0) disc.push('Confirm that all ' + fmt(cum.aefiS) + ' severe AEFI reports were investigated.');
+  if ((cum.afpA||0) > 0) disc.push('Follow up ' + fmt(cum.afpA) + ' AFP alerts with surveillance.');
+  if (items.length) disc.push('Ask focal persons to correct the ' + pl(items.length,'flagged data entry').replace('entrys','entries') + '.');
+  if (!disc.length) disc.push('No urgent issues were found. Maintain current performance and keep reporting daily.');
+  slides.push({ kind:'list', title:'Points for discussion', heading:'Points for discussion & next actions', bullets: disc,
+    narration: disc.concat(['Agree an owner and a date for each point before closing the meeting.']) });
+
+  return { scopeTitle, hcName, asOf, stamp, title: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard', slides };
 }
 
 let PRESENT_INDEX = 0;
 function renderPresenter(){
   const stage = document.getElementById('presentStage');
   if(!stage || !M) return;
-  const d = buildPresentationSlides();
+  const d = buildNarrationDeck();
   const scopeFull = d.scopeTitle + (d.hcName ? (' | '+d.hcName) : '');
-  const title = M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard';
   const logo = 'assets/badge.png';
-  const covStatus = d.c==null ? 'not available yet' : (d.c >= CFG.targetCoverage ? 'at or above the target' : (d.c >= CFG.warnCoverage ? 'close to the target but below '+pct(CFG.targetCoverage,0) : 'below the expected target'));
-  const nwStatus = d.w==null ? 'not available' : (d.w > CFG.maxWastage ? 'above the '+pct(CFG.maxWastage,0)+' limit and needs attention' : 'within the acceptable limit');
-  const bwStatus = d.bw==null ? 'not available' : (d.bw > CFG.maxWastage ? 'above the '+pct(CFG.maxWastage,0)+' limit and needs attention' : 'within the acceptable limit');
-  const firstDay = d.dt[0], lastDay = d.dt[d.dt.length-1];
-  const trend = (firstDay && lastDay && isFinite(firstDay.tot) && isFinite(lastDay.tot)) ? (lastDay.tot >= firstDay.tot ? 'an upward or steady daily vaccination volume toward '+esc(dayText(d.dt.length-1)) : 'a decline in daily vaccination volume by '+esc(dayText(d.dt.length-1))) : 'varying daily performance across reported days';
-  const sortedCov = d.g.filter(x=>x.cov!=null).slice().sort((a,b)=>b.cov-a.cov);
-  const best = sortedCov[0], worst = sortedCov[sortedCov.length-1];
-  const topFlags = d.flags.slice(0,5);
-  const aefi = (d.cum.aefiM||0)+(d.cum.aefiS||0);
-
-  const slide = (heading, body, note) => '<section class="slide">'
-    + '<div class="s-head"><div class="brand"><img src="'+logo+'" alt="Logo"><div class="bt">Addis Ababa City Administration Health Bureau<small>'+esc(title)+'</small></div></div><div class="meta">'+esc(scopeFull)+'<br>'+esc(d.asOf)+'</div></div>'
-    + '<div class="s-body"><h2>'+esc(heading)+'</h2>'+body+(note?('<div class="narr">'+note+'</div>'):'')+'</div>'
-    + '<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>'+esc(d.stamp || '')+'</span></div>'
-    + '</section>';
-
-  const kpis = [
-    ['Cumulative vaccinated', fmt(d.cum.tot), 'Scope total'], ['Target (scope)', fmt(d.tgt), 'Planned'], ['Coverage', pct(d.c), covStatus],
-    ['Selected day vaccinated', fmt(d.cur.tot), esc(dayText(S.upTo))], ['At/above target', fmt(d.atT)+' / '+fmt(d.rows.length), 'Woredas/units'], ['Below '+pct(CFG.warnCoverage,0), fmt(d.below), 'Need follow-up'],
-    ['nOPV2 wastage', pct(d.w), nwStatus], ['bOPV wastage', pct(d.bw), bwStatus], ['Not vaccinated before', fmt((d.cum.n011||0)+(d.cum.n1259||0)), '0–11m & 12–59m']
-  ];
-
-  const slides = [];
-  slides.push('<section class="slide active"><div class="s-head"><div class="brand"><img src="'+logo+'" alt="Logo"><div class="bt">Addis Ababa City Administration Health Bureau<small>nOPV2 + bOPV Campaign Monitoring</small></div></div><div class="meta">'+esc(d.asOf)+'<br>'+esc(scopeFull)+'</div></div><div class="s-body" style="justify-content:center"><div class="muted">Campaign Dashboard Presentation</div><h1>'+esc(title)+'</h1><div class="muted">'+esc(scopeFull)+'</div><div class="narr"><b>Scope:</b> This presentation summarizes filtered dashboard data for the selected login/scope. <b>As of:</b> '+esc(d.asOf)+'. '+(d.stamp?('<b>'+esc(d.stamp)+'.</b>'):'')+'</div></div><div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>Protect every child through polio vaccination</span></div></section>');
-
-  slides.push(slide('Executive Overview', '<div class="kgrid">'+kpis.map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div><div class="s">'+esc(k[2])+'</div></div>').join('')+'</div>',
-    '<b>Narration:</b> The campaign has reached <b>'+fmt(d.cum.tot)+'</b> vaccinated children out of a target of <b>'+fmt(d.tgt)+'</b>, giving coverage of <b>'+pct(d.c)+'</b> ('+covStatus+'). <b>'+fmt(d.atT)+'</b> of <b>'+fmt(d.rows.length)+'</b> reporting units are at/above '+pct(CFG.targetCoverage,0)+', while <b>'+fmt(d.below)+'</b> are below '+pct(CFG.warnCoverage,0)+'. nOPV2 wastage is <b>'+pct(d.w)+'</b> ('+nwStatus+') and bOPV wastage is <b>'+pct(d.bw)+'</b> ('+bwStatus+').'));
-
-  slides.push(slide('Coverage & Performance Insight', '<div class="kgrid">'
-    +'<div class="kcard"><div class="l">Coverage status</div><div class="v">'+pct(d.c)+'</div><div class="s">'+esc(covStatus)+'</div></div>'
-    +'<div class="kcard"><div class="l">Highest coverage</div><div class="v">'+(best?esc(pct(best.cov)):'–')+'</div><div class="s">'+(best?esc(best.key):'No data')+'</div></div>'
-    +'<div class="kcard"><div class="l">Lowest coverage</div><div class="v">'+(worst?esc(pct(worst.cov)):'–')+'</div><div class="s">'+(worst?esc(worst.key):'No data')+'</div></div>'
-    +'</div>',
-    '<b>Narration:</b> '+(best&&worst?('Coverage ranges from <b>'+pct(worst.cov)+'</b> ('+esc(worst.key)+') to <b>'+pct(best.cov)+'</b> ('+esc(best.key)+'), indicating '+( (best.cov-(worst.cov||0))>0.15 ? 'notable performance variation that should be prioritized for targeted follow-up.' : 'relatively consistent performance across the viewed areas.' )):'Coverage comparison is limited by available data.')+' Focus support on areas below '+pct(CFG.warnCoverage,0)+' to improve overall campaign attainment.'));
-
-  slides.push(slide('Daily Trend', '<div class="tblwrap"><table><thead><tr><th>Day</th><th>Vaccinated</th><th>Daily target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.dt.map((a,i)=>'<tr><td>'+esc(dayText(i))+'</td><td>'+fmt(a.tot)+'</td><td>'+fmt(a.dtgt)+'</td><td>'+pct(a.dtgt? a.tot/a.dtgt:null)+'</td><td>'+pct(wastage(a))+'</td><td>'+pct(bWastage(a))+'</td></tr>').join('')+'</tbody></table></div>',
-    '<b>Narration:</b> Daily results show '+trend+'. The most recent reported day ('+esc(dayText(S.upTo))+') recorded <b>'+fmt(d.cur.tot)+'</b> vaccinated children'+(d.cur.dtgt?(', against a daily target of <b>'+fmt(d.cur.dtgt)+'</b> ('+pct(d.cur.dtgt?d.cur.tot/d.cur.dtgt:null)+')'):'')+'. Monitoring daily gaps helps sustain momentum and address missed children promptly.'));
-
-  slides.push(slide('Coverage by '+(groupBy()==='zone'?'Zone':'Woreda'), '<div class="tblwrap"><table><thead><tr><th>Name</th><th>Vaccinated</th><th>Target</th><th>Coverage</th><th>nOPV2 wastage</th><th>bOPV wastage</th></tr></thead><tbody>'+d.g.slice(0,14).map(x=>'<tr><td>'+esc(x.key)+'</td><td>'+fmt(x.a.tot)+'</td><td>'+fmt(x.tgt)+'</td><td>'+pct(x.cov)+'</td><td>'+pct(x.w)+'</td><td>'+pct(x.bw)+'</td></tr>').join('')+'</tbody></table></div>',
-    '<b>Narration:</b> This view compares performance across '+esc(groupBy()==='zone'?'zones':'woredas')+'. '+(worst?('Prioritize <b>'+esc(worst.key)+'</b> (lowest coverage) for supervision and mop-up, while documenting practices from <b>'+esc(best?best.key:worst.key)+'</b> to replicate strengths.'):'Use this comparison to target supervision and resource support where coverage is lagging.')));
-
-  slides.push(slide('nOPV2 Vaccine Use', '<div class="kgrid">'
-    +'<div class="kcard"><div class="l">Received</div><div class="v">'+fmt(d.cum.rec)+'</div><div class="s">vials</div></div>'
-    +'<div class="kcard"><div class="l">Used / Partially used</div><div class="v">'+fmt(d.cum.used)+'</div><div class="s">'+fmt(d.cum.part)+' partial</div></div>'
-    +'<div class="kcard"><div class="l">Wastage</div><div class="v">'+pct(d.w)+'</div><div class="s">Limit '+pct(CFG.maxWastage,0)+'</div></div>'
-    +'<div class="kcard"><div class="l">Returned (good)</div><div class="v">'+fmt(d.cum.retG)+'</div><div class="s">Reusable</div></div>'
-    +'<div class="kcard"><div class="l">Broken/Bad/Lost</div><div class="v">'+fmt((d.cum.brk||0)+(d.cum.retB||0)+(d.cum.lost||0))+'</div><div class="s">Accountability</div></div>'
-    +'<div class="kcard"><div class="l">Doses given</div><div class="v">'+fmt(d.cum.tot)+'</div><div class="s">50 doses/vial basis</div></div>'
-    +'</div>',
-    '<b>Narration:</b> nOPV2 supply management is '+nwStatus+'. Received <b>'+fmt(d.cum.rec)+'</b> vials with <b>'+fmt(d.cum.used)+'</b> used and <b>'+fmt(d.cum.retG)+'</b> returned in good condition; maintaining cold chain and session planning can help keep wastage controlled.'));
-
-  slides.push(slide('bOPV Vaccine Use', '<div class="kgrid">'
-    +'<div class="kcard"><div class="l">Received</div><div class="v">'+fmt(d.cum.brec||0)+'</div><div class="s">vials</div></div>'
-    +'<div class="kcard"><div class="l">Used / Partially used</div><div class="v">'+fmt(d.cum.bused||0)+'</div><div class="s">'+fmt(d.cum.bpart||0)+' partial</div></div>'
-    +'<div class="kcard"><div class="l">Wastage</div><div class="v">'+pct(d.bw)+'</div><div class="s">Limit '+pct(CFG.maxWastage,0)+'</div></div>'
-    +'<div class="kcard"><div class="l">Returned (good)</div><div class="v">'+fmt(d.cum.bretG||0)+'</div><div class="s">Reusable</div></div>'
-    +'<div class="kcard"><div class="l">Broken/Bad/Lost</div><div class="v">'+fmt((d.cum.bbrk||0)+(d.cum.bretB||0)+(d.cum.blost||0))+'</div><div class="s">Accountability</div></div>'
-    +'<div class="kcard"><div class="l">Doses given</div><div class="v">'+fmt(d.cum.tot)+'</div><div class="s">20 doses/vial basis</div></div>'
-    +'</div>',
-    '<b>Narration:</b> bOPV supply management is '+bwStatus+'. Received <b>'+fmt(d.cum.brec||0)+'</b> vials with <b>'+fmt(d.cum.bused||0)+'</b> used and <b>'+fmt(d.cum.bretG||0)+'</b> returned in good condition. Balanced nOPV2 and bOPV management supports uninterrupted campaign delivery.'));
-
-  if(d.flags.length){
-    slides.push(slide('Data Quality & Follow-up', '<div class="tblwrap"><table><thead><tr><th>Woreda / HC</th><th>Coverage</th><th>Vaccinated</th><th>Target</th><th>Flags</th></tr></thead><tbody>'+d.flags.slice(0,12).map(f=>'<tr><td>'+esc(f.name)+'</td><td>'+pct(f.cov)+'</td><td>'+fmt(f.tot)+'</td><td>'+fmt(f.tgt)+'</td><td>'+esc(f.flags)+'</td></tr>').join('')+'</tbody></table></div>',
-      '<b>Narration:</b> <b>'+d.flags.length+'</b> reporting unit(s) have data-quality flags in this view'+(topFlags.length?(', led by <b>'+esc(topFlags[0].name)+'</b>'):'')+'. Review flagged entries for completeness and consistency (totals, vials, wastage, and reporting) to improve data reliability for decision-making.'));
-  }
-
-  slides.push(slide('Key Messages & Next Actions', '<div class="kgrid">'
-    +'<div class="kcard"><div class="l">Coverage</div><div class="v">'+pct(d.c)+'</div><div class="s">'+esc(covStatus)+'</div></div>'
-    +'<div class="kcard"><div class="l">Priority areas</div><div class="v">'+fmt(d.below)+'</div><div class="s">Below '+pct(CFG.warnCoverage,0)+'</div></div>'
-    +'<div class="kcard"><div class="l">AEFI reported</div><div class="v">'+fmt(aefi)+'</div><div class="s">'+(aefi>0?'Monitor & respond':'No cases reported in scope')+'</div></div>'
-    +'</div><div class="narr" style="margin-top:6px"><b>Recommended actions:</b><br>• Strengthen mop-up and supervision in low-coverage/flagged areas'+(worst?(' (e.g. '+esc(worst.key)+')'):'')+'.<br>• Maintain vaccine accountability to keep nOPV2/bOPV wastage within the '+pct(CFG.maxWastage,0)+' limit.<br>• Continue timely, complete reporting to support evidence-based campaign decisions.</div>',
-    '<b>Narration:</b> Sustained focus on reaching missed children, controlling vaccine wastage, and resolving data-quality issues will improve overall nOPV2 + bOPV campaign outcomes for this scope.'));
-
-  stage.innerHTML = slides.join('');
+  const sHead = () => '<div class="s-head"><div class="brand"><img src="'+logo+'" alt="Logo"><div class="bt">Addis Ababa City Administration Health Bureau<small>'+esc(d.title)+'</small></div></div><div class="meta">'+esc(scopeFull)+'<br>'+esc(d.asOf)+'</div></div>';
+  const sFoot = () => '<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>'+esc(d.stamp || '')+'</span></div>';
+  const narr = (lines) => '<div class="narr"><b>Narration:</b> ' + (lines||[]).map(esc).join(' ') + '</div>';
+  const htmlSlides = d.slides.map((s, idx) => {
+    const active = idx===0 ? ' active' : '';
+    if (s.kind === 'title') {
+      const body = '<div class="s-body" style="justify-content:center"><div class="muted">Campaign Dashboard Presentation</div><h1>'+esc(s.heading)+'</h1><div class="muted">'+esc(scopeFull)+'</div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'">'+sHead()+body+'<div class="s-foot"><span>AAPHREML • Designed by: Addis Ababa City Data Management Center</span><span>Protect every child through polio vaccination</span></div></section>';
+    } else if (s.kind === 'kpis') {
+      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="kgrid">'+(s.kpis||[]).map(k=>'<div class="kcard"><div class="l">'+esc(k[0])+'</div><div class="v">'+esc(k[1])+'</div></div>').join('')+'</div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+    } else if (s.kind === 'table') {
+      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="tblwrap"><table><thead><tr>'+((s.headers||[]).map(h=>'<th>'+esc(h)+'</th>').join(''))+'</tr></thead><tbody>'+((s.rows||[]).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join(''))+'</tbody></table></div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+    } else if (s.kind === 'list') {
+      const body = '<div class="s-body"><h2>'+esc(s.heading)+'</h2><div class="narr" style="font-size:17px"><ul style="margin:0;padding-left:22px">'+(s.bullets||[]).map(b=>'<li style="margin:8px 0">'+esc(b)+'</li>').join('')+'</ul></div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+    }
+    const body = '<div class="s-body"><h2>'+esc(s.heading||s.title||'')+'</h2>'+narr(s.narration)+'</div>';
+    return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+  });
+  stage.innerHTML = htmlSlides.join('');
   PRESENT_INDEX = 0;
   updatePresenter();
-  document.getElementById('presentTitle').textContent = title + ' — ' + scopeFull;
+  document.getElementById('presentTitle').textContent = d.title + ' — ' + scopeFull;
 }
 function updatePresenter(){
   const slides = document.querySelectorAll('#presentStage .slide');
@@ -1380,99 +1457,52 @@ function doPptExport(){
   setBusy('Preparing presentation', 'Building PPT on your device…');
   setTimeout(function(){
     try{
+      const deck = buildNarrationDeck();
       const pptx = new PptxGenJS();
       pptx.layout = 'LAYOUT_WIDE';
       pptx.author = 'AAPHREML / AARDMC';
       pptx.company = 'Addis Ababa City Administration Health Bureau';
       pptx.subject = 'nOPV2 + bOPV Campaign Dashboard';
-      pptx.title = M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard';
-
-      const scopeTitle = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.woreda) ? (DASH_SCOPE.zone+' / '+DASH_SCOPE.woreda) : (DASH_SCOPE.mode==='zone' && DASH_SCOPE.zone ? DASH_SCOPE.zone : 'Addis Ababa (Scoped View)');
-      const hcName = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.facilities && DASH_FACILITY>=0 && DASH_SCOPE.facilities[DASH_FACILITY]) ? DASH_SCOPE.facilities[DASH_FACILITY] : '';
-      const asOf = 'Cumulative through ' + dayText(S.upTo);
-      const stamp = M.meta && M.meta.generated ? ('Data read ' + M.meta.generated) : '';
-
-      const units = scopeUnits(), recs = scopeRecs(), tgt = tgtOf(units);
-      const cum = sumRecs(recs.filter(r=>r.d<=S.upTo));
-      const cur = sumRecs(recs.filter(r=>r.d===S.upTo));
-      const c = cov(cum.tot, tgt), w = wastage(cum), bw = bWastage(cum);
-      const rows = unitRows();
-      const atT = rows.filter(r=>r.cov!=null && r.cov>=CFG.targetCoverage).length;
-      const below = rows.filter(r=>r.cov!=null && r.cov<CFG.warnCoverage).length;
-      const dt = dayTotals(recs).slice(0,S.upTo+1);
-      const g = groups(rows).slice().sort((a,b)=> (a.cov||0)-(b.cov||0));
-      const flags = [];
-      rows.forEach(r=>{ const cnt=(r.flags||0); if(cnt>0) flags.push({name:r.u.woreda+' - '+(r.u.hc||'HC'), cov:r.cov, tot:r.a.tot, tgt:r.tgt, flags:cnt}); });
-      flags.sort((a,b)=> b.flags-a.flags || (a.cov||0)-(b.cov||0));
-
-      // Slide 1: Title
-      let s1 = pptx.addSlide();
-      s1.background = { color:'0F2552' };
-      s1.addText('Addis Ababa City Administration Health Bureau', {x:0.5,y:0.5,w:12.3,h:0.5,fontSize:20,color:'DCE8FF',bold:true});
-      s1.addText(M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard', {x:0.5,y:1.1,w:12.3,h:0.8,fontSize:34,color:'FFFFFF',bold:true});
-      s1.addText(scopeTitle + (hcName ? ('\n'+hcName) : ''), {x:0.5,y:2.1,w:12.3,h:1.0,fontSize:24,color:'A9C7FF'});
-      s1.addText(asOf + (stamp ? ('\n'+stamp) : ''), {x:0.5,y:3.2,w:12.3,h:0.8,fontSize:16,color:'E6F0FF'});
-      s1.addText('Addis Ababa City Public Health Emergency Management Research and Laboratory Directorate-AAPHREML\nDesigned by: Addis Ababa City Data Management Center', {x:0.5,y:6.2,w:12.3,h:0.8,fontSize:12,color:'CFE0FF'});
-
-      // Slide 2: Overview KPIs
-      let s2 = pptx.addSlide();
-      s2.addText('Overview (Filtered)', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
-      s2.addText(scopeTitle + (hcName ? (' | '+hcName) : '') + ' — ' + asOf, {x:0.5,y:0.8,w:12.3,h:0.3,fontSize:14,color:'4A5D73'});
-      const kpis = [
-        ['Cumulative vaccinated', fmt(cum.tot)],
-        ['Target (scope)', fmt(tgt)],
-        ['Coverage', pct(c)],
-        ['Vaccinated today/selected day', fmt(cur.tot)],
-        ['At/above target', fmt(atT)+' / '+fmt(rows.length)],
-        ['Below '+pct(CFG.warnCoverage,0), fmt(below)],
-        ['nOPV2 wastage', pct(w)],
-        ['bOPV wastage', pct(bw)],
-        ['Not vaccinated before', fmt((cum.n011||0)+(cum.n1259||0))],
-        ['AEFI reported', fmt((cum.aefiM||0)+(cum.aefiS||0))]
-      ];
-      const kRows = [['Indicator','Value']].concat(kpis);
-      s2.addTable(kRows, {x:0.5,y:1.25,w:12.3,fontSize:14,color:'0F172A',border:{pt:1,color:'D7E3F4'},fill:'FFFFFF',autoPage:true,autoPageRepeatHeader:true,colW:[8.5,3.8],rowH:0.38,align:'left',valign:'middle'});
-
-      // Slide 3: Daily totals
-      let s3 = pptx.addSlide();
-      s3.addText('Daily Performance', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
-      const dRows = [['Day','Vaccinated','Daily target','Coverage','nOPV2 wastage','bOPV wastage']].concat(dt.map((a,i)=>[dayText(i), fmt(a.tot), fmt(a.dtgt), pct(a.dtgt? a.tot/a.dtgt : null), pct(wastage(a)), pct(bWastage(a))]));
-      s3.addTable(dRows, {x:0.5,y:1.0,w:12.3,fontSize:12,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.33});
-
-      // Slide 4: Coverage by zone/woreda
-      let s4 = pptx.addSlide();
-      s4.addText('Coverage by ' + (groupBy()==='zone' ? 'Zone' : 'Woreda'), {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
-      const gRows = [['Name','Vaccinated','Target','Coverage','nOPV2 wastage','bOPV wastage','At/above target']].concat(g.map(x=>[x.key, fmt(x.a.tot), fmt(x.tgt), pct(x.cov), pct(x.w), pct(x.bw), fmt(x.atTarget)+' / '+fmt(x.rows.length)]));
-      s4.addTable(gRows.slice(0,26), {x:0.5,y:1.0,w:12.3,fontSize:11,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.3});
-
-      // Slide 5: Vaccine use summary
-      let s5 = pptx.addSlide();
-      s5.addText('Vaccine Use Summary', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
-      const vRows = [
-        ['Metric','nOPV2','bOPV'],
-        ['Vials received', fmt(cum.rec), fmt(cum.brec||0)],
-        ['Vials used', fmt(cum.used), fmt(cum.bused||0)],
-        ['Partially used', fmt(cum.part), fmt(cum.bpart||0)],
-        ['Returned (good)', fmt(cum.retG), fmt(cum.bretG||0)],
-        ['Broken/bad/lost', fmt((cum.brk||0)+(cum.retB||0)+(cum.lost||0)), fmt((cum.bbrk||0)+(cum.bretB||0)+(cum.blost||0))],
-        ['Doses given (children)', fmt(cum.tot), fmt(cum.tot)],
-        ['Wastage', pct(w), pct(bw)]
-      ];
-      s5.addTable(vRows, {x:0.5,y:1.1,w:12.3,fontSize:14,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.4});
-
-      // Slide 6: Data quality / flags (if any)
-      if(flags.length){
-        let s6 = pptx.addSlide();
-        s6.addText('Data Quality Flags (Top)', {x:0.5,y:0.3,w:12.3,h:0.5,fontSize:28,bold:true,color:'0F2552'});
-        const fRows = [['Woreda / HC','Coverage','Vaccinated','Target','Flag count']].concat(flags.slice(0,20).map(f=>[f.name, pct(f.cov), fmt(f.tot), fmt(f.tgt), String(f.flags)]));
-        s6.addTable(fRows, {x:0.5,y:1.0,w:12.3,fontSize:11,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.3});
-      }
-
+      pptx.title = deck.title;
+      const scopeFull = deck.scopeTitle + (deck.hcName ? (' | '+deck.hcName) : '');
+      deck.slides.forEach(function(s){
+        const sl = pptx.addSlide();
+        if (s.kind === 'title') {
+          sl.background = { color:'0F2552' };
+          sl.addText('Addis Ababa City Administration Health Bureau', {x:0.5,y:0.4,w:12.3,h:0.4,fontSize:18,color:'DCE8FF',bold:true});
+          sl.addText(deck.title, {x:0.5,y:1.0,w:12.3,h:0.9,fontSize:34,color:'FFFFFF',bold:true});
+          sl.addText(scopeFull, {x:0.5,y:2.0,w:12.3,h:0.6,fontSize:22,color:'A9C7FF'});
+          sl.addText(deck.asOf + (deck.stamp?('\n'+deck.stamp):''), {x:0.5,y:2.7,w:12.3,h:0.7,fontSize:15,color:'E6F0FF'});
+          sl.addText((s.narration||[]).join('\n'), {x:0.5,y:3.6,w:12.3,h:2.5,fontSize:13,color:'FFFFFF',valign:'top'});
+          sl.addText('AAPHREML • Designed by: Addis Ababa City Data Management Center', {x:0.5,y:6.5,w:12.3,h:0.4,fontSize:11,color:'CFE0FF'});
+        } else {
+          sl.addText(deck.title, {x:0.5,y:0.2,w:9.0,h:0.3,fontSize:11,color:'4A5D73'});
+          sl.addText(scopeFull + ' — ' + deck.asOf, {x:0.5,y:0.45,w:12.3,h:0.25,fontSize:10,color:'4A5D73'});
+          sl.addText(s.heading || s.title, {x:0.5,y:0.75,w:12.3,h:0.5,fontSize:26,bold:true,color:'0F2552'});
+          if (s.kind === 'kpis') {
+            const rows = [['Indicator','Value']].concat((s.kpis||[]).map(k=>[k[0],k[1]]));
+            sl.addTable(rows, {x:0.5,y:1.35,w:12.3,fontSize:13,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.36});
+            sl.addText('Narration: '+(s.narration||[]).join(' '), {x:0.5,y:5.9,w:12.3,h:1.2,fontSize:11,color:'0F172A',valign:'top'});
+          } else if (s.kind === 'table') {
+            const rows = [(s.headers||[])].concat((s.rows||[]).slice(0,20));
+            sl.addTable(rows, {x:0.5,y:1.35,w:12.3,fontSize:10.5,border:{pt:1,color:'D7E3F4'},autoPage:true,autoPageRepeatHeader:true,rowH:0.3});
+            sl.addText('Narration: '+(s.narration||[]).join(' '), {x:0.5,y:6.0,w:12.3,h:1.0,fontSize:10.5,color:'0F172A',valign:'top'});
+          } else if (s.kind === 'list') {
+            const txt = (s.bullets||[]).map(b=>'• '+b).join('\n');
+            sl.addText(txt, {x:0.7,y:1.4,w:12.0,h:4.2,fontSize:16,color:'0F172A',valign:'top'});
+            sl.addText('Narration: '+(s.narration||[]).join(' '), {x:0.5,y:5.8,w:12.3,h:1.2,fontSize:11,color:'0F172A',valign:'top'});
+          } else {
+            sl.addText((s.narration||[]).join('\n'), {x:0.7,y:1.4,w:12.0,h:5.3,fontSize:14,color:'0F172A',valign:'top'});
+          }
+          sl.addText('AAPHREML • Designed by: Addis Ababa City Data Management Center', {x:0.5,y:7.0,w:9.5,h:0.25,fontSize:9,color:'5B6B82'});
+          sl.addText(deck.stamp||'', {x:10.2,y:7.0,w:2.6,h:0.25,fontSize:9,color:'5B6B82',align:'right'});
+        }
+      });
       const safe = s => String(s||'').replace(/[^\w.-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
       let name = 'nOPV2_bOPV_Dashboard';
       if(DASH_SCOPE.woreda) name += '_' + safe(DASH_SCOPE.woreda);
       else if(DASH_SCOPE.zone) name += '_' + safe(DASH_SCOPE.zone);
-      if(hcName) name += '_' + safe(hcName);
+      if(deck.hcName) name += '_' + safe(deck.hcName);
       name += '.pptx';
       pptx.writeFile({ fileName: name }).then(function(){
         if(btn){ btn.disabled=false; btn.textContent='Download PPT'; }
@@ -1487,6 +1517,7 @@ function doPptExport(){
     }
   }, 0);
 }
+
 
 function init() {
   setupChartDefaults();
