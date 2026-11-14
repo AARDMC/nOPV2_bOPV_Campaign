@@ -909,7 +909,17 @@ async function loadGeoJsonData(){
 }
 function renderMap(){
   app().innerHTML = '<div class="grid" style="margin-top:0">' +
-    '<div class="card c12" style="padding:12px"><div id="mapWrap" style="width:100%;min-height:480px;border-radius:10px;overflow:hidden;background:#F7FBFF"></div><div id="mapLegend" style="margin-top:10px"></div><p class="note" id="mapNote" style="margin:8px 0 0;display:none"></p></div>' +
+    '<div class="card c12" style="padding:12px;position:relative">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-bottom:8px">' +
+        '<button type="button" class="btn dark" id="mapZoomIn" title="Zoom in" style="min-width:40px;padding:6px 10px">+</button>' +
+        '<button type="button" class="btn dark" id="mapZoomOut" title="Zoom out" style="min-width:40px;padding:6px 10px">−</button>' +
+        '<button type="button" class="btn dark" id="mapReset" title="Reset view" style="padding:6px 10px">Reset</button>' +
+        '<button type="button" class="btn solid" id="mapDownload" title="Download map image" style="padding:6px 12px">Download image</button>' +
+      '</div>' +
+      '<div id="mapWrap" style="width:100%;min-height:520px;border-radius:10px;overflow:hidden;background:#F7FBFF;position:relative;touch-action:none"></div>' +
+      '<div id="mapLegend" style="margin-top:10px"></div>' +
+      '<p class="note" id="mapNote" style="margin:8px 0 0;display:none"></p>' +
+    '</div>' +
     '</div>';
   setTimeout(async function(){
     try {
@@ -926,7 +936,7 @@ function renderMap(){
       const features = gj.type === 'FeatureCollection' ? (gj.features || []) : gj.type === 'Feature' ? [gj] : [];
       if (!features.length) { wrap.innerHTML = '<div class="empty">No features found in GeoJSON.</div>'; return; }
 
-      // ---- normalization / canonical sub-city matching (bulletin style) ----
+      // ---- normalization / canonical sub-city matching ----
       const normName = s => String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim();
       const geoNorm = s => String(s==null?'':s).toLowerCase().replace(/sub[\s_\-]*city/g,'').replace(/kifle[\s_\-]*ketema/g,'').replace(/[^a-z0-9]/g,'');
       const subAliases = {
@@ -947,7 +957,6 @@ function renderMap(){
         const keys = Object.keys(subAliases);
         for (const s of keys) if (geoNorm(s) === n) return s;
         for (const s of keys) if ((subAliases[s]||[]).indexOf(n) >= 0) return s;
-        // starts-with fallback
         for (const s of keys) { const m = geoNorm(s); if (n.length>4 && (m.indexOf(n)===0 || n.indexOf(m)===0)) return s; }
         return '';
       };
@@ -957,21 +966,34 @@ function renderMap(){
         return m ? String(parseInt(m[1], 10)) : '';
       };
 
-      // ---- coverage lookup (by normalized woreda/zone from dashboard data) ----
-      const covByWoreda = {}, covByZone = {};
+      // ---- vaccinated children amount lookup (by woreda/zone) ----
+      const totByWoreda = {}, totByWoredaId = {}, totByZone = {};
       try {
-        if (typeof unitRows === 'function' && typeof rollup === 'function') {
-          rollup(unitRows(), r => r.u.woreda).forEach(g => { covByWoreda[normName(g.key)] = g.cov; });
-          rollup(unitRows(), r => r.u.zone).forEach(g => { covByZone[normName(g.key)] = g.cov; });
+        if (typeof unitRows === 'function') {
+          unitRows().forEach(r => {
+            const t = (r && r.a && r.a.tot != null) ? r.a.tot : 0;
+            if (r && r.u) {
+              if (r.u.woreda) totByWoreda[normName(r.u.woreda)] = (totByWoreda[normName(r.u.woreda)] || 0) + t;
+              if (r.u.woredaID != null && String(r.u.woredaID).trim()!=='') {
+                const wid = String(parseInt(r.u.woredaID,10));
+                if (wid && wid !== 'NaN') totByWoredaId[wid] = (totByWoredaId[wid] || 0) + t;
+              }
+              if (r.u.zone) totByZone[normName(r.u.zone)] = (totByZone[normName(r.u.zone)] || 0) + t;
+            }
+          });
         }
       } catch(e){}
-      function findCov(p){
-        const candidates = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,p.subcity,p.Subcity,p.zone,p.Zone];
-        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (covByWoreda[n]!=null) return covByWoreda[n]; if (covByZone[n]!=null) return covByZone[n]; }
+      function findVaccinated(x){
+        const p = x.p || {};
+        if (x.wid && totByWoredaId[String(parseInt(x.wid,10))] != null) return totByWoredaId[String(parseInt(x.wid,10))];
+        const candidates = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short];
+        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (totByWoreda[n]!=null) return totByWoreda[n]; }
+        if (x.sub && totByZone[normName(x.sub)] != null) return totByZone[normName(x.sub)];
+        const zc = [p.subcity,p.Subcity,p.zone,p.Zone]; for (const c of zc){ if(c==null) continue; const n=normName(c); if (totByZone[n]!=null) return totByZone[n]; }
         return null;
       }
 
-      // ---- scope -> feature index mapping ----
+      // ---- scope -> feature mapping ----
       function featureInfo(f, i){
         const p = f.properties || {};
         const subRaw = String(p.subcity || p.Subcity || p.SUBCITY || p.zone || p.Zone || '').trim();
@@ -1011,7 +1033,6 @@ function renderMap(){
             const xl = normName(x.label), xs = normName(x.short||'');
             if (xl === wNorm || xs === wNorm) return true;
             if (xl.indexOf(wNorm) !== -1 || wNorm.indexOf(xl) !== -1) return true;
-            // try matching number inside woreda name like "Woreda 01"
             if (wNum && (String(x.wid) === wNum || (x.label && woredaNum(x.label) === wNum))) return true;
           }
           return false;
@@ -1019,31 +1040,24 @@ function renderMap(){
         return m;
       }
 
-      // Prefer current dashboard filter (S.zone/S.woreda); fall back to login scope
       const fZone = (typeof S !== 'undefined' && S.zone && S.zone !== 'all') ? S.zone : (DASH_SCOPE && DASH_SCOPE.zone ? DASH_SCOPE.zone : '');
       const fWoreda = (typeof S !== 'undefined' && S.woreda && S.woreda !== 'all') ? S.woreda : (scopeMode === 'woreda' && DASH_SCOPE ? DASH_SCOPE.woreda : '');
       const fWid = (scopeMode === 'woreda' && DASH_SCOPE ? DASH_SCOPE.woredaID : '');
 
       if (fWoreda) {
         const m = byWoreda(infos, fZone, fWoreda, fWid);
-        if (m.length) {
-          selected = m; // only the selected woreda (e.g. Addis Ketema Woreda 01)
-        } else {
-          // fallback: show woreda-level polygons in zone if specific woreda not matched
+        if (m.length) selected = m;
+        else {
           const area = bySubcity(infos, fZone);
           selected = area.length ? area : infos;
           matchNote = 'Specific woreda not matched in map; showing woreda-level areas for ' + esc(fZone || scopeName()) + '.';
         }
       } else if (fZone) {
         const m = bySubcity(infos, fZone);
-        if (m.length) {
-          selected = m; // woreda-level polygons within sub-city
-        } else {
-          selected = infos;
-          matchNote = 'No GeoJSON features matched sub-city "' + esc(fZone) + '". Showing all woreda-level areas.';
-        }
+        if (m.length) selected = m;
+        else { selected = infos; matchNote = 'No GeoJSON features matched sub-city "' + esc(fZone) + '". Showing all woreda-level areas.'; }
       } else {
-        selected = infos; // all woreda-level areas
+        selected = infos;
       }
 
       if (!selected.length) {
@@ -1052,7 +1066,7 @@ function renderMap(){
         return;
       }
 
-      // ---- projection (bulletin style) ----
+      // ---- projection ----
       const MAP_W = 900, MAP_PAD = 0.03, MAP_PCT = 0.01;
       function collectCoords(feats){ const lons=[], lats=[]; const walk=c=>{ if(typeof c[0]==='number'){ lons.push(c[0]); lats.push(c[1]); } else c.forEach(walk); }; feats.forEach(f=>walk(f.geometry.coordinates)); return {lons,lats}; }
       function percentile(arr,q){ if(!arr.length) return 0; const i=Math.min(arr.length-1, Math.max(0, Math.floor(arr.length*q))); return arr[i]; }
@@ -1067,29 +1081,40 @@ function renderMap(){
       if (!proj) { wrap.innerHTML = '<div class="empty">Could not compute map bounds.</div>'; if (note) { note.style.display=''; note.textContent='Could not compute map bounds for selected features.'; } return; }
       const {W,H,P} = proj;
 
-      function magnitudeColor(cov, minV, maxV){
-        if (cov == null || isNaN(cov)) return '#d7e3f4';
-        let t = 0.5;
-        if (maxV > minV) t = (cov - minV) / (maxV - minV);
-        t = Math.max(0, Math.min(1, t));
-        // sequential magnitude: low -> high (light yellow/green to deep teal/blue)
-        const stops = [[255,247,188],[254,196,79],[254,153,41],[217,95,14],[153,52,4]];
-        const i = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1)));
-        const lt = (t * (stops.length - 1)) - i;
-        const a = stops[i], b = stops[i+1];
-        const r = Math.round(a[0] + (b[0]-a[0])*lt), g = Math.round(a[1] + (b[1]-a[1])*lt), bl = Math.round(a[2] + (b[2]-a[2])*lt);
-        return 'rgb('+r+','+g+','+bl+')';
+      // attach vaccinated totals
+      selected.forEach(x => { x.vacc = findVaccinated(x); });
+      const vals = selected.map(x => x.vacc).filter(v => v != null && !isNaN(v));
+      const maxV = vals.length ? Math.max.apply(null, vals) : 0;
+
+      // categories by vaccinated children amount
+      function buildCats(maxVal){
+        if (maxVal <= 0) return [{label:'No data', min:0, max:0, color:'#d7e3f4', nodata:true}];
+        const steps = [0, 0.2, 0.4, 0.6, 0.8, 1];
+        const colors = ['#fee5d9','#fcbba1','#fc9272','#fb6a4a','#de2d26','#a50f15'];
+        const cats = [];
+        for (let i=1;i<steps.length;i++){
+          const min = i===1 ? 0 : Math.floor(maxVal*steps[i-1]) + 1;
+          const max = Math.floor(maxVal*steps[i]);
+          cats.push({ label: fmt(min) + ' - ' + fmt(max), min, max, color: colors[i-1] });
+        }
+        cats[cats.length-1].max = Math.ceil(maxVal);
+        cats[cats.length-1].label = fmt(cats[cats.length-1].min) + ' - ' + fmt(cats[cats.length-1].max);
+        cats.push({label:'No data', color:'#d7e3f4', nodata:true});
+        return cats;
+      }
+      const cats = buildCats(maxV);
+      function colorFor(v){
+        if (v == null || isNaN(v)) return '#d7e3f4';
+        for (const c of cats){ if (c.nodata) continue; if (v >= c.min && v <= c.max) return c.color; }
+        return cats.length>1 ? cats[cats.length-2].color : '#d7e3f4';
       }
 
-      const covVals = selected.map(x => findCov(x.p)).filter(v => v != null && !isNaN(v));
-      const minV = covVals.length ? Math.min.apply(null, covVals) : 0;
-      const maxV = covVals.length ? Math.max.apply(null, covVals) : 100;
       const paths = selected.map(x => {
-        const cov = findCov(x.p);
-        const fill = magnitudeColor(cov, minV, maxV);
+        const fill = colorFor(x.vacc);
         const d = pathOf(x.f, P);
-        const title = esc((x.label || x.short) + (cov!=null && typeof pct==='function' ? (' — Coverage: '+pct(cov)) : ' — No data'));
-        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.8" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
+        const vtxt = (x.vacc != null && !isNaN(x.vacc)) ? (' — Vaccinated children: ' + fmt(x.vacc)) : ' — Vaccinated children: No data';
+        const title = esc((x.label || x.short) + vtxt);
+        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.82" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
       }).join('');
 
       const labels = selected.map(x => {
@@ -1102,29 +1127,89 @@ function renderMap(){
       }).join('');
 
       const PAD = 30;
-      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+(-PAD)+' '+(-PAD)+' '+(W+2*PAD).toFixed(0)+' '+(H+2*PAD).toFixed(0)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;min-height:420px;display:block;background:#F7FBFF">' + paths + labels + '</svg>';
+      const vb = { x: -PAD, y: -PAD, w: W + 2*PAD, h: H + 2*PAD };
+      const svg = '<svg id="mapSvg" xmlns="http://www.w3.org/2000/svg" viewBox="'+vb.x+' '+vb.y+' '+vb.w.toFixed(0)+' '+vb.h.toFixed(0)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;min-height:520px;display:block;background:#F7FBFF;cursor:grab">' +
+        '<rect x="'+vb.x+'" y="'+vb.y+'" width="'+vb.w+'" height="'+vb.h+'" fill="#F7FBFF"></rect>' +
+        '<g id="mapG">' + paths + labels + '</g></svg>';
       wrap.innerHTML = svg;
 
-      // legend (magnitude)
+      // legend (vaccinated children categories)
       if (legend) {
-        const grad = 'linear-gradient(to right, rgb(255,247,188), rgb(254,196,79), rgb(254,153,41), rgb(217,95,14), rgb(153,52,4))';
-        const minLbl = covVals.length && typeof pct==='function' ? pct(minV) : (covVals.length ? (Math.round(minV*10)/10)+'%' : 'Low');
-        const maxLbl = covVals.length && typeof pct==='function' ? pct(maxV) : (covVals.length ? (Math.round(maxV*10)/10)+'%' : 'High');
-        legend.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--ink2)">' +
-          '<span style="font-weight:600;color:var(--ink)">Coverage magnitude</span>' +
-          '<span>'+esc(minLbl)+'</span>' +
-          '<span style="display:inline-block;width:180px;height:12px;border-radius:6px;background:'+grad+';border:1px solid #0F2552"></span>' +
-          '<span>'+esc(maxLbl)+'</span>' +
-          '<span style="display:inline-flex;align-items:center;gap:6px;margin-left:6px"><i style="width:12px;height:12px;border-radius:3px;background:#d7e3f4;display:inline-block;border:1px solid #0F2552"></i>No data</span>' +
+        legend.innerHTML = '<div style="font-size:12px;color:var(--ink2)">' +
+          '<div style="font-weight:700;color:var(--ink);margin-bottom:6px">Vaccinated children (amount by category)</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:10px 14px">' + cats.map(c => '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:14px;border-radius:3px;background:'+c.color+';display:inline-block;border:1px solid #0F2552"></i>'+esc(c.label)+'</span>').join('') + '</div>' +
           '</div>';
       }
+
+      // zoom / pan
+      const svgEl = document.getElementById('mapSvg');
+      const gEl = document.getElementById('mapG');
+      let scale = 1, tx = 0, ty = 0, dragging = false, last = null;
+      function applyTransform(){ if(gEl) gEl.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')'); }
+      function resetView(){ scale=1; tx=0; ty=0; applyTransform(); }
+      function zoomAt(factor, cx, cy){
+        const prev = scale; scale = Math.max(1, Math.min(12, scale * factor));
+        // zoom towards center point in viewBox coords
+        tx = cx - (cx - tx) * (scale/prev);
+        ty = cy - (cy - ty) * (scale/prev);
+        applyTransform();
+      }
+      function clientToSvg(evt){
+        const pt = svgEl.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+        const ctm = svgEl.getScreenCTM(); return ctm ? pt.matrixTransform(ctm.inverse()) : {x:vb.x+vb.w/2,y:vb.y+vb.h/2};
+      }
+      if (svgEl) {
+        svgEl.addEventListener('wheel', function(e){ e.preventDefault(); const p = clientToSvg(e); zoomAt(e.deltaY < 0 ? 1.15 : 1/1.15, p.x, p.y); }, {passive:false});
+        svgEl.addEventListener('mousedown', function(e){ if(e.button!==0) return; dragging=true; last={x:e.clientX,y:e.clientY}; svgEl.style.cursor='grabbing'; });
+        window.addEventListener('mousemove', function(e){ if(!dragging||!svgEl) return; const ctm = svgEl.getScreenCTM(); if(!ctm) return; const dx = (e.clientX-last.x)/ctm.a; const dy = (e.clientY-last.y)/ctm.d; tx += dx; ty += dy; last={x:e.clientX,y:e.clientY}; applyTransform(); });
+        window.addEventListener('mouseup', function(){ dragging=false; if(svgEl) svgEl.style.cursor='grab'; });
+        // touch basic pan (1 finger) and pinch zoom (2 fingers)
+        let pinch = null;
+        svgEl.addEventListener('touchstart', function(e){ if(e.touches.length===1){ dragging=true; last={x:e.touches[0].clientX,y:e.touches[0].clientY}; } else if(e.touches.length===2){ dragging=false; const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY; pinch={d:Math.hypot(dx,dy)}; } }, {passive:true});
+        svgEl.addEventListener('touchmove', function(e){ if(e.touches.length===1 && dragging){ const ctm=svgEl.getScreenCTM(); if(ctm){ tx += (e.touches[0].clientX-last.x)/ctm.a; ty += (e.touches[0].clientY-last.y)/ctm.d; last={x:e.touches[0].clientX,y:e.touches[0].clientY}; applyTransform(); } } else if(e.touches.length===2 && pinch){ const dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY; const d=Math.hypot(dx,dy); const cx=(e.touches[0].clientX+e.touches[1].clientX)/2, cy=(e.touches[0].clientY+e.touches[1].clientY)/2; const p=clientToSvg({clientX:cx,clientY:cy}); zoomAt(d/(pinch.d||d), p.x, p.y); pinch.d=d; } }, {passive:true});
+        svgEl.addEventListener('touchend', function(){ dragging=false; pinch=null; }, {passive:true});
+      }
+      const zin = document.getElementById('mapZoomIn'), zout = document.getElementById('mapZoomOut'), rst = document.getElementById('mapReset'), dl = document.getElementById('mapDownload');
+      if (zin) zin.onclick = ()=> zoomAt(1.2, vb.x+vb.w/2, vb.y+vb.h/2);
+      if (zout) zout.onclick = ()=> zoomAt(1/1.2, vb.x+vb.w/2, vb.y+vb.h/2);
+      if (rst) rst.onclick = resetView;
+      if (dl) dl.onclick = function(){
+        try {
+          const clone = svgEl.cloneNode(true);
+          clone.setAttribute('width', vb.w); clone.setAttribute('height', vb.h);
+          const serializer = new XMLSerializer();
+          const src = '<?xml version="1.0" standalone="no"?>\n' + serializer.serializeToString(clone);
+          const img = new Image();
+          const svgBlob = new Blob([src], {type:'image/svg+xml;charset=utf-8'});
+          const url = URL.createObjectURL(svgBlob);
+          img.onload = function(){
+            const canvas = document.createElement('canvas');
+            const scaleOut = 2;
+            canvas.width = Math.max(1, Math.round(vb.w * scaleOut));
+            canvas.height = Math.max(1, Math.round(vb.h * scaleOut));
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#F7FBFF'; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            canvas.toBlob(function(blob){
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = 'campaign-map-vaccinated-children.png';
+              document.body.appendChild(a); a.click(); a.remove();
+              setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+            }, 'image/png');
+          };
+          img.onerror = function(){ URL.revokeObjectURL(url); if(note){note.style.display='';note.textContent='Could not generate image.';} };
+          img.src = url;
+        } catch(err){ if(note){note.style.display='';note.textContent='Download failed: '+(err&&err.message?err.message:err);} }
+      };
 
       if (note) {
         const msg = matchNote || '';
         if (msg) { note.style.display = ''; note.textContent = msg; } else { note.style.display = 'none'; note.textContent = ''; }
       }
     } catch(e){
-      const note = document.getElementById('mapNote'); if (note) note.textContent = 'Map error: ' + (e && e.message ? e.message : e);
+      const note = document.getElementById('mapNote'); if (note) { note.style.display=''; note.textContent = 'Map error: ' + (e && e.message ? e.message : e); }
     }
   }, 0);
 }
