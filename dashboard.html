@@ -966,11 +966,13 @@ function renderMap(){
       // ---- scope -> feature index mapping ----
       function featureInfo(f, i){
         const p = f.properties || {};
-        const sub = canonSub(p.subcity || p.Subcity || p.SUBCITY || p.zone || p.Zone || '') || String(p.subcity||p.zone||'').trim();
+        const subRaw = String(p.subcity || p.Subcity || p.SUBCITY || p.zone || p.Zone || '').trim();
+        const sub = canonSub(subRaw) || subRaw;
         const wid = p.wid!=null ? String(p.wid).trim() : (p.WID!=null ? String(p.WID).trim() : '');
-        const short = p.label || (sub ? (sub.replace(/\s+Sub\s*City$/i,'') + (wid ? ' W'+wid : '')) : (p.name||'Feature'));
-        const label = wid ? (sub ? (sub + ' - Woreda ' + wid) : ('Woreda ' + wid)) : short;
-        return { i, f, p, sub, subCanon: canonSub(sub) || canonSub(p.subcity), wid, label, short, pathid: p.pathid||'' };
+        const wLabel = wid ? ('Woreda ' + wid) : '';
+        const label = sub && wLabel ? (sub + ' - ' + wLabel) : (sub || wLabel || p.label || p.name || 'Feature');
+        const short = sub && wid ? (sub + ' W' + wid) : (p.label || label);
+        return { i, f, p, sub, subCanon: canonSub(sub) || canonSub(subRaw), wid, label, short, pathid: p.pathid||'' };
       }
       const infos = features.map((f,i)=>featureInfo(f,i)).filter(x => x.f && x.f.geometry && (x.f.geometry.type==='Polygon' || x.f.geometry.type==='MultiPolygon'));
       const scopeMode = DASH_SCOPE ? DASH_SCOPE.mode : 'all';
@@ -1043,7 +1045,7 @@ function renderMap(){
         const cov = findCov(x.p);
         const fill = magnitudeColor(cov, minV, maxV);
         const d = pathOf(x.f, P);
-        const title = esc(x.label + (cov!=null && typeof pct==='function' ? (' — Coverage: '+pct(cov)) : ' — No data'));
+        const title = esc((x.label || x.short) + (cov!=null && typeof pct==='function' ? (' — Coverage: '+pct(cov)) : ' — No data'));
         return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.8" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
       }).join('');
 
