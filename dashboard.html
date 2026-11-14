@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#667eea">
-<title>nOPV2 Campaign Dashboard</title>
+<title>nOPV2 Campaign Update</title>
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/badge.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -420,8 +420,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
       <span class="lb-logo"><img src="assets/logo.jpg" alt="Logo"></span>
       <span class="lb-badge"><img src="assets/badge.png" alt="Badge"></span>
     </div>
-    <h2>Dashboard Login</h2>
-    <p class="subtitle">Enter your ID to view the monitoring dashboard</p>
+    <h2>Campaign Update Login</h2>
+    <p class="subtitle">Enter your ID to view the campaign update</p>
     <div class="field">
       <label>Your ID</label>
       <input id="dashId" type="text" placeholder="Enter your ID" autocomplete="off">
@@ -448,7 +448,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     </div>
     <div class="navwrap">
       <div class="tt"><div class="heroart" id="heroArt" aria-hidden="true"></div><div>
-        <h1 id="title">Addis Ababa City Adminstration Health Bureau nOPV2 + bOPV Campaign Dashboard</h1>
+        <h1 id="title">Addis Ababa City Adminstration Health Bureau nOPV2 + bOPV Campaign Update</h1>
         <span class="yel" id="subtitle">Loading data from the campaign workbook</span>
       </div></div>
       <div class="datebox">
@@ -1821,7 +1821,7 @@ function buildNarrationDeck(){
   const areaChartTitle = (S.zone === 'all' && DASH_SCOPE.mode !== 'zone') ? 'Total vaccinated children by sub city/woreda' : 'Total vaccinated children by woreda/reporting area';
   const slides = [];
 
-  slides.push({ kind:'title', title:'Title', heading: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard',
+  slides.push({ kind:'title', title:'Title', heading: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Update',
     narration: [
       'This presentation reviews campaign performance against targets for ' + scopeLabel + '.',
       'It covers all data entered through ' + dayText(S.upTo) + '. ' + (stamp || ''),
@@ -2031,7 +2031,7 @@ function buildNarrationDeck(){
   slides.push({ kind:'thanks', title:'Thank you', heading:'Thank you',
     narration: ['Thank you for your attention and commitment to vaccinating every child.'] });
 
-  return { scopeTitle, hcName, asOf, stamp, title: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Dashboard', slides };
+  return { scopeTitle, hcName, asOf, stamp, title: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Update', slides };
 }
 
 let PRESENT_INDEX = 0;
@@ -2228,7 +2228,7 @@ function doPptExport(){
       pptx.layout = 'LAYOUT_WIDE';
       pptx.author = 'AAPHREML / AARDMC';
       pptx.company = 'Addis Ababa City Administration Health Bureau';
-      pptx.subject = 'nOPV2 + bOPV Campaign Dashboard';
+      pptx.subject = 'nOPV2 + bOPV Campaign Update';
       pptx.title = deck.title;
       const scopeFull = deck.scopeTitle + (deck.hcName ? (' | '+deck.hcName) : '');
       deck.slides.forEach(function(s){
