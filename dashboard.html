@@ -1011,14 +1011,17 @@ function _cell(ref, val, opts){
   opts = opts||{};
   const s = opts.style!=null ? ` s="${opts.style}"` : '';
   if(opts.formula){
-    // include cached value if provided
     const v = (val===''||val==null||!isFinite(Number(val))) ? '' : `<v>${Number(val)}</v>`;
     return `<c r="${ref}"${s}>${v}<f>${_xmlEsc(opts.formula)}</f></c>`;
   }
   if(val===''||val==null||val===undefined) return `<c r="${ref}"${s}/>`;
-  if(typeof val==='number' && isFinite(val)) return `<c r="${ref}"${s}><v>${val}</v></c>`;
-  // try numeric strings
-  const n=Number(val); if(val!=='' && typeof val!=='boolean' && isFinite(n) && String(val).trim()!=='' && /^-?\d+(\.\d+)?$/.test(String(val).trim())) return `<c r="${ref}"${s}><v>${n}</v></c>`;
+  if(typeof val==='number'){ return isFinite(val) ? `<c r="${ref}"${s}><v>${val}</v></c>` : `<c r="${ref}"${s}/>`; }
+  if(typeof val==='string'){
+    if(val==='') return `<c r="${ref}"${s}/>`;
+    const t=val.trim(); if(t!=='' && isFinite(t) && t==Number(t)) return `<c r="${ref}"${s}><v>${t}</v></c>`;
+    return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${_xmlEsc(val)}</t></is></c>`;
+  }
+  const n=Number(val); if(isFinite(n)) return `<c r="${ref}"${s}><v>${n}</v></c>`;
   return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${_xmlEsc(val)}</t></is></c>`;
 }
 
@@ -1151,9 +1154,10 @@ function doDashboardExport(){
         toast('Export failed: '+esc((res&&res.error)||'unknown'), true);
         return;
       }
-      setBusy('Preparing export', 'Building Excel file…');
+      // yield so the "Building…" UI paints before heavy synchronous work
       setTimeout(function(){
         try{
+          const t0 = (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now();
           const blob = buildMirrorWorkbook(res);
           const scope = res.scope || {};
           let name = 'nOPV2_bOPV_Campaign';
@@ -1173,7 +1177,7 @@ function doDashboardExport(){
           setBusy(null);
           toast('Export failed: '+esc(e&&e.message?e.message:e), true);
         }
-      }, 50);
+      }, 0);
     })
     .withFailureHandler(function(err){
       if (btn) { btn.disabled = false; btn.textContent = 'Download Google Sheet'; }
