@@ -8,7 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap"></noscript>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
 <style>
 :root{
   --ink:#0F2552; --ink2:#44577F; --ink3:#7D8CAB;
@@ -317,6 +319,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <button class="tab-btn" role="tab" data-tab="geo" aria-selected="false">Zones and woredas</button>
     <button class="tab-btn" role="tab" data-tab="vaccine" aria-selected="false">Vaccine use</button>
     <button class="tab-btn" role="tab" data-tab="community" aria-selected="false">Community and safety</button>
+    <button class="tab-btn" role="tab" data-tab="map" aria-selected="false">Map</button>
     <button class="tab-btn" role="tab" data-tab="quality" aria-selected="false">Data quality</button>
   </div>
 </div>
@@ -583,7 +586,7 @@ function vOpts(extra) { return Object.assign({ responsive:true, interaction:{ mo
 function pctTip() { return { callbacks: { label: c => ' ' + c.dataset.label + ': ' + (c.parsed.y != null && c.chart.options.indexAxis !== 'y' ? c.parsed.y : c.parsed.x).toFixed(1) + '%' } }; }
 
 const ICON_VAX = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4M15 5l4 4M3 21l5-5"/><path d="M7 17l-1-1 9-9 3 3-9 9z"/><path d="M11 9l4 4"/></svg>';
-const TAB_TITLES = { overview:'Campaign situation', geo:'Zones and woredas', vaccine:'Vaccine use', community:'Community and safety', quality:'Data quality' };
+const TAB_TITLES = { overview:'Campaign situation', geo:'Zones and woredas', vaccine:'Vaccine use', community:'Community and safety', map:'Campaign map', quality:'Data quality' };
 const ART_SVG = '<img src="assets/badge.png" alt="" style="height:72px;width:auto;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));">';
 
 const panel = (cls, title, sub, body) => '<div class="panel ' + cls + '"><h2>' + title + '</h2>' + (sub ? '<p class="sub">' + sub + '</p>' : '<div style="height:10px"></div>') + body + '</div>';
@@ -881,8 +884,93 @@ function renderQuality() {
   $$('[data-rule]').forEach(b => b.addEventListener('click', () => { S.rule = b.dataset.rule; renderQuality(); }));
 }
 
+/* ---------- Map ---------- */
+let MAP_INSTANCE = null, MAP_GEOJSON = null;
+async function loadGeoJsonData(){
+  if (MAP_GEOJSON) return MAP_GEOJSON;
+  const urls = [
+    'assets/campaign-map.geojson',
+    'assets/addis-ababa.geojson',
+    'https://drive.google.com/uc?export=download&id=1-uZLtooHFozwC95s0opEH2KRdrJiWd6u'
+  ];
+  for (const url of urls){
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data && (data.type === 'FeatureCollection' || data.type === 'Feature' || data.features || data.geometry)) { MAP_GEOJSON = data; return data; }
+    } catch(e) { /* try next */ }
+  }
+  return null;
+}
+function renderMap(){
+  if (typeof L === 'undefined') {
+    app().innerHTML = '<div class="msg"><h2>Loading map</h2><p>Map library is still loading. Please open the Map tab again in a moment.</p></div>';
+    return;
+  }
+  app().innerHTML = '<div class="grid" style="margin-top:0">' +
+    panel('c12', 'Campaign Map', 'GeoJSON boundaries with campaign scope context.', '<div id="mapWrap" style="height:70vh;min-height:420px;border-radius:12px;overflow:hidden;border:1px solid var(--line2)"></div><p class="note" id="mapNote" style="margin-top:10px">Loading GeoJSON…</p>') +
+    '</div>';
+  setTimeout(async function(){
+    try {
+      const wrap = document.getElementById('mapWrap'); if (!wrap) return;
+      if (MAP_INSTANCE) { try { MAP_INSTANCE.remove(); } catch(e){} MAP_INSTANCE = null; }
+      MAP_INSTANCE = L.map('mapWrap', { zoomControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(MAP_INSTANCE);
+      const gj = await loadGeoJsonData();
+      const note = document.getElementById('mapNote');
+      if (!gj) {
+        MAP_INSTANCE.setView([9.03, 38.74], 11);
+        if (note) note.innerHTML = 'GeoJSON could not be loaded automatically (the provided Google Drive link may require access). To display it, add the file to <code>campaign-portal/assets/campaign-map.geojson</code> (public in this site) and refresh. Source: <a href="https://drive.google.com/file/d/1-uZLtooHFozwC95s0opEH2KRdrJiWd6u/view?usp=drive_link" target="_blank" rel="noopener">Google Drive GeoJSON</a>';
+        setTimeout(()=>{ try{ MAP_INSTANCE.invalidateSize(); }catch(e){} }, 120);
+        return;
+      }
+      const normName = s => String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim();
+      const covByWoreda = {}, covByZone = {};
+      try {
+        rollup(unitRows(), r => r.u.woreda).forEach(g => { covByWoreda[normName(g.key)] = g.cov; });
+        rollup(unitRows(), r => r.u.zone).forEach(g => { covByZone[normName(g.key)] = g.cov; });
+      } catch(e){}
+      function findCov(p){
+        const keys = ['woreda','Woreda','WOREDA','woreda_name','Woreda_Name','woredaName','subcity','Subcity','SUBCITY','zone','Zone','ZONE','name','NAME','Name','ADM3_EN','ADM2_EN','ADM1_EN','W_NAME','Z_NAME'];
+        for (const k of keys){
+          if (p && p[k] != null){
+            const n = normName(p[k]);
+            if (covByWoreda[n] != null) return covByWoreda[n];
+            if (covByZone[n] != null) return covByZone[n];
+          }
+        }
+        return null;
+      }
+      function styleFor(feature){
+        const p = feature && feature.properties ? feature.properties : {};
+        const covVal = findCov(p);
+        const color = covVal==null ? '#1E6BFF' : STATUS_COL[status(covVal)];
+        return { color: '#0F2552', weight: 1, fillColor: color, fillOpacity: covVal==null ? 0.25 : 0.55 };
+      }
+      function onEach(feature, layer){
+        const p = feature && feature.properties ? feature.properties : {};
+        const name = p.woreda || p.Woreda || p.woreda_name || p.name || p.NAME || p.Name || p.ADM3_EN || p.ADM2_EN || p.subcity || p.zone || 'Feature';
+        let details = '<b>'+esc(name)+'</b>';
+        const covVal = findCov(p);
+        if (covVal!=null) details += '<br>Coverage: '+pct(covVal);
+        const shown = [];
+        Object.keys(p).slice(0,10).forEach(k=>{ if (p[k]!=null && String(p[k]).trim()!=='') shown.push('<br>'+esc(k)+': '+esc(p[k])); });
+        details += shown.join('');
+        layer.bindPopup(details);
+      }
+      const layer = L.geoJSON(gj, { style: styleFor, onEachFeature: onEach }).addTo(MAP_INSTANCE);
+      try { MAP_INSTANCE.fitBounds(layer.getBounds(), { padding:[20,20] }); } catch(e){ MAP_INSTANCE.setView([9.03, 38.74], 11); }
+      if (note) note.textContent = 'GeoJSON loaded (' + (layer.getLayers?layer.getLayers().length:0) + ' feature(s)). Areas are colored by campaign coverage when names match woreda/zone data.';
+      setTimeout(()=>{ try{ MAP_INSTANCE.invalidateSize(); }catch(e){} }, 120);
+    } catch(e){
+      const note = document.getElementById('mapNote'); if (note) note.textContent = 'Map error: ' + (e && e.message ? e.message : e);
+    }
+  }, 0);
+}
+
 /* ---------- Shell ---------- */
-const RENDER = { overview:renderOverview, geo:renderGeo, vaccine:renderVaccine, community:renderCommunity, quality:renderQuality };
+const RENDER = { overview:renderOverview, geo:renderGeo, vaccine:renderVaccine, community:renderCommunity, map:renderMap, quality:renderQuality };
 function render() {
   if (!M) return;
   killCharts(); updateHeader();
