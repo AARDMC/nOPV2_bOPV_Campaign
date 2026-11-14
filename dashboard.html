@@ -323,16 +323,19 @@ main,.bannerhost,.filters-inner,.tabs,.top-inner{max-width:100%}
 #presenter .p-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
 #presenter .slide{width:min(1380px,98vw);min-height:min(820px,88vh);background:#ffffff;border:1px solid #d9e5f2;border-radius:16px;box-shadow:0 14px 36px rgba(15,37,82,.10);padding:0;display:none;flex-direction:column;overflow:hidden}
 #presenter .slide.active{display:flex}
-#presenter .s-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;background:linear-gradient(180deg,#f8fbff,#ffffff);border-bottom:1px solid #d9e5f2}
+#presenter .s-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;background:linear-gradient(100deg,#0B2E6B 0%,#1558B8 55%,#0E7490 100%);border-bottom:1px solid rgba(255,255,255,.18);color:#fff}
 #presenter .s-head .brand{display:flex;align-items:center;gap:12px;min-width:0}
-#presenter .s-head img{height:48px;width:auto;max-width:150px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;border:1px solid #e2ebf6}
-#presenter .s-head .bt{font-size:14px;line-height:1.2;color:#0f2552;font-weight:700}
-#presenter .s-head .bt small{display:block;font-size:11px;color:#4a6286;font-weight:600}
-#presenter .s-head .meta{font-size:12px;color:#35527a;text-align:right;font-weight:600}
+#presenter .s-head img{height:48px;width:auto;max-width:150px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;border:1px solid rgba(255,255,255,.35)}
+#presenter .s-head .bt{font-size:14px;line-height:1.2;color:#fff;font-weight:700}
+#presenter .s-head .bt small{display:block;font-size:11px;color:#dbeafe;font-weight:600}
+#presenter .s-head .meta{font-size:12px;color:#e6f3ff;text-align:right;font-weight:600}
 #presenter .s-body{flex:1;padding:18px 24px;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
-#presenter .s-foot{display:flex;justify-content:space-between;gap:10px;padding:10px 22px;background:#f8fbff;border-top:1px solid #d9e5f2;font-size:12px;color:#4a6286}
+#presenter .s-foot{display:flex;justify-content:space-between;gap:10px;padding:10px 22px;background:linear-gradient(100deg,#0B2E6B 0%,#1558B8 100%);border-top:1px solid rgba(255,255,255,.15);font-size:12px;color:#eaf4ff}
 #presenter .slide h1{margin:0;font-size:44px;line-height:1.12;color:#0f2552}
 #presenter .slide h2{margin:0;font-size:30px;line-height:1.2;color:#0f2552}
+#presenter:fullscreen .p-stage,#presenter:-webkit-full-screen .p-stage{padding:0;align-items:stretch;justify-content:stretch}
+#presenter:fullscreen .slide,#presenter:-webkit-full-screen .slide{width:100vw;min-height:100vh;height:100vh;max-width:none;border-radius:0;border:none}
+#presenter:fullscreen .s-body,#presenter:-webkit-full-screen .s-body{padding:20px 28px}
 #presenter .slide .muted{color:#4a6286;font-size:18px}
 #presenter .narr{background:#f4f8fd;border:1px solid #d9e5f2;border-radius:12px;padding:12px 14px;color:#1f3558;font-size:16px;line-height:1.45}
 #presenter .narr b{color:#0f2552}
@@ -1907,9 +1910,9 @@ function buildNarrationDeck(){
   const topGroups = (gs.length?gs.slice(0,8):[]);
   const lowUnits = low.slice(0,8);
 
-  slides.push({ kind:'chart', title:'Charts: daily progress', heading:'Daily progress (column charts)',
+  slides.push({ kind:'chart', title:'Daily progress', heading:'Daily progress',
     narration: [
-      'Column charts compare children vaccinated per day and daily targets to show progress and workload.',
+      'These visuals compare children vaccinated per day and daily targets to show progress and workload.',
       dt.length ? (M.days[peakI].label + ' recorded the highest daily vaccinations (' + fmt(dt[peakI].tot) + ').') : 'No daily data available.'
     ],
     charts: [
@@ -1918,20 +1921,20 @@ function buildNarrationDeck(){
     ]
   });
 
-  slides.push({ kind:'chart', title:'Charts: place & demographics', heading:'Where and who was vaccinated (pie/column charts)',
+  slides.push({ kind:'chart', title:'Place and demographics', heading:'Where and who was vaccinated',
     narration: [
-      'Charts show vaccination by place, age/history groups, and sex distribution to explain reach and coverage patterns.',
+      'These visuals show vaccination by place, age/history groups, and sex distribution to explain reach and coverage patterns.',
       'Most children were vaccinated at ' + (places[0] ? places[0][0] : 'reported places') + '.'
     ],
     charts: [
       { id:'ch_place', type:'pie', title:'Vaccination by place', labels: placeLabels, datasets:[{data: placeVals, backgroundColor:['#2563EB','#10B981','#F59E0B','#EC4899','#8B5CF6']}] },
-      { id:'ch_age', type:'bar', title:'Age & vaccination history', labels: ageLabels, datasets:[{label:'Children', data: ageVals, backgroundColor:['#0EA5E9','#38BDF8','#22C55E','#86EFAC']}] }
+      { id:'ch_age', type:'bar', title:'Age and vaccination history', labels: ageLabels, datasets:[{label:'Children', data: ageVals, backgroundColor:['#0EA5E9','#38BDF8','#22C55E','#86EFAC']}] }
     ]
   });
 
-  slides.push({ kind:'chart', title:'Charts: coverage comparison', heading:'Coverage comparison charts',
+  slides.push({ kind:'chart', title:'Coverage comparison', heading:'Coverage comparison',
     narration: [
-      'These charts highlight highest and lowest coverage areas to support targeted follow-up and supervision.',
+      'These visuals highlight highest and lowest coverage areas to support targeted follow-up and supervision.',
       gs.length ? ('Highest: ' + gs[0].key + ' (' + pct(gs[0].cov) + '), lowest: ' + gs[gs.length-1].key + ' (' + pct(gs[gs.length-1].cov) + ').') : 'Coverage comparison data is limited.'
     ],
     charts: [
@@ -1940,9 +1943,9 @@ function buildNarrationDeck(){
     ]
   });
 
-  slides.push({ kind:'chart', title:'Charts: vaccine & sex', heading:'Vaccine use and sex distribution charts',
+  slides.push({ kind:'chart', title:'Vaccine use and sex', heading:'Vaccine use and sex distribution',
     narration: [
-      'Charts summarize nOPV2/bOPV vial status and sex distribution of vaccinated children.',
+      'These visuals summarize nOPV2/bOPV vial status and sex distribution of vaccinated children.',
       'nOPV2 wastage: ' + pct(w) + ', bOPV wastage: ' + pct(bw) + '.'
     ],
     charts: [
