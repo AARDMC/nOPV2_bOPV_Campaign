@@ -200,7 +200,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetch(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
   function postViaIframe(body){ return new Promise(function(resolve,reject){ var url=window.CAMPAIGN_API_URL; if(!url){reject(fail('No server URL'));return;} var id='r'+Math.floor(Math.random()*1e9).toString(36); var iframe=document.createElement('iframe'); iframe.name=id; iframe.style.cssText='position:absolute;width:0;height:0;border:0;visibility:hidden'; var form=document.createElement('form'); form.method='POST'; form.action=url; form.target=id; form.style.display='none'; var fields={action:body.action,payload:JSON.stringify(body.payload||{}),token:body.token||'',transport:'iframe',requestId:id}; Object.keys(fields).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);}); var settled=false; var timer=setTimeout(function(){finish();reject(fail('Server not responding'));},60000); function finish(){if(settled)return; settled=true; clearTimeout(timer); window.removeEventListener('message',onMessage); setTimeout(function(){if(form.parentNode)form.parentNode.removeChild(form); if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},1500);} function onMessage(ev){var d=ev.data; if(!d||d.source!=='nopv2-campaign'||d.requestId!==id) return; finish(); resolve(d.result);} window.addEventListener('message',onMessage); document.body.appendChild(iframe); document.body.appendChild(form); form.submit(); }); }
   function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; return postJson(body).catch(function(){return postViaIframe(body);}).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token');}catch(e){} } return out; }); }
-  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getLogo'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; if(action==='getDashboardData') p={force:!!args[0]}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
+  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getLogo'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; if(action==='getDashboardData') p={force:!!args[0]}; if(action==='getDashboardExport') p={}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
   window.google=window.google||{}; window.google.script=window.google.script||{};
   Object.defineProperty(window.google.script,'run',{configurable:true,get:function(){return makeRunner();}});
 })();
@@ -210,12 +210,12 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 <div id="dashLogin">
   <div class="login-card">
     <h2>Dashboard Login</h2>
-    <p>Enter your Sub City ID, PHEM/EPHI ID, or Woreda ID to view the monitoring dashboard.</p>
-    <label>Sub City / PHEM / EPHI / Woreda ID</label>
-    <input id="dashId" type="text" placeholder="e.g. AK1136, @AAPHEM123, or 1000" autocomplete="off">
+    <p>Enter your ID to view the monitoring dashboard.</p>
+    <label>Your ID</label>
+    <input id="dashId" type="text" placeholder="Enter your ID" autocomplete="off">
     <button id="dashLoginBtn">Open Dashboard</button>
     <div class="err" id="dashErr"></div>
-    <div class="hint">Sub city officers see only their sub city. PHEM/EPHI IDs see the full Addis Ababa dashboard. Woreda officers can sign in with their Woreda ID to see only their woreda.</div>
+    <div class="hint">Sign in with your assigned ID to view your dashboard.</div>
   </div>
 </div>
 
@@ -250,6 +250,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <div class="fld"><label for="fWoreda">Woreda</label><select id="fWoreda" disabled></select></div>
     <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
+    <button class="btn solid" id="btnExport" type="button">Export Excel</button>
   </div>
 </div>
 <div class="tabbar">
@@ -823,6 +824,191 @@ function doDashLogin() {
     .dashboardLogin({ id: id });
 }
 
+/* ===================== EXPORT (mirror of Google Sheet) ===================== */
+function _colName(n){ let s=''; while(n>0){ const r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26);} return s; }
+function _xmlEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+function _num(v){ if(v===''||v==null||v===undefined) return ''; const n=Number(v); return isFinite(n)?n:''; }
+let _crcTable=null;
+function _crc32(bytes){ if(!_crcTable){ _crcTable=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); _crcTable[n]=c>>>0; } } let c=0xFFFFFFFF; for(let i=0;i<bytes.length;i++) c=_crcTable[(c^bytes[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function _zipStore(files){ const enc=new TextEncoder(); const parts=[]; const central=[]; let offset=0; const now=new Date(); const dosTime=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xFFFF; const dosDate=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF; files.forEach(f=>{ const name=enc.encode(f.name); const data=typeof f.data==='string'?enc.encode(f.data):f.data; const crc=_crc32(data); const lh=new Uint8Array(30+name.length); const lv=new DataView(lh.buffer); lv.setUint32(0,0x04034b50,true); lv.setUint16(4,20,true); lv.setUint16(6,0x0800,true); lv.setUint16(8,0,true); lv.setUint16(10,dosTime,true); lv.setUint16(12,dosDate,true); lv.setUint32(14,crc,true); lv.setUint32(18,data.length,true); lv.setUint32(22,data.length,true); lv.setUint16(26,name.length,true); lv.setUint16(28,0,true); lh.set(name,30); parts.push(lh,data); const cd=new Uint8Array(46+name.length); const cv=new DataView(cd.buffer); cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true); cv.setUint16(8,0x0800,true); cv.setUint16(10,0,true); cv.setUint16(12,dosTime,true); cv.setUint16(14,dosDate,true); cv.setUint32(16,crc,true); cv.setUint32(20,data.length,true); cv.setUint32(24,data.length,true); cv.setUint16(28,name.length,true); cv.setUint16(30,0,true); cv.setUint16(32,0,true); cv.setUint16(34,0,true); cv.setUint16(36,0,true); cv.setUint32(38,0,true); cv.setUint32(42,offset,true); cd.set(name,46); central.push(cd); offset+=lh.length+data.length; }); const centralSize=central.reduce((n,c)=>n+c.length,0); const eocd=new Uint8Array(22); const ev=new DataView(eocd.buffer); ev.setUint32(0,0x06054b50,true); ev.setUint16(8,files.length,true); ev.setUint16(10,files.length,true); ev.setUint32(12,centralSize,true); ev.setUint32(16,offset,true); return new Blob(parts.concat(central,[eocd]),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); }
+
+const DASH_HEADERS = ["SN","Region","Zone","Woreda","Campaign Date","Total Planned Target","Daily Target","Vaccinated before (0–11m)","Not vaccinated before (0–11m)","Vaccinated before (12–59m)","Not vaccinated before (12–59m)","Total Vaccinated (0–59m)","Male","Female","Daily Coverage (%)","Coverage from Total (%)","nOPV2 Vials Received","nOPV2 Vials Used","nOPV2 Vials Partially Used","nOPV2 Vials Returned – Good Condition","nOPV2 Vials Broken","nOPV2 Vials Returned – Bad Condition (Stage 3 & 4)","nOPV2 Vials Lost","nOPV2 Wastage Rate (%)","nOPV2 Daily Vaccine Balance","bOPV Vials Received","bOPV Vials Used","bOPV Vials Partially Used","bOPV Vials Returned – Good Condition","bOPV Vials Broken","bOPV Vials Returned – Bad Condition (Stage 3 & 4)","bOPV Vials Lost","bOPV Wastage Rate (%)","bOPV Daily Vaccine Balance","Number of AFP Alerts","Number of AEFI Alerts","Number of HHs visited by social mobilizers","Number of parents or caregivers participated in group discussion (Community Meetings)","Number of parents or caregivers reached with Home-to-Home Education / interpersonal communication","Number of zero dose children identified and linked","Number of zero dose children vaccinated","Number of under vaccinated children identified and linked","Number of under vaccinated children vaccinated","Number of Vaccination Teams","Number of Vaccination Teams Reported","Children Vaccinated in House","Children Vaccinated in School","Children Vaccinated in Market","Children Vaccinated in Street","Children Vaccinated in Other Place","Children Unvaccinated During Visit (Today)","Total Vaccinated by Place","Campaign Date (Date)","Health Center Name","Remark"];
+
+// formula columns (0-based): G(6),L(11),N(13),O(14),P(15),X(23),Y(24),AG(32),AH(33),AZ(51)
+function _formulaFor(colIdx, r){
+  switch(colIdx){
+    case 11: return `H${r}+I${r}+J${r}+K${r}`;
+    case 13: return `IF(M${r}="","",L${r}-M${r})`;
+    case 14: return `IF(G${r}=0,"",L${r}/G${r})`;
+    case 15: return `IF(F${r}=0,"",L${r}/F${r})`;
+    case 23: return `IF((Q${r}-T${r})*50=0,"",((Q${r}-T${r})*50-L${r})/((Q${r}-T${r})*50))`;
+    case 24: return `Q${r}-(R${r}+S${r}+T${r}+U${r}+V${r}+W${r})`;
+    case 32: return `IF((Z${r}-AC${r})*20=0,"",((Z${r}-AC${r})*20-L${r})/((Z${r}-AC${r})*20))`;
+    case 33: return `Z${r}-(AA${r}+AB${r}+AC${r}+AD${r}+AE${r}+AF${r})`;
+    case 51: return `AT${r}+AU${r}+AV${r}+AW${r}+AX${r}`;
+    default: return null;
+  }
+}
+const _formulaCols = new Set([11,13,14,15,23,24,32,33,51]);
+const _pctCols = new Set([14,15,23,32]);
+
+function _cell(ref, val, opts){
+  opts = opts||{};
+  const s = opts.style!=null ? ` s="${opts.style}"` : '';
+  if(opts.formula){
+    // include cached value if provided
+    const v = (val===''||val==null||!isFinite(Number(val))) ? '' : `<v>${Number(val)}</v>`;
+    return `<c r="${ref}"${s}>${v}<f>${_xmlEsc(opts.formula)}</f></c>`;
+  }
+  if(val===''||val==null||val===undefined) return `<c r="${ref}"${s}/>`;
+  if(typeof val==='number' && isFinite(val)) return `<c r="${ref}"${s}><v>${val}</v></c>`;
+  // try numeric strings
+  const n=Number(val); if(val!=='' && typeof val!=='boolean' && isFinite(n) && String(val).trim()!=='' && /^-?\d+(\.\d+)?$/.test(String(val).trim())) return `<c r="${ref}"${s}><v>${n}</v></c>`;
+  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${_xmlEsc(val)}</t></is></c>`;
+}
+
+function _sheetXml(dayName, headers, rows){
+  const totalCols = headers.length;
+  const lastCol = _colName(totalCols);
+  const rowXml = [];
+  // header row
+  rowXml.push(`<row r="1" ht="24" customHeight="1">${headers.map((h,i)=>_cell(_colName(i+1)+'1', h, {style:1})).join('')}</row>`);
+  for(let i=0;i<rows.length;i++){
+    const r = i+2;
+    const data = rows[i] || [];
+    const cells = [];
+    for(let c=0;c<totalCols;c++){
+      const ref = _colName(c+1)+r;
+      if(_formulaCols.has(c)){
+        const f = _formulaFor(c,r);
+        const style = _pctCols.has(c) ? 4 : 0;
+        cells.push(_cell(ref, '', {formula:f, style:style}));
+      } else {
+        let v = data[c];
+        if(v===undefined || v===null) v='';
+        // keep as number if numeric
+        const nv = (v!=='' && isFinite(Number(v)) && String(v).trim()!=='') ? Number(v) : v;
+        cells.push(_cell(ref, nv, {style:0}));
+      }
+    }
+    rowXml.push(`<row r="${r}">${cells.join('')}</row>`);
+  }
+  const lastRow = Math.max(2, rows.length+1);
+  const colsXml = `<cols>` + headers.map((_,i)=>`<col min="${i+1}" max="${i+1}" width="${i<5?14:(i>50?18:13)}" customWidth="1"/>`).join('') + `</cols>`;
+  // Conditional formatting
+  const cf = [];
+  // nOPV2 wastage (X=24) > 10% red
+  cf.push(`<conditionalFormatting sqref="X2:X${lastRow}"><cfRule type="cellIs" dxfId="0" priority="1" operator="greaterThan"><formula>0.1</formula></cfRule></conditionalFormatting>`);
+  // bOPV wastage (AG=33) > 10% red
+  cf.push(`<conditionalFormatting sqref="AG2:AG${lastRow}"><cfRule type="cellIs" dxfId="0" priority="2" operator="greaterThan"><formula>0.1</formula></cfRule></conditionalFormatting>`);
+  // coverage O,P >=100% green, <80% yellow
+  cf.push(`<conditionalFormatting sqref="O2:P${lastRow}"><cfRule type="cellIs" dxfId="1" priority="3" operator="greaterThanOrEqual"><formula>1</formula></cfRule><cfRule type="cellIs" dxfId="2" priority="4" operator="lessThan"><formula>0.8</formula></cfRule></conditionalFormatting>`);
+  // negative balances Y,AH red
+  cf.push(`<conditionalFormatting sqref="Y2:Y${lastRow}"><cfRule type="cellIs" dxfId="0" priority="5" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>`);
+  cf.push(`<conditionalFormatting sqref="AH2:AH${lastRow}"><cfRule type="cellIs" dxfId="0" priority="6" operator="lessThan"><formula>0</formula></cfRule></conditionalFormatting>`);
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/>
+${colsXml}
+<sheetData>${rowXml.join('')}</sheetData>
+${cf.join('')}
+</worksheet>`;
+}
+
+function buildMirrorWorkbook(exportData){
+  const dayNames = ["Day 1","Day 2","Day 3","Day 4","Mop Up Day 1","Mop Up Day 2","Cumulative"];
+  // styles: 0 normal,1 header,2 title(blue),3 redFill text? we use dxf for CF; also 4 percent
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="1"><numFmt numFmtId="164" formatCode="0.00%"/></numFmts>
+<fonts count="2">
+<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>
+</fonts>
+<fills count="3">
+<fill><patternFill patternType="none"/></fill>
+<fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF1E6BFF"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="5">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+<dxfs count="3">
+<dxf><font><color rgb="FF9C0006"/></font><fill><patternFill><bgColor rgb="FFFFC7CE"/></patternFill></fill></dxf>
+<dxf><font><color rgb="FF006100"/></font><fill><patternFill><bgColor rgb="FFC6EFCE"/></patternFill></fill></dxf>
+<dxf><font><color rgb="FF9C6500"/></font><fill><patternFill><bgColor rgb="FFFFEB9C"/></patternFill></fill></dxf>
+</dxfs>
+</styleSheet>`;
+
+  const workbookSheets = dayNames.map((d,i)=>`<sheet name="${_xmlEsc(d)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('');
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets>${workbookSheets}</sheets></workbook>`;
+  const rels = dayNames.map((d,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('') + `<Relationship Id="rId${dayNames.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+  const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`;
+  const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const ctSheets = dayNames.map((d,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('');
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+${ctSheets}
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+  const files = [
+    {name:'[Content_Types].xml', data:contentTypes},
+    {name:'_rels/.rels', data:rootRels},
+    {name:'xl/workbook.xml', data:workbookXml},
+    {name:'xl/_rels/workbook.xml.rels', data:workbookRels},
+    {name:'xl/styles.xml', data:stylesXml}
+  ];
+  dayNames.forEach((d,i)=>{
+    const dd = (exportData && exportData.days && exportData.days[d]) || {headers:DASH_HEADERS, rows:[]};
+    const hdr = (dd.headers && dd.headers.length>=55) ? dd.headers.slice(0,55) : DASH_HEADERS;
+    files.push({name:`xl/worksheets/sheet${i+1}.xml`, data:_sheetXml(d, hdr, dd.rows || [])});
+  });
+  return _zipStore(files);
+}
+
+function doDashboardExport(){
+  if(!M){ toast('Load the dashboard first.', true); return; }
+  setBusy('Preparing export', 'Building Excel mirror of the campaign sheet…');
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(!res || !res.ok){ setBusy(null); toast('Export failed: '+esc((res&&res.error)||'unknown'), true); return; }
+      try{
+        const blob = buildMirrorWorkbook(res);
+        const scope = res.scope || {};
+        let name = 'nOPV2_Campaign';
+        if(scope.woreda) name += '_' + scope.woreda.replace(/[^\w.-]+/g,'_');
+        else if(scope.zone) name += '_' + scope.zone.replace(/[^\w.-]+/g,'_');
+        else name += '_Addis_Ababa';
+        name += '.xlsx';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 300000);
+        setBusy(null); toast('Export ready: '+esc(name));
+      } catch(e){ setBusy(null); toast('Export failed: '+esc(e&&e.message?e.message:e), true); }
+    })
+    .withFailureHandler(function(err){ setBusy(null); toast('Export failed: '+esc(err&&err.message?err.message:err), true); })
+    .getDashboardExport();
+}
+
+
+
 function init() {
   setupChartDefaults();
   $('#heroArt').innerHTML = ART_SVG; $('#bannerArt').innerHTML = ART_SVG;
@@ -843,9 +1029,19 @@ function init() {
   document.getElementById('dashId').addEventListener('keydown', e => { if (e.key === 'Enter') doDashLogin(); });
 
   // Auto-auth: woreda officer session -> direct to their woreda
-  const epiToken = sessionStorage.getItem('epi_token');
+  let epiToken = sessionStorage.getItem('epi_token');
   const dashToken = sessionStorage.getItem('dash_token');
   const params = new URLSearchParams(location.search);
+  if (!epiToken) {
+    try {
+      const bridged = localStorage.getItem('epi_token_bridge');
+      if (bridged && (params.get('woredaID') || sessionStorage.getItem('epi_woreda_bridge'))) {
+        epiToken = bridged;
+        sessionStorage.setItem('epi_token', bridged);
+      }
+      localStorage.removeItem('epi_token_bridge');
+    } catch (e) {}
+  }
   if (params.get('woredaID') && epiToken) {
     // officer coming from data entry
     document.getElementById('dashLogin').classList.add('hidden');

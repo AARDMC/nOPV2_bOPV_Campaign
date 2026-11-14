@@ -409,17 +409,17 @@
     <h2>nOPV2 / bOPV Campaign</h2>
     <div class="subtitle">Addis Ababa PHEM officer sign-in</div>
 
-    <div class="field"><label>Full Name</label><input type="text" id="logName" placeholder="e.g. Abebe Kebede" autocomplete="name"></div>
-    <div class="field"><label>Email</label><input type="email" id="logEmail" placeholder="you@example.com" autocomplete="email"></div>
-    <div class="field"><label>Phone</label><input type="tel" id="logPhone" placeholder="+251…" autocomplete="tel" inputmode="tel"></div>
-    <div class="field"><label>Woreda ID</label><input type="text" id="logWoredaID" placeholder="e.g. 1000" autocomplete="off"></div>
+    <div class="field"><label>Full Name</label><input type="text" id="logName" placeholder="Full name" autocomplete="name"></div>
+    <div class="field"><label>Email</label><input type="email" id="logEmail" placeholder="Email address" autocomplete="email"></div>
+    <div class="field"><label>Phone</label><input type="tel" id="logPhone" placeholder="Phone number" autocomplete="tel" inputmode="tel"></div>
+    <div class="field"><label>Woreda ID</label><input type="text" id="logWoredaID" placeholder="Woreda ID" autocomplete="off"></div>
 
     <button id="loginBtn" onclick="doLogin()"><span id="loginBtnIcon"></span><span id="loginBtnText">Sign In</span></button>
     <div class="err" id="loginErr"></div>
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-      <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;">Dashboard access (Sub City / PHEM / EPHI / Woreda ID)</div>
+      <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;">Dashboard access</div>
       <div style="display:flex;gap:8px;">
-        <input type="text" id="dashIdLogin" placeholder="e.g. AK1136, @AAPHEM123, 1000" style="flex:1;padding:11px 12px;border:2px solid var(--border);border-radius:12px;font-size:13px;font-family:inherit;" autocomplete="off">
+        <input type="text" id="dashIdLogin" placeholder="Enter your ID" style="flex:1;padding:11px 12px;border:2px solid var(--border);border-radius:12px;font-size:13px;font-family:inherit;" autocomplete="off">
         <button type="button" onclick="openDashboardFromLogin()" style="padding:11px 14px;border:none;border-radius:12px;background:linear-gradient(135deg,#06B6D4,#1E6BFF);color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;">Open Dashboard</button>
       </div>
       <div id="dashLoginErr" style="color:#c62828;font-size:11px;margin-top:6px;min-height:16px;text-align:center;font-weight:600;"></div>
@@ -726,6 +726,10 @@ document.getElementById('icoGear').innerHTML = ICONS.settings;
 
 function openDashboard() {
   const wid = state.selectedRow ? state.selectedRow.woredaID : (state.officer ? state.officer.woredaID : "");
+  try {
+    if (state.token) localStorage.setItem("epi_token_bridge", state.token);
+    if (wid) localStorage.setItem("epi_woreda_bridge", wid);
+  } catch (e) {}
   const url = wid ? ("dashboard.html?woredaID=" + encodeURIComponent(wid)) : "dashboard.html";
   window.open(url, "_blank", "noopener");
 }
