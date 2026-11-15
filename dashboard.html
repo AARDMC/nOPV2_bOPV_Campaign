@@ -1671,7 +1671,7 @@ function renderFieldPhotos() {
   const cards = FIELD_PHOTOS.map(function(p){
     return '<figure class="field-photo" tabindex="0" role="button" aria-label="Open full size photo of ' + esc(p.name) + '" data-full="' + esc(p.url) + '" data-name="' + esc(p.name) + '">' +
       '<img src="' + esc(p.thumb) + '" alt="' + esc(p.name) + '" loading="lazy" onerror="this.closest(\'.field-photo\').remove()">' +
-      '<figcaption><b>' + esc(p.zone) + '</b><span>' + esc(p.woreda) + '</span></figcaption>' +
+      '<figcaption><b>' + esc(p.zone) + '</b><span>' + esc(p.woreda) + (p.day ? ' · ' + esc(p.day) : '') + '</span></figcaption>' +
     '</figure>';
   }).join('');
   return '<section class="field-photos" aria-label="Field photos">' +
