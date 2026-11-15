@@ -1156,12 +1156,16 @@ function renderMap(){
           const wnum = wNumOf(r.u.woreda) || wNumOf(r.u.woredaID) || wid;
           const zkeys = [];
           [zc, String(r.u.zone || '').trim(), zn].forEach(k => { if (k && zkeys.indexOf(k) < 0) zkeys.push(k); });
+          const wnumKey = (wnum && wnum !== 'NaN') ? String(parseInt(wnum,10)) : '';
+          const widKey = (wid && wid !== 'NaN') ? String(parseInt(wid,10)) : '';
           if (wn) placeByWoredaName[wn] = (placeByWoredaName[wn] || 0) + pt; // fallback (unique names only ideal)
-          if (wid && wid !== 'NaN') {
-            placeByWoredaIdGlobal[wid] = (placeByWoredaIdGlobal[wid] || 0) + pt;
-            zkeys.forEach(zk => { placeByZoneWNum[zk + '|' + wid] = (placeByZoneWNum[zk + '|' + wid] || 0) + pt; });
+          if (widKey) {
+            placeByWoredaIdGlobal[widKey] = (placeByWoredaIdGlobal[widKey] || 0) + pt;
+            zkeys.forEach(zk => { placeByZoneWNum[zk + '|' + widKey] = (placeByZoneWNum[zk + '|' + widKey] || 0) + pt; });
           }
-          if (wnum && wnum !== 'NaN') zkeys.forEach(zk => { placeByZoneWNum[zk + '|' + String(parseInt(wnum,10))] = (placeByZoneWNum[zk + '|' + String(parseInt(wnum,10))] || 0) + pt; });
+          if (wnumKey && wnumKey !== widKey) {
+            zkeys.forEach(zk => { placeByZoneWNum[zk + '|' + wnumKey] = (placeByZoneWNum[zk + '|' + wnumKey] || 0) + pt; });
+          }
           if (wn) zkeys.forEach(zk => { placeByZoneWNum[zk + '|name|' + wn] = (placeByZoneWNum[zk + '|name|' + wn] || 0) + pt; });
           if (zc) placeByZoneCanon[zc] = (placeByZoneCanon[zc] || 0) + pt;
           if (zn) placeByZoneNorm[zn] = (placeByZoneNorm[zn] || 0) + pt;
