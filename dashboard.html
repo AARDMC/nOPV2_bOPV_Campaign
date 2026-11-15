@@ -1107,8 +1107,8 @@ function renderMap(){
       const normName = s => String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').trim();
       const geoNorm = s => String(s==null?'':s).toLowerCase().replace(/sub[\s_\-]*city/g,'').replace(/kifle[\s_\-]*ketema/g,'').replace(/[^a-z0-9]/g,'');
       const subAliases = {
-        'Addis Ketema':['addisketema','addisketemaa','addiskitema'],
-        'Akaki Kality':['akakikality','akakikaliti','akakikalit'],
+        'Addis Ketema':['addisketema','addisketemaa','addiskitema','addisketma','adisketema'],
+        'Akaki Kality':['akakikality','akakikaliti','akakikalit','akakality'],
         'Arada':['arada','aradaa'],
         'Bole':['bole'],
         'Gulele':['gulele','gullele'],
@@ -1125,6 +1125,11 @@ function renderMap(){
         for (const s of keys) if (geoNorm(s) === n) return s;
         for (const s of keys) if ((subAliases[s]||[]).indexOf(n) >= 0) return s;
         for (const s of keys) { const m = geoNorm(s); if (n.length>4 && (m.indexOf(n)===0 || n.indexOf(m)===0)) return s; }
+        // tolerate minor typos (e.g. missing/extra letter)
+        for (const s of keys) {
+          const m = geoNorm(s);
+          if (Math.abs(m.length - n.length) <= 1 && (m.indexOf(n) >= 0 || n.indexOf(m) >= 0)) return s;
+        }
         return '';
       };
       const woredaNum = val => {
@@ -1149,13 +1154,15 @@ function renderMap(){
           const wn = normName(r.u.woreda);
           const wid = (r.u.woredaID != null && String(r.u.woredaID).trim() !== '') ? String(parseInt(r.u.woredaID, 10)) : '';
           const wnum = wNumOf(r.u.woreda) || wNumOf(r.u.woredaID) || wid;
+          const zkeys = [];
+          [zc, String(r.u.zone || '').trim(), zn].forEach(k => { if (k && zkeys.indexOf(k) < 0) zkeys.push(k); });
           if (wn) placeByWoredaName[wn] = (placeByWoredaName[wn] || 0) + pt; // fallback (unique names only ideal)
           if (wid && wid !== 'NaN') {
             placeByWoredaIdGlobal[wid] = (placeByWoredaIdGlobal[wid] || 0) + pt;
-            if (zc) placeByZoneWNum[zc + '|' + wid] = (placeByZoneWNum[zc + '|' + wid] || 0) + pt;
+            zkeys.forEach(zk => { placeByZoneWNum[zk + '|' + wid] = (placeByZoneWNum[zk + '|' + wid] || 0) + pt; });
           }
-          if (wnum && wnum !== 'NaN' && zc) placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))] = (placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))] || 0) + pt;
-          if (zc && wn) placeByZoneWNum[zc + '|name|' + wn] = (placeByZoneWNum[zc + '|name|' + wn] || 0) + pt;
+          if (wnum && wnum !== 'NaN') zkeys.forEach(zk => { placeByZoneWNum[zk + '|' + String(parseInt(wnum,10))] = (placeByZoneWNum[zk + '|' + String(parseInt(wnum,10))] || 0) + pt; });
+          if (wn) zkeys.forEach(zk => { placeByZoneWNum[zk + '|name|' + wn] = (placeByZoneWNum[zk + '|name|' + wn] || 0) + pt; });
           if (zc) placeByZoneCanon[zc] = (placeByZoneCanon[zc] || 0) + pt;
           if (zn) placeByZoneNorm[zn] = (placeByZoneNorm[zn] || 0) + pt;
         }
@@ -1183,17 +1190,35 @@ function renderMap(){
       function findPlaceByFeature(x){
         const p = x.p || {};
         const zc = x.subCanon || canonSub(x.sub) || canonSub(p.subcity || p.Subcity || p.zone || p.Zone || '');
+        const zraw = String(x.sub || p.subcity || p.Subcity || p.zone || p.Zone || '').trim();
+        const zn = normName(zraw || x.sub || '');
+        const zkeys = [];
+        [zc, zraw, zn].forEach(k => { if (k && zkeys.indexOf(k) < 0) zkeys.push(k); });
         const wid = (x.wid != null && String(x.wid).trim() !== '') ? String(parseInt(x.wid, 10)) : '';
         const wnum = wid || wNumOf(x.label) || wNumOf(x.short) || wNumOf(x.pathid);
         // prefer sub-city + woreda match to avoid cross-sub-city ID collisions
-        if (zc && wnum && placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))] != null) return placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))];
-        if (zc) {
-          const nameCands = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short];
-          for (const c of nameCands){ if (c==null) continue; const n = normName(c); if (n && placeByZoneWNum[zc + '|name|' + n] != null) return placeByZoneWNum[zc + '|name|' + n]; }
+        if (wnum) {
+          const wk = String(parseInt(wnum,10));
+          for (const zk of zkeys) if (placeByZoneWNum[zk + '|' + wk] != null) return placeByZoneWNum[zk + '|' + wk];
         }
+        const nameCands = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short];
+        for (const zk of zkeys) {
+          for (const c of nameCands){ if (c==null) continue; const n = normName(c); if (n && placeByZoneWNum[zk + '|name|' + n] != null) return placeByZoneWNum[zk + '|name|' + n]; }
+        }
+        // global fallbacks (use with care)
         if (wid && placeByWoredaIdGlobal[wid] != null) return placeByWoredaIdGlobal[wid];
-        const candidates = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short];
-        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (n && placeByWoredaName[n]!=null) return placeByWoredaName[n]; }
+        for (const c of nameCands){ if (c==null) continue; const n = normName(c); if (n && placeByWoredaName[n]!=null) return placeByWoredaName[n]; }
+        // last resort: derive woreda number from feature and try any zone-woreda key ending with same number only when unambiguous
+        if (wnum) {
+          const wk = String(parseInt(wnum,10));
+          let found = null, amb = false;
+          Object.keys(placeByZoneWNum).forEach(k => {
+            if (k.endsWith('|' + wk) && k.indexOf('|name|') === -1) {
+              if (found == null) found = placeByZoneWNum[k]; else if (found !== placeByZoneWNum[k]) amb = true;
+            }
+          });
+          if (!amb && found != null) return found;
+        }
         return null; // no sub-city fallback for woreda features/markers
       }
 
