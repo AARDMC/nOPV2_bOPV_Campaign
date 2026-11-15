@@ -218,19 +218,28 @@
     }
     .hero-hc svg { width: 13px; height: 13px; stroke: #ffe08a; }
     .hero-hc b { color: #fff; font-weight: 700; }
-    .photo-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 12px; font-weight: 700; color: #fff;
-      background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.28); padding: 4px 14px 4px 6px; border-radius: 999px;
-      cursor: pointer; backdrop-filter: blur(8px); transition: background .2s ease, transform .2s ease; position: relative; z-index: 2; }
-    .photo-btn:hover { background: rgba(255,255,255,0.26); transform: translateY(-1px); }
-    .photo-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-    .photo-btn[disabled] { opacity: .6; cursor: default; transform: none; }
-    .photo-btn.has-photo { background: rgba(13,87,160,0.45); border-color: rgba(255,255,255,0.35); }
-    .photo-thumb { display: none; width: 32px; height: 32px; object-fit: cover; border-radius: 50%; border: 2px solid rgba(255,255,255,0.75); }
-    .photo-btn.has-photo .photo-thumb { display: block; }
-    .photo-plus { font-size: 15px; line-height: 1; margin-left: 2px; }
-    .photo-btn.has-photo .photo-plus { display: none; }
-    .photo-btn .photo-label { white-space: nowrap; }
-    @media (max-width: 640px) { .photo-btn .photo-label { display: none; } .photo-btn { padding: 4px; } }
+    .section-photo { background: linear-gradient(135deg, rgba(250,112,154,0.10), rgba(80,200,120,0.08)); }
+    .section-photo h4 { background: linear-gradient(135deg,#ea580c 0%,#c2410c 100%); }
+    .photo-question { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+    .photo-preview { position: relative; width: 168px; height: 126px; flex: 0 0 168px; border-radius: 14px; overflow: hidden; background: #eef2f7; border: 2px dashed rgba(15,37,82,.25); display: flex; align-items: center; justify-content: center; }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .photo-preview .photo-cam { font-size: 40px; }
+    .photo-preview.has-photo { border-style: solid; border-color: rgba(21,88,184,.4); }
+    .photo-preview.has-photo img { display: block; }
+    .photo-preview.has-photo .photo-cam { display: none; }
+    .photo-question-side { flex: 1 1 260px; display: flex; flex-direction: column; gap: 8px; }
+    .photo-q-title { font-size: 13px; font-weight: 800; color: #0F2552; margin: 0; }
+    .photo-q-hint { font-size: 12px; color: var(--text-light); line-height: 1.5; margin: 0; }
+    .photo-status { font-size: 12px; color: #0c6b4f; margin: 2px 0 0; font-weight: 600; }
+    .photo-status.warn { color: #b42318; }
+    .btn-photo { align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; min-height: 46px; padding: 10px 18px; border: none; border-radius: 12px;
+      background: linear-gradient(135deg,#1558B8,#0E7490); color: #fff; font-weight: 800; font-size: 13px; cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease; box-shadow: 0 6px 16px rgba(14,116,144,.35); }
+    .btn-photo:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(14,116,144,.4); }
+    .btn-photo:focus-visible { outline: 3px solid #0F2552; outline-offset: 2px; }
+    .btn-photo[disabled] { opacity: .55; cursor: default; transform: none; }
+    .btn-photo svg { width: 22px; height: 22px; stroke: #fff; }
+    @media (max-width: 640px) { .photo-preview { width: 100%; flex-basis: 100%; height: 150px; } }
     .info-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px;
       position: relative; z-index: 1; margin-top: 14px; max-height: 180px;
@@ -777,7 +786,8 @@ const ICONS = {
   target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
   key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
-  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>'
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="4"/></svg>'
 };
 
 // ================= STATE =================
@@ -1219,6 +1229,60 @@ function updateCoverageAlertsDisplay_(r, c) {
 }
 
 // ================= RENDER =================
+function exifOrientation_(file) {
+  return new Promise(function(resolve) {
+    const done = function(v) { resolve(v == null ? 1 : v); };
+    if (!file) return done(1);
+    const type = String(file.type || "").toLowerCase();
+    if (type && type.indexOf("jpeg") === -1 && type.indexOf("jpg") === -1) return done(1);
+    const reader = new FileReader();
+    reader.onerror = function() { done(1); };
+    reader.onload = function() {
+      try {
+        const buf = new Uint8Array(reader.result);
+        if (buf.length < 10 || buf[0] !== 0xFF || buf[1] !== 0xD8) return done(1);
+        let off = 2;
+        while (off + 10 <= buf.length) {
+          if (buf[off] !== 0xFF) break;
+          const marker = buf[off + 1];
+          const len = (buf[off + 2] << 8) | buf[off + 3];
+          if (marker === 0xDA) break; // start of image data
+          const seg = off + 4;
+          if (marker === 0xE1 && seg + 8 <= buf.length &&
+              String.fromCharCode(buf[seg], buf[seg + 1], buf[seg + 2], buf[seg + 3], buf[seg + 4], buf[seg + 5]) === "Exif\0\0") {
+            const tiff = seg + 6;
+            const little = buf[tiff] === 0x49 && buf[tiff + 1] === 0x49;
+            const dv = new DataView(buf.buffer, buf.byteOffset + tiff, Math.min(buf.byteLength - (buf.byteOffset + tiff), len));
+            const u16 = function(o) { return dv.getUint16(o, little); };
+            const u32 = function(o) { return dv.getUint32(o, little); };
+            const ifd0 = u32(4);
+            if (ifd0 + 2 > dv.byteLength) return done(1);
+            const count = u16(ifd0);
+            for (let i = 0; i < count; i++) {
+              const entry = ifd0 + 2 + i * 12;
+              if (entry + 12 > dv.byteLength) break;
+              if (u16(entry) === 0x0112) return done(u16(entry + 8));
+            }
+            return done(1);
+          }
+          off = seg + len - 2;
+          if (len < 2) break;
+        }
+        done(1);
+      } catch (e) { done(1); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/** Returns a friendly reason when a photo is recorded reversed/rotated, else null. */
+function photoOrientationIssue_(file) {
+  return exifOrientation_(file).then(function(o) {
+    const msg = { 2: "mirrored", 3: "upside down", 4: "upside down", 5: "rotated and mirrored", 6: "sideways", 7: "rotated and mirrored", 8: "sideways" };
+    return msg[o] || null;
+  });
+}
+
 function resizeImageToDataUrl_(file, maxSide, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1248,32 +1312,49 @@ function initPhotoUpload_() {
   if (!btn) return;
   const input = document.getElementById("photoFile");
   const thumb = document.getElementById("photoThumb");
+  const preview = document.getElementById("photoPreview");
   const label = document.getElementById("photoLabel");
-  const state = { hasPhoto: false };
-  btn.onclick = () => { if (!photoBusy_) input.click(); };
-  const paint = (hasPhoto, src, text) => {
-    state.hasPhoto = !!hasPhoto;
-    if (src && thumb) thumb.src = src;
-    if (thumb) thumb.style.display = hasPhoto ? "block" : "none";
-    if (btn) btn.classList.toggle("has-photo", !!hasPhoto);
-    if (label && text) label.textContent = text;
+  const status = document.getElementById("photoStatus");
+  let hasPhoto = false;
+  const paint = (has, src, note, isWarn) => {
+    hasPhoto = !!has;
+    if (preview) preview.classList.toggle("has-photo", hasPhoto);
+    if (thumb && src && hasPhoto) thumb.src = src;
+    if (label) label.textContent = hasPhoto ? "Replace photo" : "Snap or upload photo";
+    if (status) { status.textContent = note || ""; status.classList.toggle("warn", !!isWarn); }
   };
+  const setBusy = (on) => { photoBusy_ = on; btn.disabled = !!on; };
+  btn.onclick = () => { if (!photoBusy_) input.click(); };
   google.script.run
-    .withSuccessHandler(function (res) {
+    .withSuccessHandler(res => {
       const first = res && res.ok && Array.isArray(res.photos) && res.photos[0];
-      paint(!!first, first && first.thumb, first ? "Change photo" : "Add woreda photo");
+      if (first) paint(true, first.thumb, "A photo is already saved for your woreda. Upload again to replace it.", false);
+      else paint(false, null, "No photo uploaded yet.", false);
     })
-    .withFailureHandler(function () { /* keep the default label */ })
+    .withFailureHandler(() => {})
     .getCoverPhotos({});
   input.onchange = async () => {
     const file = input.files && input.files[0];
     if (!file) return;
-    if (photoBusy_) return;
+    if (!/^image\//i.test(file.type || "")) {
+      if (status) { status.textContent = "Please choose an image file (JPG or PNG)."; status.classList.add("warn"); }
+      input.value = "";
+      return;
+    }
     const previousLabel = label ? label.textContent : "";
-    photoBusy_ = true; btn.disabled = true;
-    if (label) label.textContent = "Uploading…";
+    setBusy(true);
+    if (label) label.textContent = "Checking…";
     try {
-      if (!/^image\//i.test(file.type)) throw new Error("Please select an image file (JPG or PNG).");
+      const issue = await photoOrientationIssue_(file);
+      if (issue) {
+        if (status) { status.textContent = "This photo looks " + issue + ". Please take it again straight and upload it."; status.classList.add("warn"); }
+        toast("This photo looks " + issue + ". Please take a straight photo and upload it.", true);
+        if (label) label.textContent = previousLabel || "Snap or upload photo";
+        setBusy(false);
+        input.value = "";
+        return;
+      }
+      if (label) label.textContent = "Uploading…";
       const dataUrl = await resizeImageToDataUrl_(file, 1600, 0.82);
       const res = await new Promise((resolve, reject) => {
         google.script.run
@@ -1282,14 +1363,16 @@ function initPhotoUpload_() {
           .uploadCoverPhoto({ image: dataUrl });
       });
       if (!res || !res.ok) throw new Error((res && res.error) || "The server rejected the photo.");
-      paint(true, (res.thumb || res.url || thumb.src), "Change photo");
+      paint(true, res.thumb || res.url, "Saved for your woreda.", false);
       toast("Woreda photo saved. It will appear on the dashboard.");
     } catch (e) {
-      if (label) label.textContent = previousLabel || "Add woreda photo";
-      console.error("photo upload failed", e);
-      toast((e && e.message) ? e.message : "Could not upload the photo.", true);
+      if (label) label.textContent = previousLabel || "Snap or upload photo";
+      const msg = (e && e.message) ? e.message : "Could not upload the photo.";
+      if (status) { status.textContent = msg; status.classList.add("warn"); }
+      toast(msg, true);
     } finally {
-      photoBusy_ = false; btn.disabled = false;
+      setBusy(false);
+      if (label && label.textContent === "Checking…") label.textContent = previousLabel || "Snap or upload photo";
       input.value = "";
     }
   };
@@ -1331,12 +1414,6 @@ function renderMain(rowData) {
       <div class="hero-top">
         <h2>${ICONS.building}${escapeHtml(w.woreda)} — ${escapeHtml(w.zone)}</h2>
         <div class="hero-hc">${ICONS.pin}<span>Health center <b>${escapeHtml(currentFacilityLabel || "—")}</b></span></div>
-        <button type="button" class="photo-btn" id="photoUploadBtn" aria-label="Upload or replace the woreda's field photo">
-          <img class="photo-thumb" id="photoThumb" alt="">
-          <span class="photo-plus" aria-hidden="true">📷</span>
-          <span class="photo-label" id="photoLabel">Add woreda photo</span>
-        </button>
-        <input type="file" id="photoFile" accept="image/*" capture="environment" hidden>
       </div>
       <div class="info-grid">
         <div class="info-item"><label>${ICONS.target} Total Planned</label><span>${fmtNum(w.totalPlanned)}</span></div>
@@ -1409,6 +1486,22 @@ function renderMain(rowData) {
           ${calc("BA","Total Vaccinated by Place", fmtNum(c.BA), (c.BA === c.L ? "flag-green" : "flag-red"))}
         </div>
         <div id="placeDiffWrap"></div>
+      </div>
+      <div class="form-section section-photo">
+        <h4><span class="section-icon">${ICONS.camera}</span>Upload any vaccination photo<span class="req">*</span></h4>
+        <div class="photo-question">
+          <div class="photo-preview" id="photoPreview">
+            <img id="photoThumb" alt="">
+            <span class="photo-cam" aria-hidden="true">📷</span>
+          </div>
+          <div class="photo-question-side">
+            <p class="photo-q-title">Upload any vaccination photo</p>
+            <p class="photo-q-hint">Snap or choose one photo from the vaccination activity &mdash; it appears on the Campaign Update dashboard with the other field photos. Only one photo per woreda &mdash; uploading again replaces it.</p>
+            <button type="button" class="btn-photo" id="photoUploadBtn">${ICONS.camera}<span id="photoLabel">Snap or upload photo</span></button>
+            <input type="file" id="photoFile" accept="image/*" capture="environment" hidden>
+            <p class="photo-status" id="photoStatus" role="status" aria-live="polite"></p>
+          </div>
+        </div>
       </div>
       <div class="legend">
         <span class="lr">Red = wastage over limit / negative balance</span>
