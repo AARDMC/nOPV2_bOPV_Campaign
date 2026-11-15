@@ -56,8 +56,12 @@ button,select,input{font:inherit;color:inherit}
 #dashLogin .login-card .field label{display:block;font-size:11px;color:var(--text-light,#64748b);margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
 #dashLogin .login-card .field input{width:100%;padding:11px 13px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;transition:all .2s;font-family:inherit;background:#fff}
 #dashLogin .login-card .field input:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 4px rgba(102,126,234,.15)}
-#dashLogin .login-card button{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 20px rgba(102,126,234,.4);font-family:inherit}
+#dashLogin .login-card button{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,opacity .12s ease;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 20px rgba(102,126,234,.4);font-family:inherit}
 #dashLogin .login-card button:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(102,126,234,.5)}
+#dashLogin .login-card button:active{transform:translateY(1px) scale(.98);box-shadow:0 4px 10px rgba(102,126,234,.35)}
+#dashLogin .login-card button.is-loading{opacity:.92;pointer-events:none}
+#dashLogin .login-card button .btn-spinner{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spinBtn .8s linear infinite;flex:none}
+@keyframes spinBtn{to{transform:rotate(360deg)}}
 #dashLogin .login-card .err{color:#c62828;font-size:12px;margin-top:10px;min-height:18px;font-weight:600;text-align:center}
 #dashLogin .login-card .hint{font-size:11px;color:var(--text-light,#64748b);margin-top:10px;text-align:center;line-height:1.5}
 .login-credit{margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center}
@@ -202,17 +206,17 @@ td.wrap{white-space:normal;text-align:left;min-width:240px}
 .busy[hidden],.toast[hidden]{display:none}
 .busy .busy-card{background:#fff;border-radius:16px;padding:22px 26px;max-width:420px;font-size:14px;text-align:center;box-shadow:0 20px 50px rgba(15,23,42,.25)}
 .busy b{display:block;font-size:16px;margin-bottom:4px}
-.polio-loader{display:inline-flex;align-items:flex-end;justify-content:center;gap:10px;height:54px;margin:2px 0 10px}
-.polio-loader .drop{width:18px;height:24px;position:relative;transform-origin:center bottom;animation:dropBounce 1.1s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(79,172,254,.35))}
-.polio-loader .drop::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 45%,#0284c7 100%);border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;transform:rotate(45deg)}
-.polio-loader .drop::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.85);top:6px;left:5px}
-.polio-loader .drop:nth-child(2){animation-delay:.15s;transform:scale(.9)}
-.polio-loader .drop:nth-child(2)::before{background:linear-gradient(180deg,#c4b5fd 0%,#8b5cf6 45%,#6d28d9 100%)}
+.polio-loader{display:inline-flex;align-items:flex-end;justify-content:center;gap:12px;height:56px;margin:2px 0 10px}
+.polio-loader .drop{width:18px;height:18px;position:relative;transform-origin:center 80%;animation:dropBounce 1.1s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(79,172,254,.35))}
+.polio-loader .drop::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg,#bae6fd 0%,#38bdf8 45%,#0284c7 100%);border-radius:0 50% 50% 50%;transform:rotate(45deg)}
+.polio-loader .drop::after{content:'';position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.9);top:7px;left:7px;box-shadow:1px 1px 0 rgba(255,255,255,.35)}
+.polio-loader .drop:nth-child(2){animation-delay:.15s}
+.polio-loader .drop:nth-child(2)::before{background:linear-gradient(160deg,#ddd6fe 0%,#8b5cf6 45%,#6d28d9 100%)}
 .polio-loader .drop:nth-child(3){animation-delay:.3s}
-.polio-loader .drop:nth-child(3)::before{background:linear-gradient(180deg,#86efac 0%,#22c55e 45%,#15803d 100%)}
-.polio-loader .drop:nth-child(4){animation-delay:.45s;transform:scale(.85)}
-.polio-loader .drop:nth-child(4)::before{background:linear-gradient(180deg,#fde68a 0%,#f59e0b 45%,#d97706 100%)}
-@keyframes dropBounce{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-14px) scale(1.05,.95)}60%{transform:translateY(2px) scale(.96,1.04)}}
+.polio-loader .drop:nth-child(3)::before{background:linear-gradient(160deg,#bbf7d0 0%,#22c55e 45%,#15803d 100%)}
+.polio-loader .drop:nth-child(4){animation-delay:.45s}
+.polio-loader .drop:nth-child(4)::before{background:linear-gradient(160deg,#fde68a 0%,#f59e0b 45%,#d97706 100%)}
+@keyframes dropBounce{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-14px) scale(1.04,.96)}60%{transform:translateY(2px) scale(.97,1.03)}}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:40;background:var(--head);color:#fff;border-radius:8px;padding:12px 16px;max-width:92vw;font-size:13.5px}
 .toast.err{background:var(--bad)}
 .narr{margin-top:16px}
@@ -1709,17 +1713,19 @@ function doDashLogin() {
   const err = document.getElementById('dashErr');
   err.textContent = '';
   if (!id) { err.textContent = 'Enter your ID.'; return; }
-  document.getElementById('dashLoginBtn').disabled = true;
+  const loginBtn = document.getElementById('dashLoginBtn');
+  const loginBtnDefault = loginBtn ? loginBtn.innerHTML : 'Open Dashboard';
+  if (loginBtn) { loginBtn.disabled = true; loginBtn.classList.add('is-loading'); loginBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span>Opening Dashboard…</span>'; }
   google.script.run
     .withSuccessHandler(function(res){
-      document.getElementById('dashLoginBtn').disabled = false;
+      if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = loginBtnDefault; }
       if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return; }
       try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
       document.getElementById('dashLogin').classList.add('hidden');
       if (res.dashboard) { const fiHint = (res.dashboard.facilityIndex != null && res.dashboard.facilityIndex >= 0) ? Number(res.dashboard.facilityIndex) : -1; DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone || '', woreda: res.dashboard.woreda || '', woredaID: res.dashboard.woredaID || '', facilities: res.dashboard.facilities || [], facilityCount: res.dashboard.facilityCount || 0, facilityIndex: -1 }; if (fiHint >= 0) { DASH_FACILITY = fiHint; DASH_SCOPE.facilityIndex = fiHint; } else if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) { DASH_FACILITY = 0; } }
       load(false);
     })
-    .withFailureHandler(function(e){ document.getElementById('dashLoginBtn').disabled = false; err.textContent = (e && e.message) || String(e); })
+    .withFailureHandler(function(e){ if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = loginBtnDefault; } err.textContent = (e && e.message) || String(e); })
     .dashboardLogin({ id: id });
 }
 
