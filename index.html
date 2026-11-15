@@ -1044,6 +1044,10 @@ function validateRow(w, day, r) {
 
   // Per-vial coverage above/below expected is shown as an informational alert (usage status), not a save blocker.
 
+  // Teams reported cannot exceed planned/available teams
+  const teamsPlanned = (w && w.teams !== "" && w.teams != null && isFinite(Number(w.teams))) ? Number(w.teams) : null;
+  if (teamsPlanned != null && n(r.AS) > teamsPlanned) add(["AS"], "Number of vaccination teams reported (" + fmtNum(n(r.AS)) + ") cannot exceed number of teams (" + fmtNum(teamsPlanned) + ").");
+
   // Linkage: vaccinated cannot exceed identified
   if (n(r.AO) > n(r.AN) && n(r.AN) > 0) add(["AN","AO"], "Zero-dose vaccinated (" + n(r.AO) + ") exceeds identified (" + n(r.AN) + ").");
   if (n(r.AQ) > n(r.AP) && n(r.AP) > 0) add(["AP","AQ"], "Under-vaccinated vaccinated (" + n(r.AQ) + ") exceeds identified (" + n(r.AP) + ").");
