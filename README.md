@@ -32,8 +32,10 @@ Woreda ID.
 1. Open the site, enter name, email, phone and Woreda ID.
 2. The app loads the officer's own woreda row from the `Day 1` plan.
 3. Pick a campaign day, enter the numbers, press **Save**.
-4. **Export my woreda (Excel)** builds a `.xlsx` file in the browser containing
-   only the signed-in officer's woreda (downloaded to your device).
+4. **Export my woreda (Google Sheet)** refreshes the officer's own scoped Google
+   Sheet in the campaign export folder (all campaign days, formulas, formatting,
+   validation and conditional formatting preserved) and opens it automatically.
+   A **Download .xlsx** link is offered next to **Open Google Sheet**.
 5. **Dashboard** opens the monitoring dashboard scoped to the officer's woreda.
 6. **Logout** clears the session.
 
@@ -44,7 +46,14 @@ Woreda ID.
   - `AK1136` Addis Ketema, `AK1137` Akaki Kality, `A1138` Arada, `B1139` Bole, `G1140` Gulele, `K1141` Kirkos, `KK1142` Kolfe Keranyo, `LK1143` Lemi Kura, `L1144` Lideta, `NSL1145` Nifas Silk Lafto, `Y1146` Yeka (each sees only their sub city)
   - `@AAPHEM123` Addis Ababa PHEM, `@EPHI123` EPHI (see the full city dashboard)
 - Dashboard data is read from the campaign workbook (entered data). Scope is enforced by signed token.
-- **Dashboard exports/presentation:** **Download Excel** generates a login/scope-filtered Excel file locally on your device (no Google Drive temp copy). **Download PPT** generates a scoped presentation locally. **Present** opens a full-screen, narrated online presentation (with AAHB header/logo, footer, and data-driven narration) for the current scope.
+- **Dashboard exports/presentation:** **Download Excel** refreshes the scope's
+  persistent Google Sheet (`<Sub-city> nOPV2+bOPV Data <Mon,Year>`) in the export
+  folder, keeps formulas/formatting/validation, and opens it automatically; the
+  same panel offers a **Download .xlsx** link. Sheets are created once per scope
+  and then updated in place, so shared links never change. **Download PPT**
+  generates a scoped presentation locally. **Present** opens a full-screen,
+  narrated online presentation (with AAHB header/logo, footer, and data-driven
+  narration) for the current scope.
 
 Officers can only read and write their own woreda row and only the input
 columns (coverage, vials, alerts, places). Plan data, identifiers, settings and
@@ -92,7 +101,7 @@ ADMIN_EMAILS = admin@example.org, epi-lead@example.org
 Administrators additionally see **Settings** (nOPV2 & bOPV doses per vial,
 revisit counting, wastage limit, campaign length) and the full-workbook
 **Export Excel** (city-wide). Everyone else gets the settings button hidden and
-the woreda-scoped Excel export only.
+the woreda-scoped Google Sheet export only.
 
 ## Redeploying the Apps Script backend
 
