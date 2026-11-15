@@ -529,7 +529,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   var ACTIONS = [
     "authenticateUser", "loginAndGetInitialData", "getInitialData", "getRowData", "saveAndReturn",
     "saveSettings", "getWoredaExport", "getNativeScopedExport", "exportToExcelWithFormulas",
-    "dashboardLogin", "getDashboardData"
+    "dashboardLogin", "getDashboardData", "getCoverPhotos", "uploadCoverPhoto"
   ];
 
   function fail(message) {
@@ -709,6 +709,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     if (action === "getWoredaExport") return { facilityIndex: args[0] || 0, woredaID: args[1] || "" };
     if (action === "getNativeScopedExport") return (args[0] && typeof args[0] === "object") ? args[0] : { facilityIndex: args[0] || 0 };
     if (action === "dashboardLogin") return args[0] || {};
+    if (action === "getCoverPhotos") return {};
+    if (action === "uploadCoverPhoto") return { image: args[0] && args[0].image ? args[0].image : "" };
     if (action === "getDashboardData") return { force: !!args[0] };
     return {};
   }
@@ -1256,10 +1258,13 @@ function initPhotoUpload_() {
     if (btn) btn.classList.toggle("has-photo", !!hasPhoto);
     if (label && text) label.textContent = text;
   };
-  callApi("getCoverPhotos", {}).then(res => {
-    const first = res && res.ok && Array.isArray(res.photos) && res.photos[0];
-    paint(!!first, first && first.thumb, first ? "Change photo" : "Add woreda photo");
-  }).catch(() => { /* keep the default label */ });
+  google.script.run
+    .withSuccessHandler(function (res) {
+      const first = res && res.ok && Array.isArray(res.photos) && res.photos[0];
+      paint(!!first, first && first.thumb, first ? "Change photo" : "Add woreda photo");
+    })
+    .withFailureHandler(function () { /* keep the default label */ })
+    .getCoverPhotos({});
   input.onchange = async () => {
     const file = input.files && input.files[0];
     if (!file) return;
@@ -1270,7 +1275,12 @@ function initPhotoUpload_() {
     try {
       if (!/^image\//i.test(file.type)) throw new Error("Please select an image file (JPG or PNG).");
       const dataUrl = await resizeImageToDataUrl_(file, 1600, 0.82);
-      const res = await callApi("uploadCoverPhoto", { image: dataUrl });
+      const res = await new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .uploadCoverPhoto({ image: dataUrl });
+      });
       if (!res || !res.ok) throw new Error((res && res.error) || "The server rejected the photo.");
       paint(true, (res.thumb || res.url || thumb.src), "Change photo");
       toast("Woreda photo saved. It will appear on the dashboard.");
