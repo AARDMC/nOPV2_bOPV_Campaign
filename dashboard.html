@@ -385,9 +385,9 @@ main,.bannerhost,.filters-inner,.tabs,.top-inner{max-width:100%}
 .field-photos { margin: 16px 0 4px; background: #fff; border: 1px solid #e3ecf5; border-radius: 18px; padding: 16px 18px 18px; box-shadow: 0 2px 8px rgba(15,37,82,.06); }
 .field-photos-head h2 { display:flex; align-items:center; gap:10px; font-size:16px; color:#0F2552; margin:0; }
 .field-photos-head p { font-size:11px; color:#66788e; margin:4px 0 12px; }
-.field-photo-grid { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(200px,1fr); gap:10px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x mandatory; }
-@media(min-width:860px){ .field-photo-grid { grid-auto-flow:row; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); grid-auto-columns:auto; overflow:visible; } }
-.field-photo { position:relative; border-radius:14px; overflow:hidden; aspect-ratio:4/3; background:#eaf1f8; cursor:zoom-in; scroll-snap-align:start; }
+.field-photo-grid { display:flex; flex-wrap:wrap; gap:12px; }
+.field-photo { flex: 0 1 240px; }
+.field-photo { position:relative; border-radius:14px; overflow:hidden; aspect-ratio:4/3; background:#eaf1f8; cursor:zoom-in; }
 .field-photo img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease; }
 .field-photo:hover img { transform:scale(1.06); }
 .field-photo figcaption { position:absolute; left:0; right:0; bottom:0; padding:30px 12px 10px; background:linear-gradient(180deg, rgba(15,37,82,0) 0%, rgba(15,37,82,.82) 100%); color:#fff; }
