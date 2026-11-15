@@ -1133,30 +1133,55 @@ function renderMap(){
         return m ? String(parseInt(m[1], 10)) : '';
       };
 
-      // ---- vaccinated children amount lookup (by woreda/zone) ----
-      const totByWoreda = {}, totByWoredaId = {}, totByZone = {};
+      // ---- Total Vaccinated by Place lookup/aggregation (woreda, sub-city, region) ----
+      const placeTotAgg = v => (v && (v.pHouse||0)+(v.pSchool||0)+(v.pMarket||0)+(v.pStreet||0)+(v.pOther||0)) || 0;
+      const placeByWoreda = {}, placeByWoredaId = {}, placeByZoneCanon = {}, placeByZoneNorm = {};
+      let placeRegionTotal = 0;
+      const uRows = (typeof unitRows === 'function') ? unitRows() : [];
+      uRows.forEach(r => {
+        const pt = placeTotAgg(r && r.a);
+        placeRegionTotal += pt;
+        if (r && r.u) {
+          if (r.u.woreda) { const k = normName(r.u.woreda); placeByWoreda[k] = (placeByWoreda[k] || 0) + pt; }
+          if (r.u.woredaID != null && String(r.u.woredaID).trim() !== '') {
+            const wid = String(parseInt(r.u.woredaID, 10));
+            if (wid && wid !== 'NaN') placeByWoredaId[wid] = (placeByWoredaId[wid] || 0) + pt;
+          }
+          if (r.u.zone) {
+            const zc = canonSub(r.u.zone) || String(r.u.zone).trim();
+            if (zc) placeByZoneCanon[zc] = (placeByZoneCanon[zc] || 0) + pt;
+            const zn = normName(r.u.zone);
+            if (zn) placeByZoneNorm[zn] = (placeByZoneNorm[zn] || 0) + pt;
+          }
+        }
+      });
+      // broader aggregates for comparison when current selection/filter is narrower
+      const placeByZoneCanonAll = {}, placeByZoneNormAll = {};
+      let placeRegionAll = 0;
       try {
-        if (typeof unitRows === 'function') {
-          unitRows().forEach(r => {
-            const t = (r && r.a && r.a.tot != null) ? r.a.tot : 0;
-            if (r && r.u) {
-              if (r.u.woreda) totByWoreda[normName(r.u.woreda)] = (totByWoreda[normName(r.u.woreda)] || 0) + t;
-              if (r.u.woredaID != null && String(r.u.woredaID).trim()!=='') {
-                const wid = String(parseInt(r.u.woredaID,10));
-                if (wid && wid !== 'NaN') totByWoredaId[wid] = (totByWoredaId[wid] || 0) + t;
-              }
-              if (r.u.zone) totByZone[normName(r.u.zone)] = (totByZone[normName(r.u.zone)] || 0) + t;
+        if (M && M.units && M.bySn) {
+          M.units.forEach(u => {
+            if (DASH_SCOPE && DASH_SCOPE.mode === 'zone' && String(u.zone || '').toLowerCase() !== String(DASH_SCOPE.zone || '').toLowerCase()) return;
+            if (DASH_SCOPE && DASH_SCOPE.mode === 'woreda' && String(u.woredaID || '') !== String(DASH_SCOPE.woredaID || '')) return;
+            const recsU = (M.bySn[u.sn] || []).filter(rec => rec.d <= S.upTo);
+            const pt = placeTotAgg(sumRecs(recsU));
+            placeRegionAll += pt;
+            if (u.zone) {
+              const zc = canonSub(u.zone) || String(u.zone).trim();
+              if (zc) placeByZoneCanonAll[zc] = (placeByZoneCanonAll[zc] || 0) + pt;
+              const zn = normName(u.zone);
+              if (zn) placeByZoneNormAll[zn] = (placeByZoneNormAll[zn] || 0) + pt;
             }
           });
-        }
-      } catch(e){}
-      function findVaccinated(x){
+        } else { placeRegionAll = placeRegionTotal; }
+      } catch(e){ placeRegionAll = placeRegionTotal; }
+      function findPlaceByFeature(x){
         const p = x.p || {};
-        if (x.wid && totByWoredaId[String(parseInt(x.wid,10))] != null) return totByWoredaId[String(parseInt(x.wid,10))];
+        if (x.wid && placeByWoredaId[String(parseInt(x.wid,10))] != null) return placeByWoredaId[String(parseInt(x.wid,10))];
         const candidates = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short];
-        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (totByWoreda[n]!=null) return totByWoreda[n]; }
-        if (x.sub && totByZone[normName(x.sub)] != null) return totByZone[normName(x.sub)];
-        const zc = [p.subcity,p.Subcity,p.zone,p.Zone]; for (const c of zc){ if(c==null) continue; const n=normName(c); if (totByZone[n]!=null) return totByZone[n]; }
+        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (placeByWoreda[n]!=null) return placeByWoreda[n]; }
+        const zcands = [x.subCanon, canonSub(x.sub), x.sub, p.subcity,p.Subcity,p.zone,p.Zone];
+        for (const c of zcands){ if(c==null) continue; if (placeByZoneCanon[c] != null) return placeByZoneCanon[c]; const n=normName(c); if (placeByZoneNorm[n]!=null) return placeByZoneNorm[n]; }
         return null;
       }
 
@@ -1248,12 +1273,12 @@ function renderMap(){
       if (!proj) { wrap.innerHTML = '<div class="empty">Could not compute map bounds.</div>'; if (note) { note.style.display=''; note.textContent='Could not compute map bounds for selected features.'; } return; }
       const {W,H,P} = proj;
 
-      // attach vaccinated totals
-      selected.forEach(x => { x.vacc = findVaccinated(x); });
-      const vals = selected.map(x => x.vacc).filter(v => v != null && !isNaN(v));
+      // attach Total Vaccinated by Place (woreda-level) to map features
+      selected.forEach(x => { x.place = findPlaceByFeature(x); });
+      const vals = selected.map(x => x.place).filter(v => v != null && !isNaN(v));
       const maxV = vals.length ? Math.max.apply(null, vals) : 0;
 
-      // categories by vaccinated children amount
+      // categories by Total Vaccinated by Place amount
       function buildCats(maxVal){
         if (maxVal <= 0) return [{label:'No data', min:0, max:0, color:'#d7e3f4', nodata:true}];
         const steps = [0, 0.2, 0.4, 0.6, 0.8, 1];
@@ -1277,34 +1302,88 @@ function renderMap(){
       }
 
       const paths = selected.map(x => {
-        const fill = colorFor(x.vacc);
+        const fill = colorFor(x.place);
         const d = pathOf(x.f, P);
-        const vtxt = (x.vacc != null && !isNaN(x.vacc)) ? (' — Vaccinated children: ' + fmt(x.vacc)) : ' — Vaccinated children: No data';
+        const vtxt = (x.place != null && !isNaN(x.place)) ? (' — Total Vaccinated by Place: ' + fmt(x.place)) : ' — Total Vaccinated by Place: No data';
         const title = esc((x.label || x.short) + vtxt);
-        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.82" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
+        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.78" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
       }).join('');
 
-      const labels = selected.map(x => {
+      const areaLabels = selected.map(x => {
         const c = centroidOf(x.f, P); if (!c) return '';
         const fs = selected.length > 40 ? 7 : selected.length > 15 ? 8 : 9;
         const txt = esc(String(x.short || x.label));
         const w = Math.max(18, txt.length*fs*0.62);
-        return '<g><rect x="'+(c[0]-w/2)+'" y="'+(c[1]-fs*0.85)+'" width="'+w+'" height="'+(fs*1.55)+'" rx="4" ry="4" fill="#ffffff" fill-opacity="0.94" stroke="#0F2552" stroke-width="0.6"></rect>' +
-               '<text x="'+c[0].toFixed(1)+'" y="'+(c[1]+fs*0.35).toFixed(1)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" fill="#0F2552" font-family="Arial, sans-serif">'+txt+'</text></g>';
+        return '<g><rect x="'+(c[0]-w/2)+'" y="'+(c[1]-fs*1.95)+'" width="'+w+'" height="'+(fs*1.45)+'" rx="4" ry="4" fill="#ffffff" fill-opacity="0.9" stroke="#0F2552" stroke-width="0.5"></rect>' +
+               '<text x="'+c[0].toFixed(1)+'" y="'+(c[1]-fs*0.95).toFixed(1)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" fill="#0F2552" font-family="Arial, sans-serif">'+txt+'</text></g>';
       }).join('');
+
+      function marker(cx, cy, value, levelLabel, name, opts){
+        const v = (value == null || isNaN(value)) ? null : Number(value);
+        const text = v == null ? '—' : fmt(v);
+        const r = (opts && opts.r) || 10;
+        const fill = (opts && opts.fill) || '#0F2552';
+        const stroke = (opts && opts.stroke) || '#ffffff';
+        const textFill = (opts && opts.textFill) || '#ffffff';
+        const fs = (opts && opts.fs) || 10;
+        const tip = esc(levelLabel + ': ' + name + ' — Total Vaccinated by Place: ' + (v == null ? 'No data' : fmt(v)));
+        const w = Math.max(r*2.2, String(text).length * fs * 0.62 + 8);
+        const h = Math.max(r*2.1, fs + 8);
+        return '<g><title>' + tip + '</title>' +
+          '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r+'" fill="'+fill+'" fill-opacity="0.95" stroke="'+stroke+'" stroke-width="1.5"></circle>' +
+          '<rect x="'+(cx-w/2).toFixed(1)+'" y="'+(cy+r+2).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="6" ry="6" fill="#ffffff" fill-opacity="0.96" stroke="'+fill+'" stroke-width="1"></rect>' +
+          '<text x="'+cx.toFixed(1)+'" y="'+(cy+r+2+h/2+fs*0.35).toFixed(1)+'" text-anchor="middle" font-size="'+fs+'" font-weight="800" fill="'+fill+'" font-family="Arial, sans-serif">'+esc(text)+'</text>' +
+          '</g>';
+      }
+
+      // aggregate centroids and values for sub-city and region markers
+      const groupCentroid = feats => {
+        let sx=0, sy=0, n=0; (feats||[]).forEach(f => { const c = centroidOf(f,P); if (c){ sx+=c[0]; sy+=c[1]; n++; } });
+        return n ? [sx/n, sy/n] : null;
+      };
+      const woredaMarkers = selected.map(x => {
+        const c = centroidOf(x.f, P); if (!c) return '';
+        return marker(c[0], c[1], x.place, 'Woreda', (x.label || x.short || ('Woreda ' + x.wid)), { r: 6, fill:'#1E6BFF', fs: 9 });
+      }).join('');
+
+      const subGroups = {};
+      selected.forEach(x => {
+        const key = x.subCanon || canonSub(x.sub) || String(x.sub || '').trim() || '_unknown';
+        if (!subGroups[key]) subGroups[key] = { key: key, name: (x.subCanon || canonSub(x.sub) || x.sub || 'Sub-city'), feats: [] };
+        subGroups[key].feats.push(x.f);
+      });
+      const subMarkers = Object.keys(subGroups).map(k => {
+        const g = subGroups[k]; const c = groupCentroid(g.feats); if (!c) return '';
+        const val = (placeByZoneCanon[g.key] != null ? placeByZoneCanon[g.key] : (placeByZoneNorm[normName(g.name)] != null ? placeByZoneNorm[normName(g.name)] : (placeByZoneCanonAll[g.key] != null ? placeByZoneCanonAll[g.key] : placeByZoneNormAll[normName(g.name)])));
+        return marker(c[0], c[1] - 14, val, 'Sub-city', g.name, { r: 8, fill:'#0B7285', fs: 10 });
+      }).join('');
+
+      const regionName = (fZone ? fZone : (DASH_SCOPE && DASH_SCOPE.mode === 'all' ? (DASH_SCOPE.zone || 'All region') : scopeName()));
+      const regionVal = (uRows.length ? placeRegionTotal : placeRegionAll);
+      const regionCenter = groupCentroid(selected.map(x => x.f));
+      // offset region marker to reduce overlap
+      const regionMarker = regionCenter ? marker(regionCenter[0], Math.max(18, regionCenter[1] - 36), regionVal, 'Region', regionName || 'Region', { r: 10, fill:'#0F2552', fs: 11 }) : '';
+
+      const markersLayer = '<g id="mapMarkers">' + areaLabels + woredaMarkers + subMarkers + regionMarker + '</g>';
 
       const PAD = 30;
       const vb = { x: -PAD, y: -PAD, w: W + 2*PAD, h: H + 2*PAD };
       const svg = '<svg id="mapSvg" xmlns="http://www.w3.org/2000/svg" viewBox="'+vb.x+' '+vb.y+' '+vb.w.toFixed(0)+' '+vb.h.toFixed(0)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;min-height:520px;display:block;background:#F7FBFF;cursor:grab">' +
         '<rect x="'+vb.x+'" y="'+vb.y+'" width="'+vb.w+'" height="'+vb.h+'" fill="#F7FBFF"></rect>' +
-        '<g id="mapG">' + paths + labels + '</g></svg>';
+        '<g id="mapG">' + paths + markersLayer + '</g></svg>';
       wrap.innerHTML = svg;
 
-      // legend (vaccinated children categories)
+      // legend (Total Vaccinated by Place)
       if (legend) {
         legend.innerHTML = '<div style="font-size:12px;color:var(--ink2)">' +
-          '<div style="font-weight:700;color:var(--ink);margin-bottom:6px">Vaccinated children (amount by category)</div>' +
-          '<div style="display:flex;flex-wrap:wrap;gap:10px 14px">' + cats.map(c => '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:14px;border-radius:3px;background:'+c.color+';display:inline-block;border:1px solid #0F2552"></i>'+esc(c.label)+'</span>').join('') + '</div>' +
+          '<div style="font-weight:700;color:var(--ink);margin-bottom:6px">Total Vaccinated by Place (woreda areas) and markers</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:8px">' + cats.map(c => '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:14px;border-radius:3px;background:'+c.color+';display:inline-block;border:1px solid #0F2552"></i>'+esc(c.label)+'</span>').join('') + '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center">' +
+            '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:50%;background:#1E6BFF;display:inline-block;border:1px solid #fff;box-shadow:0 0 0 1px #1E6BFF"></i>Woreda (dot/marker with number)</span>' +
+            '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:50%;background:#0B7285;display:inline-block;border:1px solid #fff;box-shadow:0 0 0 1px #0B7285"></i>Sub-city (aggregated total)</span>' +
+            '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:12px;height:12px;border-radius:50%;background:#0F2552;display:inline-block;border:1px solid #fff;box-shadow:0 0 0 1px #0F2552"></i>Region (aggregated total)</span>' +
+          '</div>' +
+          '<div style="margin-top:6px;color:#5b6b86">Hover a dot/marker to see the corresponding Total Vaccinated by Place.</div>' +
           '</div>';
       }
 
@@ -1361,7 +1440,7 @@ function renderMap(){
             canvas.toBlob(function(blob){
               const a = document.createElement('a');
               a.href = URL.createObjectURL(blob);
-              a.download = 'campaign-map-vaccinated-children.png';
+              a.download = 'campaign-map-total-vaccinated-by-place.png';
               document.body.appendChild(a); a.click(); a.remove();
               setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
             }, 'image/png');
