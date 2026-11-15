@@ -1060,8 +1060,8 @@ let MAP_GEOJSON = null;
 async function loadGeoJsonData(){
   if (MAP_GEOJSON) return MAP_GEOJSON;
   const urls = [
-    'assets/campaign-map.geojson',
-    'assets/addis-ababa.geojson',
+    'assets/campaign-map.geojson?v=20261115-corrected',
+    'assets/addis-ababa.geojson?v=20261115-corrected',
     'https://drive.google.com/uc?export=download&id=1w5rHRDxx6OLDwZa9dUo3B5eOECJlBkuw'
   ];
   for (const url of urls){
