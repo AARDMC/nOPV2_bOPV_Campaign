@@ -1135,24 +1135,29 @@ function renderMap(){
 
       // ---- Total Vaccinated by Place lookup/aggregation (woreda, sub-city, region) ----
       const placeTotAgg = v => (v && (v.pHouse||0)+(v.pSchool||0)+(v.pMarket||0)+(v.pStreet||0)+(v.pOther||0)) || 0;
-      const placeByWoreda = {}, placeByWoredaId = {}, placeByZoneCanon = {}, placeByZoneNorm = {};
+      const placeByWoredaName = {}, placeByWoredaIdGlobal = {}, placeByZoneCanon = {}, placeByZoneNorm = {}, placeByZoneWNum = {};
       let placeRegionTotal = 0;
+      function zoneKey(uZone){ return canonSub(uZone) || String(uZone || '').trim(); }
+      function wNumOf(v){ return woredaNum(v); }
       const uRows = (typeof unitRows === 'function') ? unitRows() : [];
       uRows.forEach(r => {
         const pt = placeTotAgg(r && r.a);
         placeRegionTotal += pt;
         if (r && r.u) {
-          if (r.u.woreda) { const k = normName(r.u.woreda); placeByWoreda[k] = (placeByWoreda[k] || 0) + pt; }
-          if (r.u.woredaID != null && String(r.u.woredaID).trim() !== '') {
-            const wid = String(parseInt(r.u.woredaID, 10));
-            if (wid && wid !== 'NaN') placeByWoredaId[wid] = (placeByWoredaId[wid] || 0) + pt;
+          const zc = zoneKey(r.u.zone);
+          const zn = normName(r.u.zone);
+          const wn = normName(r.u.woreda);
+          const wid = (r.u.woredaID != null && String(r.u.woredaID).trim() !== '') ? String(parseInt(r.u.woredaID, 10)) : '';
+          const wnum = wNumOf(r.u.woreda) || wNumOf(r.u.woredaID) || wid;
+          if (wn) placeByWoredaName[wn] = (placeByWoredaName[wn] || 0) + pt; // fallback (unique names only ideal)
+          if (wid && wid !== 'NaN') {
+            placeByWoredaIdGlobal[wid] = (placeByWoredaIdGlobal[wid] || 0) + pt;
+            if (zc) placeByZoneWNum[zc + '|' + wid] = (placeByZoneWNum[zc + '|' + wid] || 0) + pt;
           }
-          if (r.u.zone) {
-            const zc = canonSub(r.u.zone) || String(r.u.zone).trim();
-            if (zc) placeByZoneCanon[zc] = (placeByZoneCanon[zc] || 0) + pt;
-            const zn = normName(r.u.zone);
-            if (zn) placeByZoneNorm[zn] = (placeByZoneNorm[zn] || 0) + pt;
-          }
+          if (wnum && wnum !== 'NaN' && zc) placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))] = (placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))] || 0) + pt;
+          if (zc && wn) placeByZoneWNum[zc + '|name|' + wn] = (placeByZoneWNum[zc + '|name|' + wn] || 0) + pt;
+          if (zc) placeByZoneCanon[zc] = (placeByZoneCanon[zc] || 0) + pt;
+          if (zn) placeByZoneNorm[zn] = (placeByZoneNorm[zn] || 0) + pt;
         }
       });
       // broader aggregates for comparison when current selection/filter is narrower
@@ -1167,9 +1172,9 @@ function renderMap(){
             const pt = placeTotAgg(sumRecs(recsU));
             placeRegionAll += pt;
             if (u.zone) {
-              const zc = canonSub(u.zone) || String(u.zone).trim();
-              if (zc) placeByZoneCanonAll[zc] = (placeByZoneCanonAll[zc] || 0) + pt;
+              const zc = zoneKey(u.zone);
               const zn = normName(u.zone);
+              if (zc) placeByZoneCanonAll[zc] = (placeByZoneCanonAll[zc] || 0) + pt;
               if (zn) placeByZoneNormAll[zn] = (placeByZoneNormAll[zn] || 0) + pt;
             }
           });
@@ -1177,12 +1182,19 @@ function renderMap(){
       } catch(e){ placeRegionAll = placeRegionTotal; }
       function findPlaceByFeature(x){
         const p = x.p || {};
-        if (x.wid && placeByWoredaId[String(parseInt(x.wid,10))] != null) return placeByWoredaId[String(parseInt(x.wid,10))];
+        const zc = x.subCanon || canonSub(x.sub) || canonSub(p.subcity || p.Subcity || p.zone || p.Zone || '');
+        const wid = (x.wid != null && String(x.wid).trim() !== '') ? String(parseInt(x.wid, 10)) : '';
+        const wnum = wid || wNumOf(x.label) || wNumOf(x.short) || wNumOf(x.pathid);
+        // prefer sub-city + woreda match to avoid cross-sub-city ID collisions
+        if (zc && wnum && placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))] != null) return placeByZoneWNum[zc + '|' + String(parseInt(wnum,10))];
+        if (zc) {
+          const nameCands = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short];
+          for (const c of nameCands){ if (c==null) continue; const n = normName(c); if (n && placeByZoneWNum[zc + '|name|' + n] != null) return placeByZoneWNum[zc + '|name|' + n]; }
+        }
+        if (wid && placeByWoredaIdGlobal[wid] != null) return placeByWoredaIdGlobal[wid];
         const candidates = [p.woreda,p.Woreda,p.woreda_name,p.Woreda_Name,p.name,p.Name,p.label,p.Label,x.label,x.short];
-        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (placeByWoreda[n]!=null) return placeByWoreda[n]; }
-        const zcands = [x.subCanon, canonSub(x.sub), x.sub, p.subcity,p.Subcity,p.zone,p.Zone];
-        for (const c of zcands){ if(c==null) continue; if (placeByZoneCanon[c] != null) return placeByZoneCanon[c]; const n=normName(c); if (placeByZoneNorm[n]!=null) return placeByZoneNorm[n]; }
-        return null;
+        for (const c of candidates){ if (c==null) continue; const n = normName(c); if (n && placeByWoredaName[n]!=null) return placeByWoredaName[n]; }
+        return null; // no sub-city fallback for woreda features/markers
       }
 
       // ---- scope -> feature mapping ----
