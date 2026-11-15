@@ -1901,18 +1901,29 @@ function doDashboardExport(){
   const btn = document.getElementById('btnExport');
   const defaultLabel = 'Download Excel';
   if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
-  setBusy('Preparing export', 'Building scoped Excel from the Google Sheet (keeps formulas, formatting and validation)…');
+  setBusy('Preparing export', 'Updating/opening your scoped Google Sheet (formulas, formatting and validation preserved)…');
   const payload = {};
   if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
   google.script.run
     .withSuccessHandler(function(res){
       if (btn) { btn.disabled = false; btn.textContent = defaultLabel; }
-      if(!res || !res.ok || !res.base64){
+      if(!res || !res.ok){
         setBusy(null);
         toast('Export failed: '+esc((res&&res.error)||'unknown'), true);
         return;
       }
       try{
+        if (res.mode === 'sheet' && res.url) {
+          setBusy(null);
+          window.open(res.url, '_blank', 'noopener');
+          toast('Sub-city sheet updated and opened' + (res.fileName ? ': ' + esc(res.fileName) : ''));
+          return;
+        }
+        if(!res.base64){
+          setBusy(null);
+          toast('Export failed: '+esc(res.error||'unknown'), true);
+          return;
+        }
         const blob = b64ToBlob_(res.base64, res.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         const name = res.fileName || 'nOPV2+bOPV____Full.xlsx';
         const url = URL.createObjectURL(blob);
