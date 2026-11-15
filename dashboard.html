@@ -382,6 +382,33 @@ main,.bannerhost,.filters-inner,.tabs,.top-inner{max-width:100%}
 #presenter .curly-head{position:relative;display:inline-block}
 @media (max-width:1000px){#presenter .chart-grid{grid-template-columns:1fr}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:800px){#presenter .s-body{padding:14px}#presenter .slide h1{font-size:30px}#presenter .slide h2{font-size:22px}#presenter .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}#presenter .p-title{max-width:40vw}}
+.field-photos { margin: 16px 0 4px; background: #fff; border: 1px solid #e3ecf5; border-radius: 18px; padding: 16px 18px 18px; box-shadow: 0 2px 8px rgba(15,37,82,.06); }
+.field-photos-head h2 { display:flex; align-items:center; gap:10px; font-size:16px; color:#0F2552; margin:0; }
+.field-photos-head p { font-size:11px; color:#66788e; margin:4px 0 12px; }
+.field-photo-grid { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(200px,1fr); gap:10px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x mandatory; }
+@media(min-width:860px){ .field-photo-grid { grid-auto-flow:row; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); grid-auto-columns:auto; overflow:visible; } }
+.field-photo { position:relative; border-radius:14px; overflow:hidden; aspect-ratio:4/3; background:#eaf1f8; cursor:zoom-in; scroll-snap-align:start; }
+.field-photo img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease; }
+.field-photo:hover img { transform:scale(1.06); }
+.field-photo figcaption { position:absolute; left:0; right:0; bottom:0; padding:30px 12px 10px; background:linear-gradient(180deg, rgba(15,37,82,0) 0%, rgba(15,37,82,.82) 100%); color:#fff; }
+.field-photo figcaption b { display:block; font-size:13px; line-height:1.2; }
+.field-photo figcaption span { font-size:11px; color:#cbdcef; }
+.field-photo:focus-visible { outline:3px solid #1558B8; outline-offset:2px; }
+.photo-lightbox { position:fixed; inset:0; z-index:3000; background:rgba(8,17,35,.82); display:flex; align-items:center; justify-content:center; padding:24px; animation:lbIn .18s ease; }
+@keyframes lbIn { from { opacity:0 } to { opacity:1 } }
+.photo-lightbox figure { margin:0; max-width:min(1080px,94vw); }
+.photo-lightbox img { width:100%; max-height:82vh; object-fit:contain; border-radius:12px; background:#0b1f3a; box-shadow:0 18px 60px rgba(0,0,0,.55); }
+.photo-lightbox figcaption { color:#eaf4ff; margin-top:10px; text-align:center; font-size:13px; }
+.photo-lightbox figcaption b { color:#fff; }
+.photo-lightbox .lb-close { position:absolute; top:14px; right:18px; width:44px; height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.35); background:rgba(255,255,255,.12); color:#fff; font-size:26px; cursor:pointer; line-height:1; }
+#presenter .fp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;align-content:start}
+#presenter .fp-card{position:relative;border-radius:16px;overflow:hidden;aspect-ratio:4/3;background:#eaf1f8;border:1px solid #d9e5f2}
+#presenter .fp-card img{width:100%;height:100%;object-fit:cover;opacity:.95}
+#presenter .fp-card figcaption{position:absolute;left:0;right:0;bottom:0;padding:30px 14px 12px;background:linear-gradient(180deg,transparent,rgba(15,37,82,.82));color:#fff}
+#presenter .fp-card figcaption b{display:block;font-size:17px}
+#presenter .fp-card figcaption span{font-size:13px;color:#cbdcef}
+
+</style>
 </style>
 <script>
 window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1lMEcqzTLYxB3tgksV6eKyJ403wh6Yg68Kje42ZRBps4ZdqeZFbIauZk/exec";
@@ -411,7 +438,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
   function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetchWithTimeout(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)},timeoutForAction(body&&body.action)).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
   function postViaIframe(body){ return new Promise(function(resolve,reject){ var url=window.CAMPAIGN_API_URL; if(!url){reject(fail('No server URL'));return;} var id='r'+Math.floor(Math.random()*1e9).toString(36); var iframe=document.createElement('iframe'); iframe.name=id; iframe.style.cssText='position:absolute;width:0;height:0;border:0;visibility:hidden'; var form=document.createElement('form'); form.method='POST'; form.action=url; form.target=id; form.style.display='none'; var fields={action:body.action,payload:JSON.stringify(body.payload||{}),token:body.token||'',transport:'iframe',requestId:id}; Object.keys(fields).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);}); var settled=false; var timer=setTimeout(function(){finish();reject(fail('Server not responding'));},timeoutForAction(body&&body.action)); function finish(){if(settled)return; settled=true; clearTimeout(timer); window.removeEventListener('message',onMessage); setTimeout(function(){if(form.parentNode)form.parentNode.removeChild(form); if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},1500);} function onMessage(ev){var d=ev.data; if(!d||d.source!=='nopv2-campaign'||d.requestId!==id) return; finish(); resolve(d.result);} window.addEventListener('message',onMessage); document.body.appendChild(iframe); document.body.appendChild(form); form.submit(); }); }
   function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; var attempts=0,maxAttempts=3; function attempt(){ attempts++; return postJson(body).catch(function(err){ if(err&&err.campaignMessage&&/unreadable/i.test(err.campaignMessage)) throw err; if(attempts<maxAttempts&&isRetryableError(err)) return sleep(Math.min(1500*Math.pow(2,attempts-1),6000)).then(attempt); return postViaIframe(body).catch(function(err2){ if(attempts<maxAttempts&&isRetryableError(err2)){ attempts++; return sleep(Math.min(1500*Math.pow(2,attempts-2),6000)).then(function(){return postViaIframe(body);}); } throw err2||err; }); }).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token'); sessionStorage.removeItem('epi_token');}catch(e){} } return out; }); } return attempt(); }
-  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getNativeScopedExport','getLogo'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; else if(action==='getDashboardData') p=(args[0]&&typeof args[0]==='object')?args[0]:{force:!!args[0]}; else if(action==='getDashboardExport'||action==='getNativeScopedExport') p=args[0]||{}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
+  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getNativeScopedExport','getLogo','getCoverPhotos'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; else if(action==='getDashboardData') p=(args[0]&&typeof args[0]==='object')?args[0]:{force:!!args[0]}; else if(action==='getDashboardExport'||action==='getNativeScopedExport') p=args[0]||{}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
 
     window.google=window.google||{}; window.google.script=window.google.script||{};
   Object.defineProperty(window.google.script,'run',{configurable:true,get:function(){return makeRunner();}});
@@ -820,7 +847,7 @@ function renderOverview() {
   const g = groups(rows).sort((a, b) => (b.cov == null ? -1 : b.cov) - (a.cov == null ? -1 : a.cov));
   const gh = Math.max(240, g.length * 30 + 50);
 
-  app().innerHTML = hero + strip + '<div class="grid">' +
+  app().innerHTML = hero + strip + renderFieldPhotos() + '<div class="grid">' +
     panel('c7', 'Children vaccinated each day', 'Bars show children vaccinated. The dashed line is the daily target on campaign days.', '<div class="chart"><canvas id="ch-daily"></canvas></div>') +
     panel('c5', 'Cumulative coverage', 'Share of the planned target reached by the end of each day.', '<div class="chart"><canvas id="ch-cum"></canvas></div>') +
     panel('c8', 'Coverage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Cumulative through ' + esc(dayName()) + '.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-group"></canvas></div>') +
@@ -1623,6 +1650,65 @@ function fillWoredas() {
     S.woreda = DASH_SCOPE.woreda; sel.value = S.woreda; sel.disabled = true;
   }
 }
+
+let FIELD_PHOTOS = [];
+function loadFieldPhotos() {
+  const scope = (DASH_SCOPE && DASH_SCOPE.mode) || '';
+  const want = scope === 'zone' ? 3 : scope === 'all' ? 4 : 1;
+  google.script.run
+    .withSuccessHandler(function(res){
+      const photos = (res && res.ok && Array.isArray(res.photos)) ? res.photos.slice(0, want) : [];
+      FIELD_PHOTOS = photos;
+      if (M && S.tab === 'overview') renderOverview();
+    })
+    .withFailureHandler(function(){ FIELD_PHOTOS = []; })
+    .getCoverPhotos({});
+}
+function renderFieldPhotos() {
+  if (!FIELD_PHOTOS || !FIELD_PHOTOS.length) return '';
+  const inZone = DASH_SCOPE.mode === 'zone' && DASH_SCOPE.zone;
+  const sub = (DASH_SCOPE.mode === 'all' || !DASH_SCOPE.zone) ? 'from across Addis Ababa' : ('from ' + esc(DASH_SCOPE.zone));
+  const cards = FIELD_PHOTOS.map(function(p){
+    return '<figure class="field-photo" tabindex="0" role="button" aria-label="Open full size photo of ' + esc(p.name) + '" data-full="' + esc(p.url) + '" data-name="' + esc(p.name) + '">' +
+      '<img src="' + esc(p.thumb) + '" alt="' + esc(p.name) + '" loading="lazy" onerror="this.closest(\'.field-photo\').remove()">' +
+      '<figcaption><b>' + esc(p.zone) + '</b><span>' + esc(p.woreda) + '</span></figcaption>' +
+    '</figure>';
+  }).join('');
+  return '<section class="field-photos" aria-label="Field photos">' +
+    '<div class="field-photos-head"><div><h2>📸 Field in action</h2><p>Randomly selected ' + sub + '.</p></div></div>' +
+    '<div class="field-photo-grid">' + cards + '</div></section>';
+}
+function openPhotoLightbox(url, name) {
+  const existing = document.querySelector('.photo-lightbox');
+  if (existing) existing.remove();
+  const cleanName = String(name || '').replace(/\.(jpe?g|png)$/i, '');
+  const lb = document.createElement('div');
+  lb.className = 'photo-lightbox';
+  lb.setAttribute('role', 'dialog');
+  lb.setAttribute('aria-modal', 'true');
+  lb.innerHTML =
+    '<figure><img src="' + esc(url) + '" alt="' + esc(name || 'Field photo') + '"><figcaption><b>' + esc(cleanName) + '</b></figcaption></figure>' +
+    '<button class="lb-close" type="button" aria-label="Close">&times;</button>';
+  lb.addEventListener('click', function(ev){
+    if (ev.target === lb || ev.target.closest('.lb-close')) lb.remove();
+  });
+  document.body.appendChild(lb);
+  const closeBtn = lb.querySelector('.lb-close');
+  if (closeBtn) closeBtn.focus();
+}
+document.addEventListener('click', function(e) {
+  const card = e.target.closest('.field-photo');
+  if (!card) return;
+  const url = card.getAttribute('data-full');
+  if (!url) return;
+  openPhotoLightbox(url, card.getAttribute('data-name') || '');
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const lb = document.querySelector('.photo-lightbox');
+    if (lb) lb.remove();
+  }
+});
 function onData(payload, fromCache) {
   if (!payload || payload.ok === false) { if (!fromCache) showError(payload && payload.error ? payload.error : 'Failed to load data'); return; }
   if (!fromCache) { try { saveDashCache(payload); } catch(e) {} }
@@ -1644,6 +1730,7 @@ function onData(payload, fromCache) {
   $('#subtitle').textContent = sub;
   $('#stamp').textContent = 'Data read ' + M.meta.generated;
   fillFilters(); render();
+  loadFieldPhotos();
   $('#btnRefresh').disabled = false; $('#btnRefresh').textContent = 'Refresh';
 }
 function showError(e) {
@@ -2020,6 +2107,13 @@ function buildNarrationDeck(){
       'Figures are based on the campaign workbook/dashboard data and can be traced back to reported entries.'
     ]});
 
+  slides.push({ kind:'gallery', title:'Field in action', heading:'Field in action — ' + scopeLabel,
+    narration: [
+      'Photos from campaign teams at the reporting woredas.',
+      FIELD_PHOTOS.length ? 'Photos shown: ' + FIELD_PHOTOS.map(p => p.name.replace(/\.(jpe?g|png)$/i,'')).join(' · ') : 'No field photos uploaded for this scope yet.'
+    ],
+    photos: FIELD_PHOTOS });
+
   slides.push({ kind:'kpis', title:'Scope summary', heading:'Campaign scope and totals',
     narration: [
       'Scope: ' + scopeLabel + '.',
@@ -2342,6 +2436,10 @@ function renderPresenter(){
       return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
     } else if (s.kind === 'list') {
       const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading)+'</h2><div class="narr" style="font-size:17px"><ul style="margin:0;padding-left:22px">'+(s.bullets||[]).map(b=>'<li style="margin:8px 0">'+esc(b)+'</li>').join('')+'</ul></div>'+narr(s.narration)+'</div>';
+      return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
+    } else if (s.kind === 'gallery') {
+      const cards = (s.photos||[]).map(p=>'<figure class="fp-card"><img src="'+esc(p.url)+'" alt="'+esc(p.name)+'" loading="lazy"><figcaption><b>'+esc(p.zone)+'</b><span>'+esc(p.woreda)+' — field photo</span></figcaption></figure>').join('');
+      const body = '<div class="s-body"><h2 class="curly-head">'+esc(s.heading)+'</h2>'+(cards?'<div class="fp-grid">'+cards+'</div>':'<div class="muted">Field photos have not been uploaded for this scope yet.</div>')+narr(s.narration)+'</div>';
       return '<section class="slide'+active+'">'+sHead()+body+sFoot()+'</section>';
     } else if (s.kind === 'thanks') {
       const thanksSvg = '<svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Smiling child receiving vaccination" style="width:min(520px,80%);height:auto;margin:8px auto 4px;display:block">\

@@ -218,6 +218,19 @@
     }
     .hero-hc svg { width: 13px; height: 13px; stroke: #ffe08a; }
     .hero-hc b { color: #fff; font-weight: 700; }
+    .photo-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 12px; font-weight: 700; color: #fff;
+      background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.28); padding: 4px 14px 4px 6px; border-radius: 999px;
+      cursor: pointer; backdrop-filter: blur(8px); transition: background .2s ease, transform .2s ease; position: relative; z-index: 2; }
+    .photo-btn:hover { background: rgba(255,255,255,0.26); transform: translateY(-1px); }
+    .photo-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .photo-btn[disabled] { opacity: .6; cursor: default; transform: none; }
+    .photo-btn.has-photo { background: rgba(13,87,160,0.45); border-color: rgba(255,255,255,0.35); }
+    .photo-thumb { display: none; width: 32px; height: 32px; object-fit: cover; border-radius: 50%; border: 2px solid rgba(255,255,255,0.75); }
+    .photo-btn.has-photo .photo-thumb { display: block; }
+    .photo-plus { font-size: 15px; line-height: 1; margin-left: 2px; }
+    .photo-btn.has-photo .photo-plus { display: none; }
+    .photo-btn .photo-label { white-space: nowrap; }
+    @media (max-width: 640px) { .photo-btn .photo-label { display: none; } .photo-btn { padding: 4px; } }
     .info-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px;
       position: relative; z-index: 1; margin-top: 14px; max-height: 180px;
@@ -1204,6 +1217,74 @@ function updateCoverageAlertsDisplay_(r, c) {
 }
 
 // ================= RENDER =================
+function resizeImageToDataUrl_(file, maxSide, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read the photo file."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("That file does not look like an image."));
+      img.onload = () => {
+        const side = Math.min(1, (maxSide || 1600) / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * side));
+        const h = Math.max(1, Math.round(img.naturalHeight * side));
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality || 0.82));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+let photoBusy_ = false;
+function initPhotoUpload_() {
+  const btn = document.getElementById("photoUploadBtn");
+  if (!btn) return;
+  const input = document.getElementById("photoFile");
+  const thumb = document.getElementById("photoThumb");
+  const label = document.getElementById("photoLabel");
+  const state = { hasPhoto: false };
+  btn.onclick = () => { if (!photoBusy_) input.click(); };
+  const paint = (hasPhoto, src, text) => {
+    state.hasPhoto = !!hasPhoto;
+    if (src && thumb) thumb.src = src;
+    if (thumb) thumb.style.display = hasPhoto ? "block" : "none";
+    if (btn) btn.classList.toggle("has-photo", !!hasPhoto);
+    if (label && text) label.textContent = text;
+  };
+  callApi("getCoverPhotos", {}).then(res => {
+    const first = res && res.ok && Array.isArray(res.photos) && res.photos[0];
+    paint(!!first, first && first.thumb, first ? "Change photo" : "Add woreda photo");
+  }).catch(() => { /* keep the default label */ });
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (photoBusy_) return;
+    const previousLabel = label ? label.textContent : "";
+    photoBusy_ = true; btn.disabled = true;
+    if (label) label.textContent = "Uploading…";
+    try {
+      if (!/^image\//i.test(file.type)) throw new Error("Please select an image file (JPG or PNG).");
+      const dataUrl = await resizeImageToDataUrl_(file, 1600, 0.82);
+      const res = await callApi("uploadCoverPhoto", { image: dataUrl });
+      if (!res || !res.ok) throw new Error((res && res.error) || "The server rejected the photo.");
+      paint(true, (res.thumb || res.url || thumb.src), "Change photo");
+      toast("Woreda photo saved. It will appear on the dashboard.");
+    } catch (e) {
+      if (label) label.textContent = previousLabel || "Add woreda photo";
+      console.error("photo upload failed", e);
+      toast((e && e.message) ? e.message : "Could not upload the photo.", true);
+    } finally {
+      photoBusy_ = false; btn.disabled = false;
+      input.value = "";
+    }
+  };
+}
+
 function renderMain(rowData) {
   const w = state.selectedRow;
   const day = state.activeDay;
@@ -1240,6 +1321,12 @@ function renderMain(rowData) {
       <div class="hero-top">
         <h2>${ICONS.building}${escapeHtml(w.woreda)} — ${escapeHtml(w.zone)}</h2>
         <div class="hero-hc">${ICONS.pin}<span>Health center <b>${escapeHtml(currentFacilityLabel || "—")}</b></span></div>
+        <button type="button" class="photo-btn" id="photoUploadBtn" aria-label="Upload or replace the woreda's field photo">
+          <img class="photo-thumb" id="photoThumb" alt="">
+          <span class="photo-plus" aria-hidden="true">📷</span>
+          <span class="photo-label" id="photoLabel">Add woreda photo</span>
+        </button>
+        <input type="file" id="photoFile" accept="image/*" capture="environment" hidden>
       </div>
       <div class="info-grid">
         <div class="info-item"><label>${ICONS.target} Total Planned</label><span>${fmtNum(w.totalPlanned)}</span></div>
@@ -1370,6 +1457,7 @@ function renderMain(rowData) {
   setupStickyHero();
   updateCoverageAlertsDisplay_(rowData, c);
   refreshValidation();
+  initPhotoUpload_();
 }
 
 /* The hero bar freezes under the app header so the woreda and health
