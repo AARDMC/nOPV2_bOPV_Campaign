@@ -1140,7 +1140,7 @@ const fmtNum = v => v == null || isNaN(v) ? "—" : Number(v).toLocaleString();
 const fmtRatio = v => (v == null || !isFinite(v)) ? "—" : (Math.round(v * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
 function cfW(v) { if (v == null) return ""; return v > (Number(state.settings.wastageLimit) || 0.1) ? "flag-red" : "flag-green"; }
 function cfC(v) { if (v == null) return ""; if (v >= 1) return "flag-green"; if (v < 0.8) return "flag-yellow"; return ""; }
-function cfB(v) { if (v == null) return ""; return v < 0 ? "flag-red" : ""; }
+function cfB(v) { if (v == null || v === "") return ""; return Number(v) !== 0 ? "flag-red" : ""; }
 
 function vialCoverageInfo_(label, children, vialsUsed, expectedPerVial) {
   if (!(vialsUsed > 0)) {
