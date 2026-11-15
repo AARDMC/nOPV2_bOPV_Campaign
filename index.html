@@ -1033,7 +1033,7 @@ function validateRow(w, day, r) {
   if (pl !== L) {
     const diff = pl - L;
     const diffText = diff > 0 ? (diff + " more than total") : (Math.abs(diff) + " less than total");
-    add(["AT","AU","AV","AW","AX","H","I","J","K"], "Total Vaccinated by Place (" + pl + ") must equal Total Vaccinated 0–59 months (" + L + "). Difference: " + diffText + " — flag for review.");
+    add(["AT","AU","AV","AW","AX"], "Total Vaccinated by Place (" + pl + ") must equal Total Vaccinated 0–59 months (" + L + "). Difference: " + diffText + " — flag for review.");
   }
 
   // Vial accounting: received = used + partial + returned good + broken + returned bad + lost
