@@ -470,7 +470,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <div class="fld" id="hcField" style="display:none"><label for="fHC">Health center</label><select id="fHC"></select></div>
     <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
-    <button class="btn solid" id="btnExport" type="button" title="Download filtered report (HTML) from the Google Sheet">Download Filtered Report</button>
+    <button class="btn solid" id="btnExport" type="button" title="Download scoped Excel from the Google Sheet (keeps formulas, formatting and validation)">Download Excel</button>
     <button class="btn solid" id="btnExportPpt" type="button" title="Download filtered presentation (PPT) on your device">Download PPT</button>
     <button class="btn dark" id="btnPresent" type="button" title="Present dashboard in full screen">▶ Present</button>
   </div>
@@ -1693,19 +1693,14 @@ function b64ToBlob_(b64, mime){
   const bin = atob(String(b64 || ""));
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime || "text/html;charset=utf-8" });
+  return new Blob([bytes], { type: mime || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 function doDashboardExport(){
   const btn = document.getElementById('btnExport');
-  const defaultLabel = 'Download Filtered Report';
+  const defaultLabel = 'Download Excel';
   if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
-  setBusy('Preparing export', 'Generating filtered_report.html from the Google Sheet (visible rows, formulas, displayed values, formatting & conditional formatting)…');
+  setBusy('Preparing export', 'Building scoped Excel from the Google Sheet (keeps formulas, formatting and validation)…');
   const payload = {};
-  if (typeof S !== 'undefined') {
-    if (S.zone && S.zone !== 'all') payload.zone = S.zone; else if (DASH_SCOPE && DASH_SCOPE.zone) payload.zone = DASH_SCOPE.zone;
-    if (S.woreda && S.woreda !== 'all') payload.woreda = S.woreda; else if (DASH_SCOPE && DASH_SCOPE.woreda) payload.woreda = DASH_SCOPE.woreda;
-  }
-  if (DASH_SCOPE && DASH_SCOPE.woredaID) payload.woredaID = DASH_SCOPE.woredaID;
   if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
   google.script.run
     .withSuccessHandler(function(res){
@@ -1716,8 +1711,8 @@ function doDashboardExport(){
         return;
       }
       try{
-        const blob = b64ToBlob_(res.base64, res.mimeType || 'text/html;charset=utf-8');
-        const name = res.fileName || 'filtered_report.html';
+        const blob = b64ToBlob_(res.base64, res.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        const name = res.fileName || 'nOPV2_bOPV_Campaign.xlsx';
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(()=>URL.revokeObjectURL(url), 300000);
@@ -1733,7 +1728,7 @@ function doDashboardExport(){
       setBusy(null);
       toast('Export failed: '+esc(err&&err.message?err.message:err), true);
     })
-    .getDashboardHtmlExport(payload);
+    .getNativeScopedExport(payload);
 }
 
 
