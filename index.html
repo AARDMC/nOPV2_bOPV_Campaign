@@ -558,6 +558,10 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     return fetch(url, opts).finally(function(){ clearTimeout(t); });
   }
 
+  function timeoutForAction(action){
+    if (action === "getNativeScopedExport" || action === "getDashboardHtmlExport" || action === "getWoredaExport" || action === "getDashboardExport" || action === "exportToExcelWithFormulas") return 360000;
+    return 45000;
+  }
   function postJson(body) {
     var url = window.CAMPAIGN_API_URL;
     if (!url) return Promise.reject(fail("This page is not connected to the campaign server yet."));
@@ -569,7 +573,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
       cache: "no-store",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(body)
-    }, 45000).then(function (res) {
+    }, timeoutForAction(body && body.action)).then(function (res) {
       return res.text().then(function (text) {
         var data = parseJson(text);
         if (!res.ok && (!data || !data.error)) {
@@ -616,7 +620,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
       var timer = setTimeout(function () {
         finish();
         reject(fail("The campaign server is not responding. Check your internet connection and try again."));
-      }, 60000);
+      }, timeoutForAction(body && body.action));
       function finish() {
         if (settled) return;
         settled = true;
