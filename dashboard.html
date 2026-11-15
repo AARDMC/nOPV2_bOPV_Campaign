@@ -1070,7 +1070,7 @@ async function loadGeoJsonData(){
   ];
   for (const url of urls){
     try {
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'default' });
       if (!res.ok) continue;
       const data = await res.json();
       if (data && (data.type === 'FeatureCollection' || data.type === 'Feature' || data.features || data.geometry)) { MAP_GEOJSON = data; return data; }
