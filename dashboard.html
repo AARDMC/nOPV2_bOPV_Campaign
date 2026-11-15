@@ -1927,8 +1927,8 @@ function doDashboardExport(){
             if (preWin && !preWin.closed) { preWin.location = res.url; opened = true; }
             else { const w = window.open(res.url, '_blank', 'noopener'); opened = !!w; }
           } catch(e) { opened = false; }
-          if (opened) toast('Sub-city sheet updated and opened' + (res.fileName ? ': ' + esc(res.fileName) : ''));
-          else toast('Sub-city sheet updated. Open: ' + esc(res.url), false);
+          if (opened) toast((res.fileName ? esc(res.fileName) : 'Your sheet') + ' updated and opened');
+          else toast((res.fileName ? esc(res.fileName) : 'Your sheet') + ' updated — open: ' + esc(res.url), false);
           return;
         }
         if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}

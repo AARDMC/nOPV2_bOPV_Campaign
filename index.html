@@ -1717,14 +1717,16 @@ function exportWoreda() {
         let opened = false;
         try {
           if (preWin && !preWin.closed) { preWin.location = res.url; opened = true; }
-          else { const w = window.open(res.url, '_blank', 'noopener'); opened = !!w; }
+          else { const win = window.open(res.url, '_blank', 'noopener'); opened = !!win; }
         } catch(e) { opened = false; }
+        const dl = res.downloadUrl || (res.fileId ? ("https://docs.google.com/spreadsheets/d/" + res.fileId + "/export?format=xlsx") : "");
         el.innerHTML = `
           <div class="export-result">
-            <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Sub-city Google Sheet updated</span>
+            <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} ${escapeHtml(res.fileName || "Your Google Sheet")} updated</span>
             <a href="${escapeAttr(res.url)}" target="_blank" rel="noopener" class="btn btn-success" style="margin-left:auto">${ICONS.excel}Open Google Sheet</a>
+            ${dl ? `<a href="${escapeAttr(dl)}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.download}Download .xlsx</a>` : ""}
           </div>`;
-        toast(opened ? "Sub-city Google Sheet updated and opened" : "Sub-city Google Sheet updated (click Open Google Sheet)");
+        toast(opened ? "Google Sheet updated and opened" : "Google Sheet updated (use the buttons below)");
         return;
       }
       if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
