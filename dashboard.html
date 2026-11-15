@@ -1999,7 +1999,10 @@ function buildNarrationDeck(){
   const low = rows.filter(r=>r.cov!=null).sort((a,b)=>a.cov-b.cov).slice(0,10);
   const places = [['house', cum.pHouse||0], ['school', cum.pSchool||0], ['market', cum.pMarket||0], ['street', cum.pStreet||0], ['other places', cum.pOther||0]].sort((a,b)=>b[1]-a[1]);
   const mf = (cum.male||0)+(cum.female||0) || 1;
-  const uniqueWoredas = new Set(units.map(u => (u.zone||'') + '|' + (u.woreda||''))).size;
+  // Woredas split across health centers carry a "/N" suffix (Woreda 03/1, Woreda 03/2).
+  // Both are the same woreda, so the scope counts by the base woreda name.
+  const baseWoreda = w => String(w || '').replace(/\s*\/\s*\d+\s*$/, '').replace(/\s+/g, ' ').trim();
+  const uniqueWoredas = new Set(units.map(u => (u.zone||'') + '|' + baseWoreda(u.woreda))).size;
   const hcCount = new Set(units.map(u => String(u.hc || '').replace(/\s+/g,' ').trim().toLowerCase()).filter(Boolean)).size || units.length || 0;
   const teamCount = units.reduce((s,u)=>s + (Number(u.teams)||0), 0) || rows.reduce((s,r)=>s + (Number(r.day && r.day.teams)||Number(r.u && r.u.teams)||0), 0);
   const scopeLabel = scopeTitle + (hcName ? (' — ' + hcName) : '');
