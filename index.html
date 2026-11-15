@@ -1038,9 +1038,9 @@ function validateRow(w, day, r) {
 
   // Vial accounting: received = used + partial + returned good + broken + returned bad + lost
   const nopvAcc = n(r.R) + n(r.S) + n(r.T) + n(r.U) + n(r.V) + n(r.W);
-  if (n(r.Q) > 0 && n(r.Q) !== nopvAcc) add(["Q","R","S","T","U","V","W"], "nOPV2 vials: received (" + n(r.Q) + ") does not match accounted (" + nopvAcc + ").");
+  if (n(r.Q) > 0 && n(r.Q) !== nopvAcc) add([], "nOPV2 vials: received (" + n(r.Q) + ") does not match accounted (" + nopvAcc + ").");
   const bopvAcc = n(r.AA) + n(r.AB) + n(r.AC) + n(r.AD) + n(r.AE) + n(r.AF);
-  if (n(r.Z) > 0 && n(r.Z) !== bopvAcc) add(["Z","AA","AB","AC","AD","AE","AF"], "bOPV vials: received (" + n(r.Z) + ") does not match accounted (" + bopvAcc + ").");
+  if (n(r.Z) > 0 && n(r.Z) !== bopvAcc) add([], "bOPV vials: received (" + n(r.Z) + ") does not match accounted (" + bopvAcc + ").");
 
   // Per-vial coverage above/below expected is shown as an informational alert (usage status), not a save blocker.
 
