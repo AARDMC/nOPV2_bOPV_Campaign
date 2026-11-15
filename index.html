@@ -1701,22 +1701,33 @@ function exportWoreda() {
   if (!state.selectedRow || !el) return;
   const w = state.selectedRow;
   el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Preparing your woreda Excel from the Google Sheet…</span></div>`;
+  let preWin = null;
+  try { preWin = window.open('', '_blank'); } catch(e) { preWin = null; }
+  if (preWin) {
+    try { preWin.document.write('<!doctype html><title>Opening sheet…</title><body style="font-family:Arial,sans-serif;padding:24px;color:#334155">Updating and opening your Google Sheet…</body>'); preWin.document.close(); } catch(e) {}
+  }
   google.script.run
     .withSuccessHandler(res => {
       if (!res || res.ok === false) {
+        if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
         fallbackLocalWoredaExport_(el, (res && res.error) || "native export rejected");
         return;
       }
       if (res.mode === 'sheet' && res.url) {
+        let opened = false;
+        try {
+          if (preWin && !preWin.closed) { preWin.location = res.url; opened = true; }
+          else { const w = window.open(res.url, '_blank', 'noopener'); opened = !!w; }
+        } catch(e) { opened = false; }
         el.innerHTML = `
           <div class="export-result">
             <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Sub-city Google Sheet updated</span>
             <a href="${escapeAttr(res.url)}" target="_blank" rel="noopener" class="btn btn-success" style="margin-left:auto">${ICONS.excel}Open Google Sheet</a>
           </div>`;
-        window.open(res.url, '_blank', 'noopener');
-        toast("Sub-city Google Sheet updated and opened");
+        toast(opened ? "Sub-city Google Sheet updated and opened" : "Sub-city Google Sheet updated (click Open Google Sheet)");
         return;
       }
+      if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
       if (!res.base64) { fallbackLocalWoredaExport_(el, "native export not supported by server"); return; }
       let blob, fileName;
       try {
