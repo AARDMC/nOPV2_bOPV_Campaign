@@ -648,11 +648,16 @@ function qualityItems() {
   return items;
 }
 
+function fmtDateSafe_(d, opts) {
+  if (!d) return '';
+  const dt = new Date(String(d) + 'T00:00:00');
+  if (isNaN(dt.getTime())) return '';
+  try { return dt.toLocaleDateString('en-GB', opts || { day:'numeric', month:'short' }); } catch (e) { return ''; }
+}
 function dayText(i) {
   const d = M.days[i]; if (!d) return '';
-  if (!d.date) return d.label;
-  const dt = new Date(d.date + 'T00:00:00');
-  return d.label + ' (' + dt.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + ')';
+  const ds = fmtDateSafe_(d.date, { day:'numeric', month:'short' });
+  return ds ? (d.label + ' (' + ds + ')') : d.label;
 }
 const dayName = () => M.days[S.upTo] ? M.days[S.upTo].label : '';
 function scopeName() { return S.woreda !== 'all' ? S.zone + ', ' + S.woreda : S.zone !== 'all' ? S.zone : 'All zones'; }
@@ -1385,7 +1390,8 @@ function updateHeader() {
   $('#bannerTitle').textContent = TAB_TITLES[S.tab] || '';
   $('#bannerSub').textContent = scopeName() + ' | cumulative through ' + dayText(S.upTo);
   const d = M.days[S.upTo];
-  $('#repDate').textContent = d && d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : (d ? d.label : '–');
+  const rd = d && d.date ? fmtDateSafe_(d.date, { month:'short', day:'numeric', year:'numeric' }) : '';
+  $('#repDate').textContent = rd || (d ? d.label : '–');
 }
 function updateHCSelector() {
   const hcField = $('#hcField');
@@ -1437,8 +1443,9 @@ function onData(payload, fromCache) {
   if (!M.zones.includes(S.zone) && S.zone !== 'all') { S.zone = M.zones[0] || 'all'; }
   $('#title').textContent = M.meta.title;
   const first = M.days[0] && M.days[0].date, lastD = M.days[M.last] && M.days[M.last].date;
-  const f = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-  let sub = 'nOPV2 + bOPV Campaign | ' + M.units.length + ' woredas in ' + M.zones.length + ' zones' + (first && lastD ? ', ' + f(first) + ' to ' + f(lastD) : '');
+  const f = d => fmtDateSafe_(d, { day:'numeric', month:'short', year:'numeric' });
+  const firstT = f(first), lastT = f(lastD);
+  let sub = 'nOPV2 + bOPV Campaign | ' + M.units.length + ' woredas in ' + M.zones.length + ' zones' + (firstT && lastT ? ', ' + firstT + ' to ' + lastT : '');
   if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilities && DASH_SCOPE.facilities.length > 1 && DASH_FACILITY >= 0 && DASH_SCOPE.facilities[DASH_FACILITY]) sub += ' | ' + DASH_SCOPE.facilities[DASH_FACILITY];
   $('#subtitle').textContent = sub;
   $('#stamp').textContent = 'Data read ' + M.meta.generated;
