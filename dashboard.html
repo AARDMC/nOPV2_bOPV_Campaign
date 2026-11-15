@@ -2000,7 +2000,7 @@ function buildNarrationDeck(){
   const places = [['house', cum.pHouse||0], ['school', cum.pSchool||0], ['market', cum.pMarket||0], ['street', cum.pStreet||0], ['other places', cum.pOther||0]].sort((a,b)=>b[1]-a[1]);
   const mf = (cum.male||0)+(cum.female||0) || 1;
   const uniqueWoredas = new Set(units.map(u => (u.zone||'') + '|' + (u.woreda||''))).size;
-  const hcCount = units.filter(u => u && u.hc && String(u.hc).trim()).length || units.length || 0;
+  const hcCount = new Set(units.map(u => String(u.hc || '').replace(/\s+/g,' ').trim().toLowerCase()).filter(Boolean)).size || units.length || 0;
   const teamCount = units.reduce((s,u)=>s + (Number(u.teams)||0), 0) || rows.reduce((s,r)=>s + (Number(r.day && r.day.teams)||Number(r.u && r.u.teams)||0), 0);
   const scopeLabel = scopeTitle + (hcName ? (' — ' + hcName) : '');
   const perfGroups = groups(rows).filter(g => g.cov != null).sort((a,b)=>b.cov-a.cov);
