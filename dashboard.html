@@ -1310,7 +1310,7 @@ function renderMap(){
       function robustBbox(feats){ const {lons,lats}=collectCoords(feats); if(!lons.length) return null; const ls=lons.slice().sort((a,b)=>a-b), ts=lats.slice().sort((a,b)=>a-b); let x0=percentile(ls,MAP_PCT),x1=percentile(ls,1-MAP_PCT),y0=percentile(ts,MAP_PCT),y1=percentile(ts,1-MAP_PCT); if(x1-x0<1e-6){x0=ls[0];x1=ls[ls.length-1];} if(y1-y0<1e-6){y0=ts[0];y1=ts[ts.length-1];} const dx=(x1-x0)*MAP_PAD, dy=(y1-y0)*MAP_PAD; return {x0:x0-dx,x1:x1+dx,y0:y0-dy,y1:y1+dy}; }
       function projector(feats,W){ const bb=robustBbox(feats); if(!bb) return null; const lonR=bb.x1-bb.x0, latR=bb.y1-bb.y0; if(lonR<=0||latR<=0) return null; const midLat=(bb.y0+bb.y1)/2; const cosLat=Math.cos(midLat*Math.PI/180)||1; const H=W*latR/(lonR*cosLat); const P=([lon,lat])=>[(lon-bb.x0)/lonR*W,(bb.y1-lat)/latR*H]; return {W,H,P}; }
       function ringsOf(f){ return f.geometry.type==='Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates; }
-      function pathOf(f,P){ const oneRing=ring=>{ if(!ring||!ring.length) return ''; return 'M'+ring.map(p=>{const xy=P(p); return xy[0].toFixed(1)+','+xy[1].toFixed(1);}).join('L')+'Z'; }; return ringsOf(f).map(poly=>poly.map(oneRing).join('')).join(''); }
+      function pathOf(f,P){ const oneRing=ring=>{ if(!ring||!ring.length) return ''; return 'M'+ring.map(p=>{const xy=P(p); return xy[0].toFixed(2)+','+xy[1].toFixed(2);}).join('L')+'Z'; }; return ringsOf(f).map(poly=>poly.map(oneRing).join('')).join(''); }
       function centroidOf(f,P){ const polys=ringsOf(f); let best=null,bestLen=0; polys.forEach(poly=>{const r=poly[0]; if(r&&r.length>bestLen){best=r;bestLen=r.length;}}); if(!best||!best.length) return null; let sx=0,sy=0,n=0; for(let i=0;i<best.length;i++){ if(i===best.length-1 && best.length>1 && best[i][0]===best[0][0] && best[i][1]===best[0][1]) break; const xy=P(best[i]); sx+=xy[0]; sy+=xy[1]; n++; } return n?[sx/n,sy/n]:null; }
 
       const selFeats = selected.map(x=>x.f);
@@ -1351,7 +1351,7 @@ function renderMap(){
         const d = pathOf(x.f, P);
         const vtxt = (x.place != null && !isNaN(x.place)) ? (' — Total Vaccinated by Place: ' + fmt(x.place)) : ' — Total Vaccinated by Place: No data';
         const title = esc((x.label || x.short) + vtxt);
-        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.72" stroke="#0F2552" stroke-width="0.9"><title>'+title+'</title></path>';
+        return '<path d="'+d+'" fill="'+fill+'" fill-opacity="0.72" stroke="#0F2552" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round" shape-rendering="geometricPrecision"><title>'+title+'</title></path>';
       }).join('');
 
       // distribute dots inside each woreda polygon (one dot per person, capped for performance)
@@ -1473,9 +1473,9 @@ function renderMap(){
 
       const PAD = 30;
       const vb = { x: -PAD, y: -PAD, w: W + 2*PAD, h: H + 2*PAD };
-      const svg = '<svg id="mapSvg" xmlns="http://www.w3.org/2000/svg" viewBox="'+vb.x+' '+vb.y+' '+vb.w.toFixed(0)+' '+vb.h.toFixed(0)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;min-height:520px;display:block;background:#F7FBFF;cursor:grab">' +
+      const svg = '<svg id="mapSvg" xmlns="http://www.w3.org/2000/svg" viewBox="'+vb.x+' '+vb.y+' '+vb.w.toFixed(0)+' '+vb.h.toFixed(0)+'" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision" style="width:100%;height:100%;min-height:520px;display:block;background:#F7FBFF;cursor:grab">' +
         '<rect x="'+vb.x+'" y="'+vb.y+'" width="'+vb.w+'" height="'+vb.h+'" fill="#F7FBFF"></rect>' +
-        '<g id="mapG">' + paths + markersLayer + '</g></svg>';
+        '<g id="mapG" shape-rendering="geometricPrecision">' + paths + markersLayer + '</g></svg>';
       wrap.innerHTML = svg;
 
       // legend (Total Vaccinated by Place)
