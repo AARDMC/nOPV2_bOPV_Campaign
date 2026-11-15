@@ -1648,7 +1648,7 @@ function fallbackLocalWoredaExport_(el, reason) {
         el.innerHTML = `<div class="export-result" style="background:linear-gradient(135deg,rgba(239,83,80,0.1),rgba(198,40,40,0.1))"><span style="color:#c62828;font-weight:600">❌ ${escapeHtml((err && err.message) || String(err))}</span></div>`;
         return;
       }
-      const fileName = "EPI_" + safeFilePart_(res.woreda) + "_" + safeFilePart_(res.healthCenter) + ".xlsx";
+      const fileName = "nOPV2+bOPV____" + safeFilePart_(res.woreda) + "_" + safeFilePart_(res.healthCenter) + ".xlsx";
       const url = downloadBlob_(blob, fileName);
       el.innerHTML = `
         <div class="export-result">
@@ -1679,7 +1679,7 @@ function exportWoreda() {
       let blob, fileName;
       try {
         blob = base64ToBlob_(res.base64, res.mimeType);
-        fileName = res.fileName || ("EPI_" + safeFilePart_(w.woreda) + "_" + safeFilePart_(w.healthCenter) + ".xlsx");
+        fileName = res.fileName || ("nOPV2+bOPV____" + safeFilePart_(w.woreda) + "_" + safeFilePart_(w.healthCenter) + ".xlsx");
       } catch (err) {
         fallbackLocalWoredaExport_(el, (err && err.message) || String(err));
         return;

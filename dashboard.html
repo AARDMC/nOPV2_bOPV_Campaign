@@ -1712,7 +1712,7 @@ function doDashboardExport(){
       }
       try{
         const blob = b64ToBlob_(res.base64, res.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        const name = res.fileName || 'nOPV2_bOPV_Campaign.xlsx';
+        const name = res.fileName || 'nOPV2+bOPV____Full.xlsx';
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(()=>URL.revokeObjectURL(url), 300000);
