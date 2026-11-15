@@ -1360,11 +1360,11 @@ function initPhotoUpload_() {
         google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .uploadCoverPhoto({ image: dataUrl });
+          .uploadCoverPhoto({ image: dataUrl, day: state.activeDay });
       });
       if (!res || !res.ok) throw new Error((res && res.error) || "The server rejected the photo.");
-      paint(true, res.thumb || res.url, "Saved for your woreda.", false);
-      toast("Woreda photo saved. It will appear on the dashboard.");
+      paint(true, res.thumb || res.url, "Saved for your woreda — " + (state.activeDay || "Day 1") + ".", false);
+      toast("Woreda photo saved for " + (state.activeDay || "Day 1") + ". It will appear on the dashboard.");
     } catch (e) {
       if (label) label.textContent = previousLabel || "Snap or upload photo";
       const msg = (e && e.message) ? e.message : "Could not upload the photo.";
@@ -1496,7 +1496,7 @@ function renderMain(rowData) {
           </div>
           <div class="photo-question-side">
             <p class="photo-q-title">Upload any vaccination photo</p>
-            <p class="photo-q-hint">Snap or choose one photo from the vaccination activity &mdash; it appears on the Campaign Update dashboard with the other field photos. Only one photo per woreda &mdash; uploading again replaces it.</p>
+            <p class="photo-q-hint">Snap or choose one photo from the vaccination activity &mdash; it appears on the Campaign Update dashboard with the other field photos. Only one photo per woreda per day &mdash; uploading again for the same day replaces it.</p>
             <button type="button" class="btn-photo" id="photoUploadBtn">${ICONS.camera}<span id="photoLabel">Snap or upload photo</span></button>
             <input type="file" id="photoFile" accept="image/*" capture="environment" hidden>
             <p class="photo-status" id="photoStatus" role="status" aria-live="polite"></p>
