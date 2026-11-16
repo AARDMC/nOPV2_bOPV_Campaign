@@ -1109,7 +1109,7 @@ function validateRow(w, day, r) {
   if (teamsPlanned != null && n(r.AY) > teamsPlanned) add(["AY"], "Number of vaccination teams reported (" + fmtNum(n(r.AY)) + ") cannot exceed number of teams (" + fmtNum(teamsPlanned) + ").");
   // Zero-dose teams reported cannot exceed the number of zero-dose teams
   // fielded (applies even when the fielded number is 0 or blank).
-  if (n(r.BA) > n(r.AZ)) add(["AZ","BA"], "Zero-dose vaccination teams reported (" + n(r.BA) + ") cannot exceed number of zero-dose vaccination teams (" + n(r.AZ) + "). Correct one of the two values before saving.");
+  if (n(r.BA) > n(r.AZ)) add(["AZ","BA"], "Zero-dose vaccination teams reported (" + n(r.BA) + ") cannot exceed number of zero-dose vaccination teams (" + n(r.AZ) + "). Correct the teams reported value before saving.");
 
   // Linkage: vaccinated can never exceed identified (applies even when identified is 0
   // or blank — vaccinating more children than were identified is always a data error).
@@ -1154,6 +1154,7 @@ function requiredFieldErrors_() {
   document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
     const col = inp.dataset.col;
     if (!col || FORMULA_COLS.indexOf(col) !== -1) return;
+    if (inp.readOnly) return; // locked plan fields (e.g. AZ) are satisfied by their prefilled value
     if (String(inp.value).trim() === "") {
       if (seen[col]) return;
       seen[col] = true;
@@ -1493,7 +1494,7 @@ function renderMain(rowData) {
           ${field("AK","Households visited during the house-to-house campaign")}
           <div class="field-group">
             <div class="field-group-title">Vaccination teams</div>
-            <div class="field-group-grid teams-grid">${field("AY","Vaccination teams reported")}${field("AZ","Number of zero-dose vaccination teams")}${field("BA","Zero-dose vaccination teams reported")}</div>
+            <div class="field-group-grid teams-grid">${field("AY","Vaccination teams reported")}${field("AZ","Number of zero-dose vaccination teams", true)}${field("BA","Zero-dose vaccination teams reported")}</div>
           </div>
         </div>
         <div class="reach-block">
