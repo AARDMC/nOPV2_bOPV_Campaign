@@ -1108,8 +1108,9 @@ function validateRow(w, day, r) {
   const teamsPlanned = (w && w.teams !== "" && w.teams != null && isFinite(Number(w.teams))) ? Number(w.teams) : null;
   if (teamsPlanned != null && n(r.AY) > teamsPlanned) add(["AY"], "Number of vaccination teams reported (" + fmtNum(n(r.AY)) + ") cannot exceed number of teams (" + fmtNum(teamsPlanned) + ").");
   // Zero-dose teams reported cannot exceed the number of zero-dose teams
-  // fielded (applies even when the fielded number is 0 or blank).
-  if (n(r.BA) > n(r.AZ)) add(["AZ","BA"], "Zero-dose vaccination teams reported (" + n(r.BA) + ") cannot exceed number of zero-dose vaccination teams (" + n(r.AZ) + "). Correct the teams reported value before saving.");
+  // fielded (applies even when the fielded number is 0 or blank). When the woreda
+  // has no zero-dose teams planned, the fields are hidden and this check skips.
+  if (n(r.BA) > n(r.AZ) && n(r.AZ) > 0) add(["AZ","BA"], "Zero-dose vaccination teams reported (" + n(r.BA) + ") cannot exceed number of zero-dose vaccination teams (" + n(r.AZ) + "). Correct the teams reported value before saving.");
 
   // Linkage: vaccinated can never exceed identified (applies even when identified is 0
   // or blank — vaccinating more children than were identified is always a data error).
@@ -1398,6 +1399,9 @@ function renderMain(rowData) {
   const w = state.selectedRow;
   const day = state.activeDay;
   const readonly = READONLY_DAYS.indexOf(day) !== -1;
+  // Zero-dose teams: this woreda's plan is fixed in the workbook. When no zero-dose
+  // vaccination teams are planned, the two zero-dose team fields are hidden from data entry.
+  const zeroDosePlanned = (rowData && rowData["AZ"] !== "" && rowData["AZ"] != null && isFinite(Number(rowData["AZ"]))) ? Number(rowData["AZ"]) : 0;
   const c = computeRow(w, day, rowData);
 
   const facilityTabs = w.facilityCount > 1 ? `
@@ -1494,7 +1498,9 @@ function renderMain(rowData) {
           ${field("AK","Households visited during the house-to-house campaign")}
           <div class="field-group">
             <div class="field-group-title">Vaccination teams</div>
-            <div class="field-group-grid teams-grid">${field("AY","Vaccination teams reported")}${field("AZ","Number of zero-dose vaccination teams", true)}${field("BA","Zero-dose vaccination teams reported")}</div>
+            <div class="field-group-grid teams-grid">${field("AY","Vaccination teams reported")}${zeroDosePlanned > 0
+              ? field("AZ","Number of zero-dose vaccination teams", true) + field("BA","Zero-dose vaccination teams reported")
+              : `<span class="readonly-note" style="grid-column:1/-1">${ICONS.lock}No zero-dose vaccination teams are planned for this woreda, so the zero-dose team fields are hidden from data entry. The plan can only be changed in the master workbook.</span>`}</div>
           </div>
         </div>
         <div class="reach-block">
