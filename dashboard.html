@@ -2510,8 +2510,19 @@ function togglePresenterFs(){ const p=document.getElementById('presenter'); if(!
 
 function doPptExport(){
   if(!M){ toast('Load the dashboard first.', true); return; }
-  if(typeof PptxGenJS === 'undefined'){ toast('Presentation library is still loading. Please try again in a moment.', true); return; }
   const btn = document.getElementById('btnExportPpt');
+  if(typeof PptxGenJS === 'undefined'){
+    // Library still loading over a slow network: wait, then make the same call again.
+    if(btn){ btn.disabled = true; btn.textContent = 'Loading…'; }
+    const started = Date.now();
+    const tick = function(){
+      if(typeof PptxGenJS !== 'undefined'){ if(btn){ btn.disabled = false; btn.textContent = 'Download PPT'; } doPptExport(); return; }
+      if(Date.now() - started > 15000){ if(btn){ btn.disabled = false; btn.textContent = 'Download PPT'; } toast('Presentation library failed to load. Please check your connection and try again.', true); return; }
+      setTimeout(tick, 250);
+    };
+    tick();
+    return;
+  }
   if(btn){ btn.disabled = true; btn.textContent = 'Preparing…'; }
   setBusy('Preparing presentation', 'Building PPT on your device…');
   setTimeout(function(){

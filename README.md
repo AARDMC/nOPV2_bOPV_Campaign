@@ -32,7 +32,8 @@ Woreda ID.
 1. Open the site, enter name, email, phone and Woreda ID.
 2. The app loads the officer's own woreda row from the `Day 1` plan.
 3. Pick a campaign day, enter the numbers, press **Save**.
-4. **Export my woreda (Google Sheet)** refreshes the officer's own scoped Google
+4. **Upload any vaccination photo** — a photo field for the day you have selected. Upload one photo per woreda per day; the file is named `<Sub-city> Woreda NN Day M Photo.jpg` (for example `Addis Ketema Woreda 01 Day 1 Photo.jpg`) in the shared campaign photo folder. Re-uploading for the same day replaces that day's photo; otherwise days accumulate. The photo appears on the dashboard's **Field in action** panel and in the full-screen **Present** mode.
+5. **Export my woreda (Google Sheet)** refreshes the officer's own scoped Google
    Sheet in the campaign export folder (all campaign days, formulas, formatting,
    validation and conditional formatting preserved) and opens it automatically.
    A **Download .xlsx** link is offered next to **Open Google Sheet**.
@@ -41,7 +42,7 @@ Woreda ID.
 
 ## Dashboard access
 
-- **Woreda officers**: sign in to data entry and click **Dashboard** (scoped to your woreda), or open `dashboard.html` and sign in with your **Woreda ID**. For multi–health-center woredas, select the health center in the dashboard to view that facility’s data.
+- **Woreda officers**: sign in to data entry and click **Dashboard** (scoped to your woreda), or open `dashboard.html` and sign in with your **Woreda ID**. For multi–health-center woredas, select the health center in the dashboard to view that facility's data.
 - **Sub city / PHEM / EPHI**: open `dashboard.html` or use the "Dashboard access" field on the login page and enter your ID:
   - `AK1136` Addis Ketema, `AK1137` Akaki Kality, `A1138` Arada, `B1139` Bole, `G1140` Gulele, `K1141` Kirkos, `KK1142` Kolfe Keranyo, `LK1143` Lemi Kura, `L1144` Lideta, `NSL1145` Nifas Silk Lafto, `Y1146` Yeka (each sees only their sub city)
   - `@AAPHEM123` Addis Ababa PHEM, `@EPHI123` EPHI (see the full city dashboard)
