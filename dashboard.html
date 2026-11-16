@@ -509,6 +509,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <button class="btn solid" id="btnExport" type="button" title="Download scoped Excel from the Google Sheet (keeps formulas, formatting and validation)">Download Excel</button>
     <button class="btn solid" id="btnExportPpt" type="button" title="Download filtered presentation (PPT) on your device">Download PPT</button>
     <button class="btn dark" id="btnPresent" type="button" title="Present dashboard in full screen">▶ Present</button>
+    <button class="btn dark" id="btnMergeHc" type="button" aria-pressed="false" title="Combine split woredas (e.g. Woreda 03/1 + Woreda 03/2) into Woreda 03">Merge HC</button>
   </div>
 </div>
 <div class="tabbar">
@@ -561,7 +562,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
 <script>
 /* ===================== LOGIC ===================== */
 let CFG = null, M = null;
-const S = { zone:'all', woreda:'all', upTo:0, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all' };
+const S = { zone:'all', woreda:'all', upTo:0, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all', mergeHc:false };
 let DASH_SCOPE = { mode:'all', zone:'', woreda:'', woredaID:'', facilities: [], facilityCount: 0, facilityIndex: -1 };
 let DASH_FACILITY = -1;
 
@@ -584,6 +585,107 @@ const RULES = [
   { id:'cumover',   label:'Cumulative coverage far above target' }
 ];
 
+// Woredas split across health centers carry a "/N" suffix (Woreda 03/1, Woreda 03/2).
+// baseWoredA returns the shared woreda label for the group, e.g. "Woreda 03".
+function baseWoredaLabel(w) {
+  return String(w || '').replace(/\s*\/\s*\d+\s*$/, '').replace(/\s+/g, ' ').trim();
+}
+
+// When S.mergeHc is on, collapse split rows like "Woreda 03/1" + "Woreda 03/2"
+// into a single "Woreda 03" row. All numeric values are summed from the child rows.
+// The original M is replaced with the merged view so every consumer (filters,
+// charts, tables, map, quality, Present and Excel/PPT downloads) just works.
+function applyMergeSplitWoredas(M_obj) {
+  if (!M_obj || !M_obj.units) return M_obj;
+
+  const groups = {};
+  const order = [];
+  M_obj.units.forEach((u, i) => {
+    const key = (u.zone || '') + '||' + baseWoredaLabel(u.woreda).toLowerCase();
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push({ u, i });
+  });
+
+  let changed = false;
+  order.forEach((key) => {
+    const list = groups[key];
+    if (list.length <= 1) return;
+    changed = true;
+  });
+  if (!changed) return M_obj;
+
+  const newUnits = [];
+  const newRecs = [];
+  let synth = -1;
+
+  order.forEach((key) => {
+    const list = groups[key];
+    if (list.length === 1) {
+      const u = list[0].u;
+      newUnits.push(u);
+      const sn = u.sn;
+      M_obj.recs.forEach((r) => { if (r.sn === sn) newRecs.push(r); });
+      return;
+    }
+    const sn = synth--;
+    const baseWoreda = baseWoredaLabel(list[0].u.woreda);
+    const zone = list[0].u.zone;
+    const hc = Array.from(new Set(list.map(({u}) => String(u.hc || '').trim()).filter(Boolean))).join(' / ');
+    const tgt = list.reduce((s, {u}) => s + (Number(u.tgt) || 0), 0);
+    const teams = list.reduce((s, {u}) => s + (Number(u.teams) || 0), 0);
+    const woredaID = list[0].u.woredaID || list[0].u.woredaID;
+    const merged = {
+      sn: sn,
+      zone: zone,
+      woreda: baseWoreda,
+      hc: hc,
+      tgt: tgt,
+      teams: teams,
+      woredaID: woredaID,
+      flags: [],
+      isMerged: true
+    };
+    newUnits.push(merged);
+    const childSns = new Set(list.map(({u}) => u.sn));
+    const byDay = {};
+    M_obj.recs.forEach((r) => {
+      if (!childSns.has(r.sn)) return;
+      if (!byDay[r.d]) byDay[r.d] = [];
+      byDay[r.d].push(r);
+    });
+    Object.keys(byDay).forEach((dKey) => {
+      const d = Number(dKey);
+      const parts = byDay[dKey];
+      const sum = { d, sn, u: merged, flags: [] };
+      M_obj.fields.forEach((k) => {
+        sum[k] = parts.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+      });
+      newRecs.push(sum);
+    });
+  });
+
+  const bySn = {};
+  newUnits.forEach((u) => { bySn[u.sn] = []; });
+  newRecs.forEach((r) => (bySn[r.sn] = bySn[r.sn] || []).push(r));
+
+  const bySnU = {};
+  newUnits.forEach((u) => { bySnU[u.sn] = u; });
+
+  const days = M_obj.days;
+  let last = 0;
+  days.forEach((d, i) => { if (newRecs.some((r) => r.d === i && r.tot > 0)) last = i; });
+
+  M_obj.units = newUnits;
+  M_obj.recs = newRecs;
+  M_obj.bySn = bySn;
+  M_obj.bySnU = bySnU;
+  M_obj.last = last;
+  M_obj.zones = Array.from(new Set(newUnits.map((u) => u.zone))).sort();
+  newRecs.forEach(flagRecord);
+  newUnits.forEach(flagUnit);
+  return M_obj;
+}
+
 function buildModel(p) {
   CFG = p.meta.cfg;
   const fields = p.fields;
@@ -603,6 +705,7 @@ function buildModel(p) {
   M = { fields, units, recs, bySn, bySnU, days, last, meta: p.meta, remarks: p.remarks || [],
         zones: Array.from(new Set(units.map(u => u.zone))).sort() };
   recs.forEach(flagRecord); units.forEach(flagUnit);
+  if (S.mergeHc) applyMergeSplitWoredas(M);
   return M;
 }
 
@@ -1772,6 +1875,14 @@ function saveDashCache(payload) {
 }
 
 let _loadingFresh = false;
+function reloadDashboard() {
+  const cached = loadDashCache();
+  if (M && cached && cached.ok) {
+    try { onData(cached, true); return; } catch(e) { /* fall through */ }
+  }
+  load(true);
+}
+
 function load(force) {
   $('#btnRefresh').disabled = true; $('#btnRefresh').textContent = 'Refreshing';
   const forceObj = (force && typeof force === 'object') ? force : { force: !!force };
@@ -1998,6 +2109,7 @@ function doDashboardExport(){
   }
   const payload = {};
   if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
+  const exportAction = S.mergeHc ? 'getMergedExportSheet' : 'getNativeScopedExport';
   google.script.run
     .withSuccessHandler(function(res){
       if (btn) { btn.disabled = false; btn.textContent = defaultLabel; }
@@ -2044,7 +2156,7 @@ function doDashboardExport(){
       setBusy(null);
       toast('Export failed: '+esc(err&&err.message?err.message:err), true);
     })
-    .getNativeScopedExport(payload);
+    [exportAction](payload);
 }
 
 
@@ -2599,6 +2711,16 @@ function init() {
   $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
   $('#btnExport').addEventListener('click', doDashboardExport);
   $('#btnExportPpt').addEventListener('click', doPptExport);
+
+  $('#btnMergeHc').addEventListener('click', function(){
+    S.mergeHc = !S.mergeHc;
+    const btn = this;
+    btn.setAttribute('aria-pressed', S.mergeHc ? 'true' : 'false');
+    btn.classList.toggle('solid', S.mergeHc);
+    btn.classList.toggle('dark', !S.mergeHc);
+    btn.textContent = S.mergeHc ? 'Merged HC' : 'Merge HC';
+    reloadDashboard();
+  });
   $('#btnPresent').addEventListener('click', openPresenter);
   const _psPrev = document.getElementById('prevSlide'); if(_psPrev) _psPrev.addEventListener('click', prevPresenter);
   const _psNext = document.getElementById('nextSlide'); if(_psNext) _psNext.addEventListener('click', nextPresenter);
