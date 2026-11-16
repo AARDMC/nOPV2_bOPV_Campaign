@@ -1912,6 +1912,17 @@ function downloadBlob_(blob, fileName) {
   document.body.appendChild(link); link.click(); link.remove();
   return url;
 }
+function downloadViaHiddenFrame_(url) {
+  try {
+    const ifr = document.createElement("iframe");
+    ifr.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden";
+    ifr.setAttribute("aria-hidden", "true");
+    ifr.src = url;
+    document.body.appendChild(ifr);
+    setTimeout(() => { try { ifr.remove(); } catch (e) {} }, 60000);
+    return true;
+  } catch (e) { return false; }
+}
 function base64ToBlob_(b64, mime) {
   const bin = atob(String(b64 || ""));
   const bytes = new Uint8Array(bin.length);
@@ -1955,56 +1966,46 @@ function exportWoreda() {
   if (!state.selectedRow || !el) return;
   const w = state.selectedRow;
   el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Refreshing the export workbook (identical to the master sheet)…</span></div>`;
-  let preWin = null;
-  try { preWin = window.open('', '_blank'); } catch(e) { preWin = null; }
-  if (preWin) {
-    try { preWin.document.write('<!doctype html><title>Preparing your Excel…</title><body style="font-family:Arial,sans-serif;padding:24px;color:#334155">Refreshing the export workbook, then downloading your identical copy of the master…</body>'); preWin.document.close(); } catch(e) {}
-  }
   google.script.run
     .withSuccessHandler(res => {
       if (!res || res.ok === false) {
-        // The server could not build the file, but it may have left a workbook open — offer the sheet.
-        if (res && res.url) {
-          if (preWin && !preWin.closed) { try { preWin.location = res.url; } catch(e){} }
+        // The server could not build the file, but it may have left a workbook open — still offer it.
+        if (res && res.downloadUrl) {
+          const ok = downloadViaHiddenFrame_(res.downloadUrl);
+          if (ok) toast("Downloading the refreshed workbook (identical to the master sheet)…");
+        }
+        if (res && res.url && !res.downloadUrl) window.open(res.url, "_blank", "noopener");
+        if (res && (res.url || res.downloadUrl)) {
           const dl = res.downloadUrl || (res.fileId ? ("https://docs.google.com/spreadsheets/d/" + res.fileId + "/export?format=xlsx") : "");
           el.innerHTML = `
             <div class="export-result">
-              <span style="font-weight:700;color:#b45309;display:flex;align-items:center;gap:6px">${ICONS.excel} ${escapeHtml(res.fileName || "Your Google Sheet")} is ready, but the direct download failed${res.error ? " (" + escapeHtml(res.error) + ")" : ""}</span>
+              <span style="font-weight:700;color:#b45309;display:flex;align-items:center;gap:6px">${ICONS.excel} ${escapeHtml(res.fileName || "Your Google Sheet")} is ready${res.error ? " (direct download: " + escapeHtml(res.error) + ")" : ""}</span>
               <a href="${escapeAttr(res.url)}" target="_blank" rel="noopener" class="btn btn-success" style="margin-left:auto">${ICONS.excel}Open Google Sheet</a>
               ${dl ? `<a href="${escapeAttr(dl)}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.download}Download .xlsx</a>` : ""}
             </div>`;
-          toast("Export workbook opened in a new tab");
           return;
         }
-        if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
         fallbackLocalWoredaExport_(el, (res && res.error) || "native export rejected");
         return;
       }
       // Sheet mode: the exported workbook is the master sheet itself (same formats,
-      // formulas, dropdowns and conditional formatting) — send the pre-opened tab to
-      // the .xlsx download so the user gets the identical file, and keep the sheet link.
+      // formulas, dropdowns and conditional formatting) — download it straight from here, no tab.
       if (res.mode === 'sheet' && res.url) {
         const dl = res.downloadUrl || (res.fileId ? ("https://docs.google.com/spreadsheets/d/" + res.fileId + "/export?format=xlsx") : "");
-        let opened = false;
-        try {
-          if (preWin && !preWin.closed) { preWin.location = dl || res.url; opened = true; }
-          else if (dl) { const win = window.open(dl, '_blank', 'noopener'); opened = !!win; }
-          else { const win = window.open(res.url, '_blank', 'noopener'); opened = !!win; }
-        } catch(e) { opened = false; }
+        let downloaded = false;
+        if (dl) downloaded = downloadViaHiddenFrame_(dl);
         el.innerHTML = `
           <div class="export-result">
-            <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel identical to the master Google Sheet ${opened ? "is downloading" : "is ready"} — same formats, formulas, dropdowns and conditional formatting</span>
+            <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel identical to the master Google Sheet ${downloaded ? "is downloading" : "is ready"} — same formats, formulas, dropdowns and conditional formatting</span>
             <a href="${escapeAttr(dl || res.url)}" target="_blank" rel="noopener" class="btn btn-success" style="margin-left:auto">${ICONS.download}Download .xlsx</a>
             <a href="${escapeAttr(res.url)}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.excel}Open Google Sheet</a>
           </div>`;
-        toast(dl ? "Downloading your Excel export (identical to the master)" : "Google Sheet updated and opened");
+        toast(downloaded ? "Downloading your Excel export (identical to the master)" : "Your export is ready");
         return;
       }
-      if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
       fallbackLocalWoredaExport_(el, "native export not supported by server");
     })
     .withFailureHandler(err => {
-      if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
       fallbackLocalWoredaExport_(el, (err && err.message) || String(err));
     })
     .getNativeScopedExport({ facilityIndex: state.activeFacility });
