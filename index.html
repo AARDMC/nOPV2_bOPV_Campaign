@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <base target="_top">
@@ -1077,6 +1077,7 @@ function validateRow(w, day, r) {
 
   // Non-negative integer check (entry cells only)
   Object.keys(r || {}).forEach(col => {
+    if (col === "AS") return; // free text
     const v = r[col];
     if (v === "" || v === null || v === undefined) return;
     const num = Number(v);
@@ -1154,9 +1155,10 @@ function applyValidationHighlights(errs) {
 function requiredFieldErrors_() {
   const errs = [];
   const seen = {};
-  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+  document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     const col = inp.dataset.col;
     if (!col || FORMULA_COLS.indexOf(col) !== -1) return;
+    if (col === "AS") return; // misconceptions free text is optional
     if (inp.readOnly) return; // locked plan fields (e.g. AZ) are satisfied by their prefilled value
     if (String(inp.value).trim() === "") {
       if (seen[col]) return;
@@ -1172,9 +1174,10 @@ function refreshValidation() {
   if (!w) return;
   const day = state.activeDay;
   const inputs = {};
-  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+  document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
-    inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
+    const col = inp.dataset.col;
+    inputs[col] = col === "AS" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
   });
   const errs = requiredFieldErrors_().concat(validateRow(w, day, inputs));
   applyValidationHighlights(errs);
@@ -1225,9 +1228,10 @@ function placeDiffInfo_(L, BG) {
 
 function currentInputsFromForm_() {
   const inputs = {};
-  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+  document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
-    inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
+    const col = inp.dataset.col;
+    inputs[col] = col === "AS" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
   });
   return inputs;
 }
@@ -1587,12 +1591,13 @@ function renderMain(rowData) {
   });
 
   if (!readonly) {
-    document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+    document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
       inp.oninput = e => {
+        const col = e.target.dataset.col;
+        if (col === "AS") { rowData["AS"] = e.target.value; refreshValidation(); return; }
         // Entry fields accept whole, non-negative numbers only.
         const clean = e.target.value.replace(/\D+/g, "");
         if (clean !== e.target.value) e.target.value = clean;
-        const col = e.target.dataset.col;
         rowData[col] = clean === "" ? "" : Number(clean);
         const cNow = computeRow(w, day, rowData);
         updateCalcDisplay(cNow);
@@ -1600,11 +1605,12 @@ function renderMain(rowData) {
         refreshValidation();
       };
       inp.onpaste = e => {
+        const col = e.target.dataset.col;
+        if (col === "AS") { return; } // free text — default paste behaviour
         e.preventDefault();
         const text = (e.clipboardData || window.clipboardData).getData("text") || "";
         const clean = text.replace(/\D+/g, "").slice(0, 9);
         e.target.value = clean;
-        const col = e.target.dataset.col;
         rowData[col] = clean === "" ? "" : Number(clean);
         const cNow = computeRow(w, day, rowData);
         updateCalcDisplay(cNow);
@@ -1668,9 +1674,10 @@ function saveCurrent() {
   const w = state.selectedRow;
   const day = state.activeDay;
   const inputs = {};
-  document.querySelectorAll("#formPanel input[data-col]").forEach(inp => {
+  document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
-    inputs[inp.dataset.col] = inp.value === "" ? "" : Number(inp.value);
+    const col = inp.dataset.col;
+    inputs[col] = col === "AS" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
   });
   // Validate before saving (all fields mandatory)
   const errs = requiredFieldErrors_().concat(validateRow(w, day, inputs));
@@ -1750,6 +1757,7 @@ const EXPORT_COLUMNS = [
   ["AG", "bOPV Wastage Rate (%) (calc)", "pct"],
   ["AH", "bOPV Daily Vaccine Balance (calc)", "calc"],
   ["AI", "AFP Alerts", "raw"],
+  ["AS", "Misconceptions, rumors, concerns (free text)", "text"],
   ["AJ", "AEFI Alerts", "raw"],
   ["AK", "Households visited (house-to-house)", "raw"],
   ["AL", "Community meetings — Male", "raw"],
@@ -1832,6 +1840,7 @@ function sheetXmlForDay_(day, res, w) {
   EXPORT_COLUMNS.forEach(col => {
     const key = col[0], kind = col[2];
     if (kind === "raw") { values.push(toNumber_(rowData[key])); return; }
+    if (kind === "text") { const t = rowData[key]; values.push(t === undefined || t === null ? "" : String(t)); return; }
     const v = c[key]; if (v == null || isNaN(v)) { values.push(""); return; }
     values.push(kind === "pct" ? Number((v * 100).toFixed(2)) : v);
   });
