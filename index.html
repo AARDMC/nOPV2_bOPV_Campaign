@@ -314,7 +314,11 @@
     .field-group { grid-column: span 2; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.16); border-radius: 12px; padding: 8px 10px 10px; }
     .field-group-title { font-size: 11px; font-weight: 800; color: #4338ca; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .4px; }
     .field-group-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
-    @media (max-width: 520px) { .field-group { grid-column: 1 / -1; } .field-group-grid { grid-template-columns: 1fr; } }
+    .field-group-grid.teams-grid, .field-group-grid.reach-total-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .reach-block { margin: 14px 0 4px; padding: 10px 12px 12px; border-radius: 14px; background: rgba(37,99,235,0.05); border: 1px solid rgba(37,99,235,0.16); }
+    .reach-block .form-grid { gap: 10px; }
+    .reach-heading { font-size: 11px; font-weight: 800; color: #1e3a8a; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .4px; }
+    @media (max-width: 520px) { .field-group { grid-column: 1 / -1; } .field-group-grid, .field-group-grid.teams-grid, .field-group-grid.reach-total-grid { grid-template-columns: 1fr; } }
     .field label { display: block; font-size: 11px; color: var(--text-light); margin-bottom: 5px; font-weight: 600; }
     .field label .req { color: #e11d48; margin-left: 3px; font-weight: 800; }
     .field input {
@@ -795,7 +799,7 @@ const ICONS = {
 // ================= STATE =================
 const DAYS = ["Day 1","Day 2","Day 3","Day 4","Mop Up Day 1","Mop Up Day 2","Cumulative"];
 const READONLY_DAYS = ["Cumulative"];
-const FORMULA_COLS = ["G","L","N","O","P","X","Y","AG","AH","AP","AQ","AR","BG"];
+const FORMULA_COLS = ["G","L","N","O","P","X","Y","AG","AH","AP","AQ","AR","BI"];
 let state = {
   planRows: [], settings: {}, selectedRow: null,
   activeDay: "Day 1", activeFacility: 0,
@@ -1041,7 +1045,7 @@ function computeRow(w, day, r) {
   if (["Day 1","Day 2","Day 3","Day 4"].indexOf(day) !== -1) dt = (Number(w.totalPlanned) || 0) / (Number(S.campaignDays) || 4);
   else dt = n(r.G);
   let L = n(r.H)+n(r.I)+n(r.J)+n(r.K);
-  if (day !== "Day 1" && day !== "Cumulative" && Number(S.countRevisit) === 1) L += n(r.BF);
+  if (day !== "Day 1" && day !== "Cumulative" && Number(S.countRevisit) === 1) L += n(r.BH);
   const M = (r.M === "" || r.M == null) ? null : Number(r.M);
   const N = M === null ? null : L - M;
   const O = dt === 0 ? null : L / dt;
@@ -1055,8 +1059,13 @@ function computeRow(w, day, r) {
   const bopvDen = bopvNet * (Number(S.bopvDosesPerVial) || 20);
   const AG = bopvDen === 0 ? null : (bopvDen - L) / bopvDen;
   const AH = n(r.Z) - (n(r.AA)+n(r.AB)+n(r.AC)+n(r.AD)+n(r.AE)+n(r.AF));
-  const BG = n(r.AZ)+n(r.BA)+n(r.BB)+n(r.BC)+n(r.BD);
-  return { G: dt, L, M, N, O, P, X, Y, AG, AH, BG };
+  // Polio-message reach: total reach is community meetings + house-to-house visits,
+  // recorded exactly once (no double counting).
+  const AP = n(r.AL) + n(r.AN);
+  const AQ = n(r.AM) + n(r.AO);
+  const AR = AP + AQ;
+  const BI = n(r.BB)+n(r.BC)+n(r.BD)+n(r.BE)+n(r.BF);
+  return { G: dt, L, M, N, O, P, X, Y, AG, AH, AP, AQ, AR, BI };
 }
 const fmtPct = v => v == null || isNaN(v) ? "—" : (v*100).toFixed(2) + "%";
 function validateRow(w, day, r) {
@@ -1080,7 +1089,7 @@ function validateRow(w, day, r) {
   // Female check: L - M (calculated) must be >= 0 (covered by M check)
 
   // Total Vaccinated by Place must equal Total Vaccinated (0–59 months)
-  const pl = n(r.AZ) + n(r.BA) + n(r.BB) + n(r.BC) + n(r.BD);
+  const pl = n(r.BB) + n(r.BC) + n(r.BD) + n(r.BE) + n(r.BF);
   if (pl !== L) {
     const diff = pl - L;
     const diffText = diff > 0 ? (diff + " more than total") : (Math.abs(diff) + " less than total");
@@ -1099,9 +1108,10 @@ function validateRow(w, day, r) {
   const teamsPlanned = (w && w.teams !== "" && w.teams != null && isFinite(Number(w.teams))) ? Number(w.teams) : null;
   if (teamsPlanned != null && n(r.AY) > teamsPlanned) add(["AY"], "Number of vaccination teams reported (" + fmtNum(n(r.AY)) + ") cannot exceed number of teams (" + fmtNum(teamsPlanned) + ").");
 
-  // Linkage: vaccinated cannot exceed identified
-  if (n(r.AU) > n(r.AT) && n(r.AT) > 0) add(["AT","AU"], "Zero-dose vaccinated (" + n(r.AU) + ") exceeds identified (" + n(r.AT) + ").");
-  if (n(r.AW) > n(r.AV) && n(r.AV) > 0) add(["AV","AW"], "Under-vaccinated vaccinated (" + n(r.AW) + ") exceeds identified (" + n(r.AV) + ").");
+  // Linkage: vaccinated can never exceed identified (applies even when identified is 0
+  // or blank — vaccinating more children than were identified is always a data error).
+  if (n(r.AU) > n(r.AT)) add(["AT","AU"], "Zero-dose children vaccinated (" + n(r.AU) + ") cannot exceed zero-dose children identified (" + n(r.AT) + "). Correct one of the two values before saving.");
+  if (n(r.AW) > n(r.AV)) add(["AV","AW"], "Under-vaccinated children vaccinated (" + n(r.AW) + ") cannot exceed under-vaccinated children identified (" + n(r.AV) + "). Correct one of the two values before saving.");
 
   // Daily target sanity: if day has a target, total should not be 0 on a campaign day
   const S = state.settings || {};
@@ -1225,9 +1235,9 @@ function updateCoverageAlertsDisplay_(r, c) {
   if (nEl) nEl.innerHTML = nopv.html;
   if (bEl) bEl.innerHTML = bopv.html;
   const pEl = document.getElementById("placeDiffWrap");
-  if (pEl) pEl.innerHTML = placeDiffInfo_(L, c.BG);
-  const baEl = document.getElementById("calc_BA");
-  if (baEl) baEl.className = (c.BG === L) ? "flag-green" : "flag-red";
+  if (pEl) pEl.innerHTML = placeDiffInfo_(L, c.BI);
+  const baEl = document.getElementById("calc_BI");
+  if (baEl) baEl.className = (c.BI === L) ? "flag-green" : "flag-red";
 }
 
 // ================= RENDER =================
@@ -1448,7 +1458,7 @@ function renderMain(rowData) {
           ${calc("G","Daily Target (auto)", fmtNum(c.G))}
           ${calc("O","Daily Coverage %", fmtPct(c.O), cfC(c.O))}
           ${calc("P","Coverage from Total %", fmtPct(c.P), cfC(c.P))}
-          ${day !== "Day 1" && day !== "Cumulative" ? field("BF","Children Vaccinated in Revisit") : ""}
+          ${day !== "Day 1" && day !== "Cumulative" ? field("BH","Children Vaccinated in Revisit") : ""}
         </div>
       </div>
       <div class="form-section section-nopv">
@@ -1476,24 +1486,49 @@ function renderMain(rowData) {
       <div class="form-section section-alerts">
         <h4><span class="section-icon">${ICONS.megaphone}</span>Alerts & Social Mobilization</h4>
         <div class="form-grid">
-          ${field("AY","Number of Vaccination Teams Reported")}
           ${field("AI","Number of AFP Alerts")}${field("AJ","Number of AEFI Alerts")}
-          ${field("AK","Households visited by social mobilizers")}
-          ${field("AL","Community meetings — Male")}${field("AM","Community meetings — Female")}
-          ${field("AN","Home-to-house — Male")}${field("AO","Home-to-house — Female")}
-          ${calc("AP","Total Reached — Male", fmtNum(c.AP))}${calc("AQ","Total Reached — Female", fmtNum(c.AQ))}${calc("AR","Total Reached — All", fmtNum(c.AR))}
+          ${field("AK","Households visited during the house-to-house campaign")}
+          <div class="field-group">
+            <div class="field-group-title">Vaccination teams</div>
+            <div class="field-group-grid teams-grid">${field("AY","Vaccination teams reported")}${field("AZ","Number of zero-dose vaccination teams")}${field("BA","Zero-dose vaccination teams reported")}</div>
+          </div>
+        </div>
+        <div class="reach-block">
+          <div class="reach-heading">Parents/caregivers reached with key polio messages</div>
+          <div class="form-grid">
+            <div class="field-group">
+              <div class="field-group-title">Community meetings</div>
+              <div class="field-group-grid">${field("AL","Male")}${field("AM","Female")}</div>
+            </div>
+            <div class="field-group">
+              <div class="field-group-title">House-to-house visits</div>
+              <div class="field-group-grid">${field("AN","Male")}${field("AO","Female")}</div>
+            </div>
+            <div class="field-group">
+              <div class="field-group-title">Total reach (community meetings + house-to-house)</div>
+              <div class="field-group-grid reach-total-grid">${calc("AP","Male", fmtNum(c.AP))}${calc("AQ","Female", fmtNum(c.AQ))}${calc("AR","All", fmtNum(c.AR))}</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field-group">
+            <div class="field-group-title">Zero-dose children</div>
+            <div class="field-group-grid">${field("AT","Identified & linked")}${field("AU","Vaccinated")}</div>
+          </div>
+          <div class="field-group">
+            <div class="field-group-title">Under-vaccinated children</div>
+            <div class="field-group-grid">${field("AV","Identified & linked")}${field("AW","Vaccinated")}</div>
+          </div>
           ${textField("AS","Misconceptions, rumors, concerns (free text)")}
-          ${field("AT","Zero-dose children identified & linked")}${field("AU","Zero-dose children vaccinated")}
-          ${field("AV","Under-vaccinated identified & linked")}${field("AW","Under-vaccinated vaccinated")}
         </div>
       </div>
       <div class="form-section section-place">
         <h4><span class="section-icon">${ICONS.pin}</span>Vaccination by Place</h4>
         <div class="form-grid">
-          ${field("AZ","Children Vaccinated in House")}${field("BA","Children Vaccinated in School")}
-          ${field("BB","Children Vaccinated in Market")}${field("BC","Children Vaccinated in Street")}
-          ${field("BD","Children Vaccinated in Other Place")}${field("BE","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
-          ${calc("BG","Total Vaccinated by Place", fmtNum(c.BG), (c.BG === c.L ? "flag-green" : "flag-red"))}
+          ${field("BB","Children Vaccinated in House")}${field("BC","Children Vaccinated in School")}
+          ${field("BD","Children Vaccinated in Market")}${field("BE","Children Vaccinated in Street")}
+          ${field("BF","Children Vaccinated in Other Place")}${field("BG","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
+          ${calc("BI","Total Vaccinated by Place", fmtNum(c.BI), (c.BI === c.L ? "flag-green" : "flag-red"))}
         </div>
         <div id="placeDiffWrap"></div>
       </div>
@@ -1608,8 +1643,11 @@ function updateCalcDisplay(c) {
   set("Y", fmtNum(c.Y), cfB(c.Y));
   set("AG", fmtPct(c.AG), cfW(c.AG));
   set("AH", fmtNum(c.AH), cfB(c.AH));
-  // BA styled by coverage/place-diff update
-  set("BG", fmtNum(c.BG));
+  set("AP", fmtNum(c.AP));
+  set("AQ", fmtNum(c.AQ));
+  set("AR", fmtNum(c.AR));
+  // BI styled by coverage/place-diff update
+  set("BI", fmtNum(c.BI));
 }
 
 // ================= SAVE =================
@@ -1689,6 +1727,7 @@ const EXPORT_COLUMNS = [
   ["V", "nOPV2 Returned – Bad Condition", "raw"],
   ["W", "nOPV2 Vials Lost", "raw"],
   ["X", "nOPV2 Wastage Rate (%) (calc)", "pct"],
+  ["Y", "nOPV2 Daily Vaccine Balance (calc)", "calc"],
   ["Z", "bOPV Vials Received", "raw"],
   ["AA", "bOPV Vials Used", "raw"],
   ["AB", "bOPV Vials Partially Used", "raw"],
@@ -1697,22 +1736,32 @@ const EXPORT_COLUMNS = [
   ["AE", "bOPV Returned – Bad Condition", "raw"],
   ["AF", "bOPV Vials Lost", "raw"],
   ["AG", "bOPV Wastage Rate (%) (calc)", "pct"],
+  ["AH", "bOPV Daily Vaccine Balance (calc)", "calc"],
   ["AI", "AFP Alerts", "raw"],
   ["AJ", "AEFI Alerts", "raw"],
-  ["AK", "HHs visited by social mobilizers", "raw"],
-  ["AL", "Caregivers in group discussion", "raw"],
-  ["AM", "Caregivers reached home-to-home", "raw"],
-  ["AN", "Zero-dose children identified", "raw"],
-  ["AO", "Zero-dose children vaccinated", "raw"],
-  ["AP", "Under-vaccinated children identified", "raw"],
-  ["AQ", "Under-vaccinated children vaccinated", "raw"],
-  ["AZ", "Vaccinated in House", "raw"],
-  ["BA", "Vaccinated in School", "raw"],
-  ["BB", "Vaccinated in Market", "raw"],
-  ["BC", "Vaccinated in Street", "raw"],
-  ["BD", "Vaccinated in Other Place", "raw"],
-  ["BE", "Unvaccinated During Visit", "raw"],
-  ["BG", "Total Vaccinated by Place (calc)", "calc"]
+  ["AK", "Households visited (house-to-house)", "raw"],
+  ["AL", "Community meetings — Male", "raw"],
+  ["AM", "Community meetings — Female", "raw"],
+  ["AN", "House-to-house visits — Male", "raw"],
+  ["AO", "House-to-house visits — Female", "raw"],
+  ["AP", "Total reach — Male (calc)", "calc"],
+  ["AQ", "Total reach — Female (calc)", "calc"],
+  ["AR", "Total reach — All (calc)", "calc"],
+  ["AT", "Zero-dose children identified", "raw"],
+  ["AU", "Zero-dose children vaccinated", "raw"],
+  ["AV", "Under-vaccinated children identified", "raw"],
+  ["AW", "Under-vaccinated children vaccinated", "raw"],
+  ["AY", "Vaccination teams reported", "raw"],
+  ["AZ", "Number of zero-dose vaccination teams", "raw"],
+  ["BA", "Zero-dose vaccination teams reported", "raw"],
+  ["BB", "Vaccinated in House", "raw"],
+  ["BC", "Vaccinated in School", "raw"],
+  ["BD", "Vaccinated in Market", "raw"],
+  ["BE", "Vaccinated in Street", "raw"],
+  ["BF", "Vaccinated in Other Place", "raw"],
+  ["BG", "Unvaccinated During Visit", "raw"],
+  ["BH", "Vaccinated in Revisit", "raw"],
+  ["BI", "Total Vaccinated by Place (calc)", "calc"]
 ];
 
 function safeFilePart_(s) { return String(s || "").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "woreda"; }

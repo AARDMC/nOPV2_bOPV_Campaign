@@ -109,7 +109,7 @@ button,select,input{font:inherit;color:inherit}
 .tab-btn{position:relative;background:rgba(255,255,255,.75);border:1.5px solid #d8e8f8;padding:9px 16px;cursor:pointer;color:var(--ink2);font-weight:600;font-size:13.5px;white-space:nowrap;font-family:"Poppins",sans-serif;border-radius:999px;transition:all .18s ease;box-shadow:0 2px 6px rgba(15,37,82,.04)}
 .tab-btn[aria-selected="true"]{color:#fff;border-color:transparent;background:linear-gradient(100deg,#6D28D9 0%,#2563EB 60%,#06B6D4 100%);box-shadow:0 8px 18px rgba(37,99,235,.22);transform:translateY(-1px)}
 .tab-btn:hover{color:var(--ink);border-color:#bfdcf5;background:#fff;box-shadow:0 4px 10px rgba(15,37,82,.08)}
-.tab-btn[aria-selected="true"]:hover{color:#fff}
+.tab-btn[aria-selected="true"]:hover{color:#fff;background:linear-gradient(100deg,#6D28D9 0%,#2563EB 60%,#06B6D4 100%);border-color:transparent;box-shadow:0 8px 18px rgba(37,99,235,.22);transform:translateY(-1px)}
 
 main{max-width:1320px;margin:0 auto;padding:14px 20px 40px}
 .grid{display:grid;gap:16px;grid-template-columns:repeat(12,1fr);margin-top:16px}
@@ -173,6 +173,7 @@ th:first-child,td:first-child,.tl{text-align:left}
 thead th{position:sticky;top:0;background:#EDE9FE;color:#4C1D95;font-weight:600;z-index:1}
 th button{all:unset;cursor:pointer;font-weight:600;color:#4C1D95}
 tbody tr:hover{background:#F5F3FF}
+tr.total td{background:#F1F5F9;font-weight:700;color:var(--navy);border-top:2px solid var(--card-line)}
 td.hc{max-width:230px;overflow:hidden;text-overflow:ellipsis;text-align:left;color:var(--ink2)}
 td.wrap{white-space:normal;text-align:left;min-width:240px}
 .covcell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
@@ -202,6 +203,17 @@ td.wrap{white-space:normal;text-align:left;min-width:240px}
 .btn.dark:hover{background:#dceeff;border-color:#7FA9E0;color:var(--navy)}
 .btn.solid{background:#6D28D9;border-color:#6D28D9;color:#fff}
 .btn.solid:hover{background:#4C1D95;border-color:#4C1D95;color:#fff}
+.btn.ephi{background:linear-gradient(135deg,#0F2552,#0E7490);border-color:#0E7490;color:#fff;font-weight:600;box-shadow:0 2px 8px rgba(14,116,144,.25)}
+.btn.ephi:hover{background:linear-gradient(135deg,#0B1D40,#0B5E75);border-color:#0B5E75;color:#fff}
+.btn.ephi[hidden]{display:none}
+.ephi-wrap{max-width:1320px;margin:0 auto;padding:0 20px}
+.ephi-wrap:empty{display:none}
+.ephi-card{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0 0;padding:10px 14px;border-radius:10px;background:#ECFEFF;border:1px solid #A5F3FC;color:#155E75;font-size:13px}
+.ephi-card b{color:#0F2552}
+.ephi-card .grow{flex:1}
+.ephi-card a{color:#0E7490;font-weight:700;text-decoration:none;border-bottom:1px solid #67E8F9}
+.ephi-card a:hover{color:#0B5E75}
+@media (max-width:640px){.ephi-card{font-size:12px}}
 .btn[disabled]{opacity:.55;cursor:wait}
 .busy{position:fixed;inset:0;background:rgba(46,16,101,.78);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
 .busy[hidden],.toast[hidden]{display:none}
@@ -432,13 +444,13 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     return fetch(url,opts).finally(function(){clearTimeout(t);});
   }
   function timeoutForAction(action){
-    if(action==='getNativeScopedExport' || action==='getDashboardHtmlExport' || action==='getWoredaExport' || action==='getDashboardExport' || action==='exportToExcelWithFormulas' || action==='getMergedExportSheet') return 360000;
+    if(action==='getNativeScopedExport' || action==='getDashboardHtmlExport' || action==='getWoredaExport' || action==='getDashboardExport' || action==='exportToExcelWithFormulas' || action==='getMergedExportSheet' || action==='getEphiExport') return 360000;
     return 45000;
   }
   function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetchWithTimeout(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)},timeoutForAction(body&&body.action)).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
   function postViaIframe(body){ return new Promise(function(resolve,reject){ var url=window.CAMPAIGN_API_URL; if(!url){reject(fail('No server URL'));return;} var id='r'+Math.floor(Math.random()*1e9).toString(36); var iframe=document.createElement('iframe'); iframe.name=id; iframe.style.cssText='position:absolute;width:0;height:0;border:0;visibility:hidden'; var form=document.createElement('form'); form.method='POST'; form.action=url; form.target=id; form.style.display='none'; var fields={action:body.action,payload:JSON.stringify(body.payload||{}),token:body.token||'',transport:'iframe',requestId:id}; Object.keys(fields).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);}); var settled=false; var timer=setTimeout(function(){finish();reject(fail('Server not responding'));},timeoutForAction(body&&body.action)); function finish(){if(settled)return; settled=true; clearTimeout(timer); window.removeEventListener('message',onMessage); setTimeout(function(){if(form.parentNode)form.parentNode.removeChild(form); if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},1500);} function onMessage(ev){var d=ev.data; if(!d||d.source!=='nopv2-campaign'||d.requestId!==id) return; finish(); resolve(d.result);} window.addEventListener('message',onMessage); document.body.appendChild(iframe); document.body.appendChild(form); form.submit(); }); }
   function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; var attempts=0,maxAttempts=3; function attempt(){ attempts++; return postJson(body).catch(function(err){ if(err&&err.campaignMessage&&/unreadable/i.test(err.campaignMessage)) throw err; if(attempts<maxAttempts&&isRetryableError(err)) return sleep(Math.min(1500*Math.pow(2,attempts-1),6000)).then(attempt); return postViaIframe(body).catch(function(err2){ if(attempts<maxAttempts&&isRetryableError(err2)){ attempts++; return sleep(Math.min(1500*Math.pow(2,attempts-2),6000)).then(function(){return postViaIframe(body);}); } throw err2||err; }); }).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token'); sessionStorage.removeItem('epi_token');}catch(e){} } return out; }); } return attempt(); }
-  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getNativeScopedExport','getLogo','getCoverPhotos','getMergedExportSheet'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; else if(action==='getDashboardData') p=(args[0]&&typeof args[0]==='object')?args[0]:{force:!!args[0]}; else if(action==='getDashboardExport'||action==='getNativeScopedExport'||action==='getMergedExportSheet') p=args[0]||{}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
+  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getNativeScopedExport','getLogo','getCoverPhotos','getMergedExportSheet','getEphiExport'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; else if(action==='getDashboardData') p=(args[0]&&typeof args[0]==='object')?args[0]:{force:!!args[0]}; else if(action==='getDashboardExport'||action==='getNativeScopedExport'||action==='getMergedExportSheet') p=args[0]||{}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
 
     window.google=window.google||{}; window.google.script=window.google.script||{};
   Object.defineProperty(window.google.script,'run',{configurable:true,get:function(){return makeRunner();}});
@@ -507,11 +519,13 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
     <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
     <button class="btn solid" id="btnExport" type="button" title="Download scoped Excel from the Google Sheet (keeps formulas, formatting and validation)">Download Excel</button>
+    <button class="btn ephi" id="btnEphiExport" type="button" hidden title="Region-level only: clean EPHI workbook (polio-message reach + zero-dose teams, split woredas consolidated)">EPHI Excel Export</button>
     <button class="btn solid" id="btnExportPpt" type="button" title="Download filtered presentation (PPT) on your device">Download PPT</button>
     <button class="btn dark" id="btnPresent" type="button" title="Present dashboard in full screen">▶ Present</button>
     <button class="btn dark" id="btnMergeHc" type="button" aria-pressed="false" title="Combine split woredas (e.g. Woreda 03/1 + Woreda 03/2) into Woreda 03">Merge HC</button>
   </div>
 </div>
+<div class="ephi-wrap"><div id="ephiResult" class="ephi-card" hidden></div></div>
 <div class="tabbar">
   <div class="tabs" role="tablist" id="tabs">
     <button class="tab-btn" role="tab" data-tab="overview" aria-selected="true">Overview</button>
@@ -730,8 +744,8 @@ function flagRecord(r) {
   if (pl !== r.tot) f.push({ rule:'placesum', text:'Places add up to ' + fmt(pl) + ', total is ' + fmt(r.tot) });
   if (r.teamsRep > r.teams) f.push({ rule:'teams', text:r.teamsRep + ' teams reported, ' + r.teams + ' planned' });
   else if (camp && r.teams > 0 && r.teamsRep === 0) f.push({ rule:'teams', text:'No teams reported (' + r.teams + ' planned)' });
-  if ((r.zdV > r.zdId && r.zdId > 0) || (r.uvV > r.uvId && r.uvId > 0))
-    f.push({ rule:'linkage', text:'Zero-dose ' + r.zdV + ' of ' + r.zdId + ' identified; under-vaccinated ' + r.uvV + ' of ' + r.uvId });
+  if (r.zdV > r.zdId || r.uvV > r.uvId)
+    f.push({ rule:'linkage', text:'Zero-dose ' + r.zdV + ' vaccinated of ' + r.zdId + ' identified; under-vaccinated ' + r.uvV + ' of ' + r.uvId });
 }
 function flagUnit(u) {
   if (!u.hc) u.flags.push({ rule:'hcname', text:'Health center name is blank in the sheet' });
@@ -937,6 +951,11 @@ function renderOverview() {
   const camp = M.days[S.upTo].type === 'campaign';
   const dayCov = camp ? cov(cur.tot, cur.dtgt) : null;
   const fieldTeams = cur.teams > 0 ? cur.teamsRep / cur.teams : null;
+  // Polio-message reach: the six recorded variables, grouped. Total reach is shown
+  // as recorded (community meetings + house-to-house visits, never double counted).
+  const commAll = (cum.commM || 0) + (cum.commF || 0);
+  const h2hAll = (cum.h2hM || 0) + (cum.h2hF || 0);
+  const zdRepShare = cur.zdTeams > 0 ? cur.zdTeamsRep / cur.zdTeams : null;
   const strip = '<div class="strip">' +
     stat('Vaccinated on ' + esc(dayName()), fmt(cur.tot), camp ? pct(dayCov) + ' of the daily target' : 'Mop-up day, no daily target') +
     stat('Woredas at or above ' + pct(CFG.targetCoverage, 0), atT + ' of ' + rows.length, below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
@@ -945,7 +964,14 @@ function renderOverview() {
     stat('Not vaccinated before', fmt(cum.n011 + cum.n1259), '0–11m ' + fmt(cum.n011) + ', 12–59m ' + fmt(cum.n1259)) +
     stat('AEFI reported', fmt(cum.aefiM + cum.aefiS), 'Severe ' + fmt(cum.aefiS), cum.aefiS > 0 ? 'bad' : '') +
     stat('Teams reporting on ' + esc(dayName()), pct(fieldTeams, 0), fmt(cur.teamsRep) + ' of ' + fmt(cur.teams) + ' teams', fieldTeams != null && fieldTeams < 0.95 ? 'warn' : 'good') +
-    stat('Households visited', fmt(cum.hh), 'By social mobilizers') + '</div>';
+    stat('Zero-dose teams', fmt(cur.zdTeams), 'Number fielded on ' + esc(dayName())) +
+    stat('Zero-dose teams reported', fmt(cur.zdTeamsRep), 'of ' + fmt(cur.zdTeams) + ' teams (' + pct(zdRepShare, 0) + ')', zdRepShare != null && zdRepShare < 0.95 ? 'warn' : 'good') +
+    stat('Households visited', fmt(cum.hh), 'By social mobilizers') + '</div>' +
+    '<div class="strip">' +
+    stat('Community meetings', fmt(commAll), 'Male ' + fmt(cum.commM) + ' · Female ' + fmt(cum.commF)) +
+    stat('House-to-house visits', fmt(h2hAll), 'Male ' + fmt(cum.h2hM) + ' · Female ' + fmt(cum.h2hF)) +
+    stat('Total reach (as recorded)', fmt(cum.reachAll), 'Male ' + fmt(cum.reachM) + ' · Female ' + fmt(cum.reachF)) +
+    '</div>';
 
   const g = groups(rows).sort((a, b) => (b.cov == null ? -1 : b.cov) - (a.cov == null ? -1 : a.cov));
   const gh = Math.max(240, g.length * 30 + 50);
@@ -957,6 +983,8 @@ function renderOverview() {
     panel('c4', 'Boys and girls', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
     panel('c7', 'Age group by day', 'Children aged 0–11 months and 12–59 months.', '<div class="chart"><canvas id="ch-age"></canvas></div>') +
     panel('c5', 'Where children were vaccinated', 'Through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-place"></canvas></div>') +
+    panel('c7', 'Polio-message reach by day', 'Parents and caregivers reached in community meetings and house-to-house visits, male and female. Total reach is the stack height and is recorded once — never double counted.', '<div class="chart"><canvas id="ch-reach"></canvas></div>') +
+    panel('c5', 'Zero-dose vaccination teams', 'Teams fielded and teams reporting, each day.', '<div class="chart"><canvas id="ch-zdteams"></canvas></div>') +
     '</div>';
 
   const labels = dt.map((a, i) => M.days[i].label);
@@ -989,6 +1017,18 @@ function renderOverview() {
   draw('ch-place', { type:'bar', data:{ labels:pl.map(x => x[0]), datasets:[{ label:'Children', data:pl.map(x => x[1]), backgroundColor:'#1E6BFF', borderRadius:3 }] },
     options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
       plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) } } } });
+
+  draw('ch-reach', { type:'bar', data:{ labels, datasets:[
+    { label:'Community meetings — Male', data:dt.map(a => a.commM), backgroundColor:'#0891B2', stack:'reach' },
+    { label:'Community meetings — Female', data:dt.map(a => a.commF), backgroundColor:'#22D3EE', stack:'reach' },
+    { label:'House-to-house — Male', data:dt.map(a => a.h2hM), backgroundColor:'#BE185D', stack:'reach' },
+    { label:'House-to-house — Female', data:dt.map(a => a.h2hF), backgroundColor:'#F472B6', stack:'reach' }
+  ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } } }) });
+
+  draw('ch-zdteams', { type:'bar', data:{ labels, datasets:[
+    { label:'Zero-dose teams planned', data:dt.map(a => a.zdTeams), backgroundColor:'#8B5CF6', borderRadius:3 },
+    { label:'Zero-dose teams reported', data:dt.map(a => a.zdTeamsRep), backgroundColor:'#34D399', borderRadius:3 }
+  ] }, options:vOpts() });
 }
 
 /* ---------- Zones and woredas ---------- */
@@ -1125,35 +1165,88 @@ function renderVaccine() {
 }
 
 /* ---------- Community and safety ---------- */
+function reachTotalsOf(recs) { const a = sumRecs(recs); return a; }
+function communityReachHTML(title, rows, keyLabel) {
+  const header = '<thead><tr><th class="tl">' + keyLabel + '</th>' +
+    '<th>Comm M</th><th>Comm F</th><th>Comm All</th>' +
+    '<th>H2H M</th><th>H2H F</th><th>H2H All</th>' +
+    '<th>Reach M</th><th>Reach F</th><th>Reach All</th>' +
+    '<th>ZD teams</th><th>ZD reported</th></tr></thead>';
+  const sumRow = { commM:0, commF:0, h2hM:0, h2hF:0, reachM:0, reachF:0, reachAll:0, zdTeams:0, zdTeamsRep:0 };
+  const body = rows.map(g => {
+    const a = g.a;
+    const cAll = a.commM + a.commF, hAll = a.h2hM + a.h2hF;
+    Object.keys(sumRow).forEach(k => { sumRow[k] += (a[k] || 0); });
+    return '<tr><td class="tl">' + esc(g.key) + '</td>' +
+      '<td>' + fmt(a.commM) + '</td><td>' + fmt(a.commF) + '</td><td>' + fmt(cAll) + '</td>' +
+      '<td>' + fmt(a.h2hM) + '</td><td>' + fmt(a.h2hF) + '</td><td>' + fmt(hAll) + '</td>' +
+      '<td>' + fmt(a.reachM) + '</td><td>' + fmt(a.reachF) + '</td><td>' + fmt(a.reachAll) + '</td>' +
+      '<td>' + fmt(a.zdTeams) + '</td><td>' + fmt(a.zdTeamsRep) + '</td></tr>';
+  }).join('');
+  const tCommAll = sumRow.commM + sumRow.commF, tH2hAll = sumRow.h2hM + sumRow.h2hF;
+  const footer = '<tr class="total"><td class="tl">Total (selection)</td>' +
+    '<td>' + fmt(sumRow.commM) + '</td><td>' + fmt(sumRow.commF) + '</td><td>' + fmt(tCommAll) + '</td>' +
+    '<td>' + fmt(sumRow.h2hM) + '</td><td>' + fmt(sumRow.h2hF) + '</td><td>' + fmt(tH2hAll) + '</td>' +
+    '<td>' + fmt(sumRow.reachM) + '</td><td>' + fmt(sumRow.reachF) + '</td><td>' + fmt(sumRow.reachAll) + '</td>' +
+    '<td>' + fmt(sumRow.zdTeams) + '</td><td>' + fmt(sumRow.zdTeamsRep) + '</td></tr>';
+  return '<div class="tbl-wrap"><table>' + header + '<tbody>' + body + footer + '</tbody></table></div>';
+}
+
 function renderCommunity() {
   const recs = scopeRecs(), cumRecs = recs.filter(r => r.d <= S.upTo), cum = sumRecs(cumRecs);
   const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const commAll = (cum.commM || 0) + (cum.commF || 0);
+  const h2hAll = (cum.h2hM || 0) + (cum.h2hF || 0);
+  const commShare = (commAll + h2hAll) > 0 ? commAll / (commAll + h2hAll) : null;
+  const zdRepShare = cum.zdTeams > 0 ? cum.zdTeamsRep / cum.zdTeams : null;
   const strip = '<div class="strip">' +
     stat('Households visited', fmt(cum.hh), 'By social mobilizers') +
-    stat('Reached in community meetings', fmt(cum.comm), 'Parents and caregivers') +
-    stat('Reached home to home', fmt(cum.h2h), 'Parents and caregivers') +
+    stat('Community meetings', fmt(commAll), 'Male ' + fmt(cum.commM) + ' · Female ' + fmt(cum.commF)) +
+    stat('House-to-house visits', fmt(h2hAll), 'Male ' + fmt(cum.h2hM) + ' · Female ' + fmt(cum.h2hF)) +
+    stat('Total reach (as recorded)', fmt(cum.reachAll), 'Male ' + fmt(cum.reachM) + ' · Female ' + fmt(cum.reachF)) +
+    stat('Community share of reach', pct(commShare, 0), 'Community ' + fmt(commAll) + ' vs house-to-house ' + fmt(h2hAll)) +
     stat('Zero-dose children', fmt(cum.zdV) + ' of ' + fmt(cum.zdId), 'Vaccinated of identified') +
     stat('Under-vaccinated children', fmt(cum.uvV) + ' of ' + fmt(cum.uvId), 'Vaccinated of identified') +
+    stat('Zero-dose teams', fmt(cum.zdTeams), 'Number fielded, all days through ' + esc(dayName())) +
+    stat('Zero-dose teams reported', fmt(cum.zdTeamsRep), 'of ' + fmt(cum.zdTeams) + ' fielded (' + pct(zdRepShare, 0) + ')', zdRepShare != null && zdRepShare < 0.95 ? 'warn' : 'good') +
     stat('AFP alerts', fmt(cum.afpA), '', cum.afpA > 0 ? 'bad' : '') +
     stat('AEFI', fmt(cum.aefiM + cum.aefiS), 'Severe ' + fmt(cum.aefiS), cum.aefiS > 0 ? 'bad' : '') + '</div>';
 
+  const urows = unitRows();
+  const zoneGroups = rollup(urows, r => r.u.zone).sort((a, b) => (b.a.reachAll || 0) - (a.a.reachAll || 0));
+  const woredaGroups = urows.slice().sort((a, b) => (b.a.reachAll || 0) - (a.a.reachAll || 0))
+    .map(r => ({ key: r.u.hc ? (r.u.woreda + ' — ' + r.u.hc) : r.u.woreda, a: r.a }));
+
   app().innerHTML = strip + '<div class="grid">' +
-    panel('c6', 'Social mobilization by day', 'Households visited and parents or caregivers reached.', '<div class="chart"><canvas id="ch-mob"></canvas></div>') +
+    panel('c6', 'Social mobilization by day', 'Households visited and parents or caregivers reached (M + F combined per day).', '<div class="chart"><canvas id="ch-mob"></canvas></div>') +
+    panel('c6', 'Community meetings vs house-to-house', 'Compare the two outreach channels, male and female.', '<div class="chart"><canvas id="ch-cmp"></canvas></div>') +
     panel('c6', 'Zero-dose and under-vaccinated children', 'Identified vs vaccinated.', '<div class="chart"><canvas id="ch-link"></canvas></div>') +
-    panel('c6', 'Vaccination teams reporting', 'Share of planned teams that reported each day.', '<div class="chart"><canvas id="ch-teams"></canvas></div>') +
-    panel('c6', 'Children not vaccinated on the visit', 'Unvaccinated during visit and vaccinated on revisit.', '<div class="chart"><canvas id="ch-revisit"></canvas></div>') + '</div>';
+    panel('c6', 'Vaccination teams reporting', 'Share of planned teams that reported each day, including zero-dose teams.', '<div class="chart"><canvas id="ch-teams"></canvas></div>') +
+    panel('c6', 'Children not vaccinated on the visit', 'Unvaccinated during visit and vaccinated on revisit.', '<div class="chart"><canvas id="ch-revisit"></canvas></div>') +
+    '</div>' +
+    '<div class="grid">' +
+    panel('c12', 'Reach breakdown by sub-city', 'Male/Female disaggregated. Total reach is recorded once — community meetings plus house-to-house visits. Totals for the current selection are shown in the footer.' + (S.mergeHc ? ' Merge HC is on: split woredas are consolidated.' : ''), communityReachHTML(null, zoneGroups, 'Sub-city')) +
+    panel('c12', 'Reach breakdown by woreda and health center', 'Male/Female disaggregated. Totals for the current selection are shown in the footer.' + (S.mergeHc ? ' Merge HC is on: split woredas are consolidated.' : ''), communityReachHTML(null, woredaGroups, 'Woreda — Health center')) +
+    '</div>';
 
   draw('ch-mob', { type:'bar', data:{ labels, datasets:[
     { label:'Households visited', data:dt.map(a => a.hh), backgroundColor:'#6D28D9' },
-    { label:'Community meetings', data:dt.map(a => a.comm), backgroundColor:'#06B6D4' },
-    { label:'Home to home', data:dt.map(a => a.h2h), backgroundColor:'#F472B6' } ] }, options:vOpts() });
+    { label:'Community meetings', data:dt.map(a => a.commM + a.commF), backgroundColor:'#06B6D4' },
+    { label:'House-to-house', data:dt.map(a => a.h2hM + a.h2hF), backgroundColor:'#F472B6' } ] }, options:vOpts() });
+  draw('ch-cmp', { type:'bar', data:{ labels, datasets:[
+    { label:'Community meetings — Male', data:dt.map(a => a.commM), backgroundColor:'#0891B2', stack:'comm' },
+    { label:'Community meetings — Female', data:dt.map(a => a.commF), backgroundColor:'#22D3EE', stack:'comm' },
+    { label:'House-to-house — Male', data:dt.map(a => a.h2hM), backgroundColor:'#BE185D', stack:'h2h' },
+    { label:'House-to-house — Female', data:dt.map(a => a.h2hF), backgroundColor:'#F472B6', stack:'h2h' } ] },
+    options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } } }) });
   draw('ch-link', { type:'bar', data:{ labels, datasets:[
     { label:'Zero-dose identified', data:dt.map(a => a.zdId), backgroundColor:'#6D28D9' },
     { label:'Zero-dose vaccinated', data:dt.map(a => a.zdV), backgroundColor:'#06B6D4' },
     { label:'Under-vaccinated identified', data:dt.map(a => a.uvId), backgroundColor:'#A855F7' },
     { label:'Under-vaccinated vaccinated', data:dt.map(a => a.uvV), backgroundColor:'#F472B6' } ] }, options:vOpts() });
   draw('ch-teams', { type:'line', data:{ labels, datasets:[
-    { label:'Teams reporting', data:dt.map(a => a.teams > 0 ? a.teamsRep / a.teams * 100 : null), borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:4, tension:.2 },
+    { label:'All teams reporting', data:dt.map(a => a.teams > 0 ? a.teamsRep / a.teams * 100 : null), borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:4, tension:.2 },
+    { label:'Zero-dose teams reporting', data:dt.map(a => a.zdTeams > 0 ? a.zdTeamsRep / a.zdTeams * 100 : null), borderColor:'#8B5CF6', backgroundColor:'#8B5CF6', borderWidth:3, pointRadius:4, borderDash:[6, 3], tension:.2 },
     { label:'95%', data:labels.map(() => 95), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5 } ] },
     options:vOpts({ scales:{ y:{ min:0, max:100, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip() } }) });
   draw('ch-revisit', { type:'bar', data:{ labels, datasets:[
@@ -1716,6 +1809,7 @@ function updateHeader() {
   const d = M.days[S.upTo];
   const rd = d && d.date ? fmtDateSafe_(d.date, { month:'short', day:'numeric', year:'numeric' }) : '';
   $('#repDate').textContent = rd || (d ? d.label : '–');
+  updateEphiVisibility();
 }
 function updateHCSelector() {
   const hcField = $('#hcField');
@@ -2159,6 +2253,74 @@ function doDashboardExport(){
     [exportAction](payload);
 }
 
+/* ---------- EPHI export (region-level access only) ---------- */
+function updateEphiVisibility(){
+  const btn = document.getElementById('btnEphiExport');
+  const allowed = !!(DASH_SCOPE && DASH_SCOPE.mode === 'all');
+  if (btn) btn.hidden = !allowed;
+  if (!allowed) {
+    const out = document.getElementById('ephiResult');
+    if (out) { out.hidden = true; out.innerHTML = ''; }
+  }
+}
+
+function doEphiExport(){
+  const btn = document.getElementById('btnEphiExport');
+  const out = document.getElementById('ephiResult');
+  if (!btn) return;
+  if (DASH_SCOPE.mode !== 'all') {
+    if (out) { out.hidden = false; out.innerHTML = '<b>EPHI export unavailable.</b> This export is restricted to region-level access.'; }
+    toast('EPHI export is restricted to region-level access', true);
+    return;
+  }
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Building EPHI workbook…';
+  if (out) { out.hidden = true; out.innerHTML = ''; }
+  let preWin = null;
+  try { preWin = window.open('', '_blank'); } catch(e) { preWin = null; }
+  if (preWin) {
+    try { preWin.document.write('<!doctype html><title>Building EPHI export…</title><body style="font-family:Arial,sans-serif;padding:24px;color:#0F2552">Building the clean EPHI workbook (split woredas consolidated)…</body>'); preWin.document.close(); } catch(e) {}
+  }
+  setBusy('Building EPHI export', 'Consolidating split woredas (Merge HC on) and writing the clean EPHI workbook…');
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+      setBusy(null);
+      if (!res || !res.ok) {
+        if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
+        const forbidden = res && res.code === 'FORBIDDEN';
+        const msg = (res && res.error) || 'unknown';
+        if (out) { out.hidden = false; out.innerHTML = '<b>' + (forbidden ? 'Access denied.' : 'EPHI export failed.') + '</b> ' + esc(msg); }
+        toast((forbidden ? 'EPHI export denied: ' : 'EPHI export failed: ') + esc(msg), true);
+        return;
+      }
+      // The workbook is link-shared, so the direct .xlsx export URL downloads without another sign-in.
+      let opened = false;
+      try {
+        if (preWin && !preWin.closed) { preWin.location = res.downloadUrl || res.url; opened = true; }
+        else { opened = !!window.open(res.downloadUrl || res.url, '_blank', 'noopener'); }
+      } catch(e) { opened = false; }
+      if (!opened && preWin && !preWin.closed) { try { preWin.close(); } catch(e){} }
+      if (out) {
+        out.hidden = false;
+        out.innerHTML = '<b>EPHI workbook ready</b> — ' + fmt(res.woredas) + ' woredas, split health centers consolidated (Merge HC on).' +
+          '<span class="grow"></span>' +
+          '<a href="' + esc(res.downloadUrl) + '" target="_blank" rel="noopener">Download .xlsx</a>' +
+          '<a href="' + esc(res.url) + '" target="_blank" rel="noopener">Open EPHI sheet</a>';
+      }
+      toast('EPHI workbook ready — ' + fmt(res.woredas) + ' woredas');
+    })
+    .withFailureHandler(function(err){
+      if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+      setBusy(null);
+      const msg = (err && err.message) ? err.message : String(err);
+      if (out) { out.hidden = false; out.innerHTML = '<b>EPHI export failed.</b> ' + esc(msg); }
+      toast('EPHI export failed: ' + esc(msg), true);
+    })
+    .getEphiExport({});
+}
+
 
 
 function buildNarrationDeck(){
@@ -2332,16 +2494,19 @@ function buildNarrationDeck(){
     headers:['Indicator','Value','Notes'],
     rows:[
       ['Households visited', fmt(cum.hh||0), 'Social mobilizers'],
-      ['Community meetings', fmt(cum.comm||0), 'Parents/caregivers'],
-      ['Home-to-home reached', fmt(cum.h2h||0), 'Parents/caregivers'],
+      ['Community meetings', fmt((cum.commM||0)+(cum.commF||0)), 'Male '+fmt(cum.commM||0)+' · Female '+fmt(cum.commF||0)],
+      ['House-to-house visits', fmt((cum.h2hM||0)+(cum.h2hF||0)), 'Male '+fmt(cum.h2hM||0)+' · Female '+fmt(cum.h2hF||0)],
+      ['Total reach (as recorded)', fmt(cum.reachAll||0), 'Male '+fmt(cum.reachM||0)+' · Female '+fmt(cum.reachF||0)],
       ['Zero-dose vaccinated / identified', fmt(cum.zdV||0)+' / '+fmt(cum.zdId||0), 'Linkage'],
       ['Under-vaccinated vaccinated / identified', fmt(cum.uvV||0)+' / '+fmt(cum.uvId||0), 'Linkage'],
       ['Teams reporting (selected day)', fmt(cur.teamsRep||0)+' of '+fmt(cur.teams||0), pct((cur.teams||0)>0 ? (cur.teamsRep||0)/(cur.teams||1) : null,0)],
+      ['Zero-dose teams (selected day)', fmt(cur.zdTeams||0), 'Number fielded'],
+      ['Zero-dose teams reporting (selected day)', fmt(cur.zdTeamsRep||0)+' of '+fmt(cur.zdTeams||0), pct((cur.zdTeams||0)>0 ? (cur.zdTeamsRep||0)/(cur.zdTeams||1) : null,0)],
       ['AFP signals / alerts', fmt(cum.afpS||0)+' / '+fmt(cum.afpA||0), (cum.afpA||0)>0?'Follow up alerts':''],
       ['AEFI mild / severe', fmt(cum.aefiM||0)+' / '+fmt(cum.aefiS||0), sev.length?('Severe in: '+listOf(sev,2)):((cum.aefiS||0)>0?'Confirm investigation':'No severe AEFI')]
     ],
     narration: [
-      'Social mobilization reached ' + fmt(cum.hh||0) + ' households, ' + fmt(cum.comm||0) + ' caregivers in meetings and ' + fmt(cum.h2h||0) + ' home-to-home.',
+      'Social mobilization reached ' + fmt(cum.hh||0) + ' households, ' + fmt((cum.commM||0)+(cum.commF||0)) + ' caregivers in community meetings and ' + fmt((cum.h2hM||0)+(cum.h2hF||0)) + ' in house-to-house visits (total reach recorded: ' + fmt(cum.reachAll||0) + ').',
       (cum.zdId||0)>0 ? (fmt(cum.zdV||0)+' of '+fmt(cum.zdId||0)+' zero-dose children identified were vaccinated.') : 'No zero-dose children were identified and linked in this view.',
       (cum.uvId||0)>0 ? (fmt(cum.uvV||0)+' of '+fmt(cum.uvId||0)+' under-vaccinated children identified were vaccinated.') : 'No under-vaccinated children were identified and linked in this view.',
       sev.length ? ('Severe AEFI reported in: '+sev.join('; ')+'. Confirm each was investigated.') : ((cum.aefiS||0)>0 ? 'Severe AEFI reported; confirm investigations.' : 'No severe AEFI were reported in this selection.')
@@ -2710,6 +2875,7 @@ function init() {
   $('#fDay').addEventListener('change', e => { S.upTo = Number(e.target.value); render(); });
   $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
   $('#btnExport').addEventListener('click', doDashboardExport);
+  $('#btnEphiExport').addEventListener('click', doEphiExport);
   $('#btnExportPpt').addEventListener('click', doPptExport);
 
   $('#btnMergeHc').addEventListener('click', function(){
