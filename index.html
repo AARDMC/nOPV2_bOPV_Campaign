@@ -392,6 +392,7 @@
     .toast { position: fixed; bottom: 24px; right: 24px; background: var(--grad-green); color: #fff; padding: 14px 24px; border-radius: 14px; font-size: 13px; font-weight: 600; opacity: 0; transform: translateY(20px) scale(0.9); transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1); z-index: 200; pointer-events: none; box-shadow: 0 12px 32px rgba(67,233,123,0.4); display: flex; align-items: center; gap: 8px; max-width: 90vw; }
     .toast svg { width: 16px; height: 16px; stroke: #fff; }
     .toast.show { opacity: 1; transform: translateY(0) scale(1); }
+    .toast.error { background: linear-gradient(135deg,#ef5350,#c62828); box-shadow: 0 12px 32px rgba(198,40,40,0.45); }
     .readonly-note { display: inline-flex; align-items: center; gap: 6px; color: var(--text-light); font-size: 12px; font-weight: 600; padding: 10px 16px; background: linear-gradient(135deg,#f1f5f9,#e2e8f0); border-radius: 10px; }
     .readonly-note svg { width: 14px; height: 14px; }
 
@@ -742,6 +743,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
         }).catch(function (err) {
           var message = (err && err.campaignMessage) || (err && err.message) || "Unexpected error";
           if (runner.__failure) runner.__failure(new Error(message));
+          else if (typeof toast === "function") toast(message, true);
           else alert(message);
         });
         return runner;
@@ -1696,7 +1698,7 @@ function saveCurrent() {
     .withSuccessHandler(res => {
       state.busy = false;
       if (!res || res.ok === false) {
-        alert("Save failed: " + ((res && res.error) || "unknown"));
+        toast("Save failed: " + ((res && res.error) || "unknown"), true);
         if (btn) { btn.disabled = false; btn.innerHTML = ICONS.save + "Save " + day; }
         return;
       }
@@ -1708,7 +1710,7 @@ function saveCurrent() {
     .withFailureHandler(err => {
       state.busy = false;
       if (btn) { btn.disabled = false; btn.innerHTML = ICONS.save + "Save " + day; }
-      alert("Save failed: " + ((err && err.message) || String(err)));
+      toast("Save failed: " + ((err && err.message) || String(err)), true);
     })
     .saveAndReturn({
       woredaID: w.woredaID, facilityIndex: state.activeFacility,
@@ -2042,15 +2044,17 @@ function applySettings() {
       state.settings = s; state.rowDataCache = {};
       closeSettings(); loadRowData(); toast("Settings saved");
     })
-    .withFailureHandler(err => alert("Save failed: " + ((err && err.message) || String(err))))
+    .withFailureHandler(err => toast("Could not save settings: " + ((err && err.message) || String(err)), true))
     .saveSettings(s);
 }
 
-function toast(msg) {
+function toast(msg, isErr) {
   const t = document.getElementById("toast");
-  t.innerHTML = ICONS.check + "<span>" + escapeHtml(msg) + "</span>";
+  t.innerHTML = (isErr ? ICONS.alert : ICONS.check) + "<span>" + escapeHtml(msg) + "</span>";
+  t.classList.toggle("error", !!isErr);
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2600);
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(() => t.classList.remove("show"), isErr ? 4200 : 2600);
 }
 function escapeHtml(s) {
   return String(s == null ? "" : s)
