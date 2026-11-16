@@ -1107,6 +1107,9 @@ function validateRow(w, day, r) {
   // Teams reported cannot exceed planned/available teams
   const teamsPlanned = (w && w.teams !== "" && w.teams != null && isFinite(Number(w.teams))) ? Number(w.teams) : null;
   if (teamsPlanned != null && n(r.AY) > teamsPlanned) add(["AY"], "Number of vaccination teams reported (" + fmtNum(n(r.AY)) + ") cannot exceed number of teams (" + fmtNum(teamsPlanned) + ").");
+  // Zero-dose teams reported cannot exceed the number of zero-dose teams
+  // fielded (applies even when the fielded number is 0 or blank).
+  if (n(r.BA) > n(r.AZ)) add(["AZ","BA"], "Zero-dose vaccination teams reported (" + n(r.BA) + ") cannot exceed number of zero-dose vaccination teams (" + n(r.AZ) + "). Correct one of the two values before saving.");
 
   // Linkage: vaccinated can never exceed identified (applies even when identified is 0
   // or blank — vaccinating more children than were identified is always a data error).
@@ -1917,7 +1920,7 @@ function base64ToBlob_(b64, mime) {
 function fallbackLocalWoredaExport_(el, reason) {
   if (!state.selectedRow || !el) return;
   const w = state.selectedRow;
-  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Google Sheet export unavailable (${escapeHtml(reason || "not authorized yet")}) — building export locally…</span></div>`;
+  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Server unreachable (${escapeHtml(reason || "not authorized yet")}) — building an approximate export locally (not identical to the master)…</span></div>`;
   google.script.run
     .withSuccessHandler(res => {
       if (!res || res.ok === false) {
@@ -1950,56 +1953,57 @@ function exportWoreda() {
   const el = document.getElementById("exportResult");
   if (!state.selectedRow || !el) return;
   const w = state.selectedRow;
-  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Preparing your woreda Excel from the Google Sheet…</span></div>`;
+  el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Refreshing the export workbook (identical to the master sheet)…</span></div>`;
   let preWin = null;
   try { preWin = window.open('', '_blank'); } catch(e) { preWin = null; }
   if (preWin) {
-    try { preWin.document.write('<!doctype html><title>Opening sheet…</title><body style="font-family:Arial,sans-serif;padding:24px;color:#334155">Updating and opening your Google Sheet…</body>'); preWin.document.close(); } catch(e) {}
+    try { preWin.document.write('<!doctype html><title>Preparing your Excel…</title><body style="font-family:Arial,sans-serif;padding:24px;color:#334155">Refreshing the export workbook, then downloading your identical copy of the master…</body>'); preWin.document.close(); } catch(e) {}
   }
   google.script.run
     .withSuccessHandler(res => {
       if (!res || res.ok === false) {
+        // The server could not build the file, but it may have left a workbook open — offer the sheet.
+        if (res && res.url) {
+          if (preWin && !preWin.closed) { try { preWin.location = res.url; } catch(e){} }
+          const dl = res.downloadUrl || (res.fileId ? ("https://docs.google.com/spreadsheets/d/" + res.fileId + "/export?format=xlsx") : "");
+          el.innerHTML = `
+            <div class="export-result">
+              <span style="font-weight:700;color:#b45309;display:flex;align-items:center;gap:6px">${ICONS.excel} ${escapeHtml(res.fileName || "Your Google Sheet")} is ready, but the direct download failed${res.error ? " (" + escapeHtml(res.error) + ")" : ""}</span>
+              <a href="${escapeAttr(res.url)}" target="_blank" rel="noopener" class="btn btn-success" style="margin-left:auto">${ICONS.excel}Open Google Sheet</a>
+              ${dl ? `<a href="${escapeAttr(dl)}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.download}Download .xlsx</a>` : ""}
+            </div>`;
+          toast("Export workbook opened in a new tab");
+          return;
+        }
         if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
         fallbackLocalWoredaExport_(el, (res && res.error) || "native export rejected");
         return;
       }
+      // Sheet mode: the exported workbook is the master sheet itself (same formats,
+      // formulas, dropdowns and conditional formatting) — send the pre-opened tab to
+      // the .xlsx download so the user gets the identical file, and keep the sheet link.
       if (res.mode === 'sheet' && res.url) {
+        const dl = res.downloadUrl || (res.fileId ? ("https://docs.google.com/spreadsheets/d/" + res.fileId + "/export?format=xlsx") : "");
         let opened = false;
         try {
-          if (preWin && !preWin.closed) { preWin.location = res.url; opened = true; }
+          if (preWin && !preWin.closed) { preWin.location = dl || res.url; opened = true; }
+          else if (dl) { const win = window.open(dl, '_blank', 'noopener'); opened = !!win; }
           else { const win = window.open(res.url, '_blank', 'noopener'); opened = !!win; }
         } catch(e) { opened = false; }
-        const dl = res.downloadUrl || (res.fileId ? ("https://docs.google.com/spreadsheets/d/" + res.fileId + "/export?format=xlsx") : "");
         el.innerHTML = `
           <div class="export-result">
-            <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} ${escapeHtml(res.fileName || "Your Google Sheet")} updated</span>
-            <a href="${escapeAttr(res.url)}" target="_blank" rel="noopener" class="btn btn-success" style="margin-left:auto">${ICONS.excel}Open Google Sheet</a>
-            ${dl ? `<a href="${escapeAttr(dl)}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.download}Download .xlsx</a>` : ""}
+            <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel identical to the master Google Sheet ${opened ? "is downloading" : "is ready"} — same formats, formulas, dropdowns and conditional formatting</span>
+            <a href="${escapeAttr(dl || res.url)}" target="_blank" rel="noopener" class="btn btn-success" style="margin-left:auto">${ICONS.download}Download .xlsx</a>
+            <a href="${escapeAttr(res.url)}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.excel}Open Google Sheet</a>
           </div>`;
-        toast(opened ? "Google Sheet updated and opened" : "Google Sheet updated (use the buttons below)");
+        toast(dl ? "Downloading your Excel export (identical to the master)" : "Google Sheet updated and opened");
         return;
       }
       if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
-      if (!res.base64) { fallbackLocalWoredaExport_(el, "native export not supported by server"); return; }
-      let blob, fileName;
-      try {
-        blob = base64ToBlob_(res.base64, res.mimeType);
-        fileName = res.fileName || ("nOPV2+bOPV____" + safeFilePart_(w.woreda) + "_" + safeFilePart_(w.healthCenter) + ".xlsx");
-      } catch (err) {
-        fallbackLocalWoredaExport_(el, (err && err.message) || String(err));
-        return;
-      }
-      const url = downloadBlob_(blob, fileName);
-      el.innerHTML = `
-        <div class="export-result">
-          <span style="font-weight:700;color:#2e7d32;display:flex;align-items:center;gap:6px">${ICONS.check} Excel ready — your woreda only (Google Sheet formatting, formulas & validation)</span>
-          <a href="${url}" download="${escapeAttr(fileName)}" class="btn btn-success" style="margin-left:auto">${ICONS.download}Download .xlsx</a>
-          <a href="${url}" target="_blank" rel="noopener" class="btn btn-outline">${ICONS.excel}Open in new tab</a>
-        </div>`;
-      toast("Your woreda Excel was exported");
-      setTimeout(() => URL.revokeObjectURL(url), 300000);
+      fallbackLocalWoredaExport_(el, "native export not supported by server");
     })
     .withFailureHandler(err => {
+      if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
       fallbackLocalWoredaExport_(el, (err && err.message) || String(err));
     })
     .getNativeScopedExport({ facilityIndex: state.activeFacility });

@@ -2194,12 +2194,12 @@ function doDashboardExport(){
   const btn = document.getElementById('btnExport');
   const defaultLabel = 'Download Excel';
   if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
-  setBusy('Preparing export', (S.mergeHc ? 'Creating your merged export (split woredas combined, values only)…' : 'Updating/opening your scoped Google Sheet (formulas, formatting and validation preserved)…'));
+  setBusy('Preparing export', (S.mergeHc ? 'Creating your merged export (split woredas combined, values only)…' : 'Refreshing the export workbook (identical to the master sheet)…'));
   // Pre-open a window on user click so the sheet can be opened automatically after async export (avoids popup blockers)
   let preWin = null;
   try { preWin = window.open('', '_blank'); } catch(e) { preWin = null; }
   if (preWin) {
-    try { preWin.document.write('<!doctype html><title>Opening sheet…</title><body style="font-family:Arial,sans-serif;padding:24px;color:#334155">Updating and opening your Google Sheet…</body>'); preWin.document.close(); } catch(e) {}
+    try { preWin.document.write('<!doctype html><title>Preparing your Excel…</title><body style="font-family:Arial,sans-serif;padding:24px;color:#334155">Refreshing the export workbook (identical to the master sheet)…</body>'); preWin.document.close(); } catch(e) {}
   }
   const payload = {};
   if (DASH_FACILITY >= 0) payload.facilityIndex = DASH_FACILITY;
@@ -2210,19 +2210,33 @@ function doDashboardExport(){
       if(!res || !res.ok){
         if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
         setBusy(null);
+        // Server refused the direct download but refreshed the identical workbook — offer it instead.
+        if (res && res.downloadUrl) {
+          try { const w = window.open(res.downloadUrl, '_blank', 'noopener'); } catch(e){}
+          toast('Direct download failed ('+esc(res.error||'unknown')+') — opened the identical workbook instead', false);
+          return;
+        }
         toast('Export failed: '+esc((res&&res.error)||'unknown'), true);
         return;
       }
       try{
         if ((res.mode === 'sheet' || res.mode === 'merged') && res.url) {
           setBusy(null);
+          const dl = res.downloadUrl || (res.fileId ? ('https://docs.google.com/spreadsheets/d/' + res.fileId + '/export?format=xlsx') : '');
+          const target = (S.mergeHc || !dl) ? res.url : dl;
           let opened = false;
           try {
-            if (preWin && !preWin.closed) { preWin.location = res.url; opened = true; }
-            else { const w = window.open(res.url, '_blank', 'noopener'); opened = !!w; }
+            if (preWin && !preWin.closed) { preWin.location = target; opened = true; }
+            else { const w = window.open(target, '_blank', 'noopener'); opened = !!w; }
           } catch(e) { opened = false; }
-          if (opened) toast((res.fileName ? esc(res.fileName) : 'Your sheet') + ' updated and opened');
-          else toast((res.fileName ? esc(res.fileName) : 'Your sheet') + ' updated — open: ' + esc(res.url), false);
+          if (S.mergeHc) {
+            if (opened) toast((res.fileName ? esc(res.fileName) : 'Your sheet') + ' updated and opened');
+            else toast((res.fileName ? esc(res.fileName) : 'Your sheet') + ' updated — open: ' + esc(res.url), false);
+          } else if (opened) {
+            toast('Downloading Excel identical to the master sheet: ' + esc(res.fileName || ''));
+          } else {
+            toast('Your export is ready — open: ' + esc(res.url), false);
+          }
           return;
         }
         if (preWin && !preWin.closed) try { preWin.close(); } catch(e){}
@@ -2232,12 +2246,12 @@ function doDashboardExport(){
           return;
         }
         const blob = b64ToBlob_(res.base64, res.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        const name = res.fileName || 'nOPV2+bOPV____Full.xlsx';
+        const name = res.fileName || 'nOPV2+bOPV export.xlsx';
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(()=>URL.revokeObjectURL(url), 300000);
         setBusy(null);
-        toast('Export ready: '+esc(name));
+        toast('Excel identical to the master sheet — downloading: '+esc(name));
       } catch(e){
         if (preWin && !preWin.closed) try { preWin.close(); } catch(e2){}
         setBusy(null);
