@@ -1490,9 +1490,9 @@ function renderMain(rowData) {
       <div class="form-section section-place">
         <h4><span class="section-icon">${ICONS.pin}</span>Vaccination by Place</h4>
         <div class="form-grid">
-          ${field("AT","Children Vaccinated in House")}${field("AU","Children Vaccinated in School")}
-          ${field("AV","Children Vaccinated in Market")}${field("AW","Children Vaccinated in Street")}
-          ${field("AX","Children Vaccinated in Other Place")}${field("AY","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
+          ${field("AZ","Children Vaccinated in House")}${field("BA","Children Vaccinated in School")}
+          ${field("BB","Children Vaccinated in Market")}${field("BC","Children Vaccinated in Street")}
+          ${field("BD","Children Vaccinated in Other Place")}${field("BE","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
           ${calc("BG","Total Vaccinated by Place", fmtNum(c.BG), (c.BG === c.L ? "flag-green" : "flag-red"))}
         </div>
         <div id="placeDiffWrap"></div>
@@ -1706,12 +1706,12 @@ const EXPORT_COLUMNS = [
   ["AO", "Zero-dose children vaccinated", "raw"],
   ["AP", "Under-vaccinated children identified", "raw"],
   ["AQ", "Under-vaccinated children vaccinated", "raw"],
-  ["AT", "Vaccinated in House", "raw"],
-  ["AU", "Vaccinated in School", "raw"],
-  ["AV", "Vaccinated in Market", "raw"],
-  ["AW", "Vaccinated in Street", "raw"],
-  ["AX", "Vaccinated in Other Place", "raw"],
-  ["AY", "Unvaccinated During Visit", "raw"],
+  ["AZ", "Vaccinated in House", "raw"],
+  ["BA", "Vaccinated in School", "raw"],
+  ["BB", "Vaccinated in Market", "raw"],
+  ["BC", "Vaccinated in Street", "raw"],
+  ["BD", "Vaccinated in Other Place", "raw"],
+  ["BE", "Unvaccinated During Visit", "raw"],
   ["BG", "Total Vaccinated by Place (calc)", "calc"]
 ];
 
