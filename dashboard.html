@@ -2860,7 +2860,13 @@ function init() {
     S.upTo = M ? M.last : 0; S.q = ''; S.rule = 'all'; if (M) { fillFilters(); render(); }
   });
   $$('.tab-btn').forEach(b => b.addEventListener('click', () => {
-    S.tab = b.dataset.tab; $$('.tab-btn').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false')); render();
+    S.tab = b.dataset.tab; $$('.tab-btn').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
+    // Campaign data may still be in flight right after sign-in: say so instead of leaving a dead tab.
+    if (!M) {
+      const ap = $('#app');
+      if (ap) ap.innerHTML = '<div class="msg"><h2>Loading the dashboard…</h2><p>Fetching the campaign data for this ' + esc(scopeName()) + '. The panel will fill in as soon as it arrives.</p></div>';
+    }
+    render();
   }));
   document.getElementById('dashLoginBtn').addEventListener('click', doDashLogin);
   document.getElementById('officerLoginBtn').addEventListener('click', doOfficerLogin);
