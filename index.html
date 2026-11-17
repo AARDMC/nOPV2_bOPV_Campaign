@@ -1360,8 +1360,12 @@ function initPhotoUpload_() {
   const galleryBtn = document.getElementById("photoGalleryBtn");
   const cameraBtn = document.getElementById("photoCameraBtn");
   if (!galleryBtn || !cameraBtn) return;
-  const input = document.getElementById("photoFile");
-  if (!input) return;
+  // Two separate inputs keep the two actions distinct on every phone/browser:
+  // the gallery input has no capture attribute (opens locally saved photos),
+  // the camera input carries capture="environment" (opens the camera directly).
+  const galleryInput = document.getElementById("photoGalleryInput");
+  const cameraInput = document.getElementById("photoCameraInput");
+  if (!galleryInput || !cameraInput) return;
   const thumb = document.getElementById("photoThumb");
   const preview = document.getElementById("photoPreview");
   const status = document.getElementById("photoStatus");
@@ -1379,15 +1383,8 @@ function initPhotoUpload_() {
     photoBusy_ = !!on;
     galleryBtn.disabled = cameraBtn.disabled = !!on;
   };
-  const openPicker = (useCamera) => {
-    if (photoBusy_) return;
-    // capture is set per tap: gallery = no capture attribute, camera = rear camera
-    if (useCamera) input.setAttribute("capture", "environment");
-    else input.removeAttribute("capture");
-    input.click();
-  };
-  galleryBtn.onclick = () => openPicker(false);
-  cameraBtn.onclick = () => openPicker(true);
+  galleryBtn.onclick = () => { if (!photoBusy_) galleryInput.click(); };
+  cameraBtn.onclick = () => { if (!photoBusy_) cameraInput.click(); };
   google.script.run
     .withSuccessHandler(res => {
       const first = res && res.ok && Array.isArray(res.photos) && res.photos[0];
@@ -1396,7 +1393,8 @@ function initPhotoUpload_() {
     })
     .withFailureHandler(() => {})
     .getCoverPhotos({});
-  input.onchange = async () => {
+  const onChosen = async (e) => {
+    const input = e.target;
     const file = input.files && input.files[0];
     if (!file) return;
     if (!/^image\//i.test(file.type || "")) {
@@ -1426,8 +1424,8 @@ function initPhotoUpload_() {
       if (!res || !res.ok) throw new Error((res && res.error) || "The server rejected the photo.");
       paint(true, res.thumb || res.url, "Saved for your woreda — " + (state.activeDay || "Day 1") + ".", false);
       toast("Woreda photo saved for " + (state.activeDay || "Day 1") + ". It will appear on the dashboard.");
-    } catch (e) {
-      const msg = (e && e.message) ? e.message : "Could not upload the photo.";
+    } catch (err) {
+      const msg = (err && err.message) ? err.message : "Could not upload the photo.";
       note(msg, true);
       toast(msg, true);
     } finally {
@@ -1435,6 +1433,8 @@ function initPhotoUpload_() {
       input.value = "";
     }
   };
+  galleryInput.onchange = onChosen;
+  cameraInput.onchange = onChosen;
 }
 
 function renderMain(rowData) {
@@ -1597,12 +1597,14 @@ function renderMain(rowData) {
           </div>
           <div class="photo-question-side">
             <p class="photo-q-title">Add a vaccination photo?</p>
-            <p class="photo-q-hint">Optional. Choose <b>Upload from Gallery</b> to pick a photo already on your phone, or <b>Take a Photo</b> to capture one now. One photo per woreda per day — choosing another replaces it. Photos appear on the Campaign Update dashboard.</p>
+            <p class="photo-q-hint">Optional. <b>Upload from Gallery</b> opens the photos saved on your phone. <b>Take a Photo</b> opens your camera to capture one now. One photo per woreda per day — choosing another replaces it. Photos appear on the Campaign Update dashboard.</p>
             <div class="photo-actions">
               <button type="button" class="btn-photo ghost" id="photoGalleryBtn">${ICONS.image}<span>Upload from Gallery</span></button>
               <button type="button" class="btn-photo" id="photoCameraBtn">${ICONS.camera}<span>Take a Photo</span></button>
             </div>
-            <input type="file" id="photoFile" accept="image/*" hidden>
+            <!-- Two dedicated pickers: gallery has no capture (local photos), camera forces the rear camera. -->
+            <input type="file" id="photoGalleryInput" accept="image/*" hidden>
+            <input type="file" id="photoCameraInput" accept="image/*" capture="environment" hidden>
             <p class="photo-status" id="photoStatus" role="status" aria-live="polite">No photo uploaded yet — this step is optional.</p>
           </div>
         </div>
