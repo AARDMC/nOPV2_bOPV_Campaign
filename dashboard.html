@@ -2864,7 +2864,8 @@ function init() {
     // Campaign data may still be in flight right after sign-in: say so instead of leaving a dead tab.
     if (!M) {
       const ap = $('#app');
-      if (ap) ap.innerHTML = '<div class="msg"><h2>Loading the dashboard…</h2><p>Fetching the campaign data for this ' + esc(scopeName()) + '. The panel will fill in as soon as it arrives.</p></div>';
+      const area = (DASH_SCOPE && DASH_SCOPE.zone) ? esc(DASH_SCOPE.zone) : 'this area';
+      if (ap) ap.innerHTML = '<div class="msg"><h2>Loading the dashboard…</h2><p>Fetching the campaign data for ' + area + '. The panel will fill in as soon as it arrives.</p></div>';
     }
     render();
   }));
