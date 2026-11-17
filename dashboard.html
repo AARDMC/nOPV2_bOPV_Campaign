@@ -196,6 +196,8 @@ td.wrap{white-space:normal;text-align:left;min-width:240px}
 .chip[aria-pressed="true"]{background:var(--teal-l);border-color:var(--blue)}
 .chip.zero{color:var(--ink3)}
 .empty{padding:26px;text-align:center;color:var(--ink2)}
+.map-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--ink2);font-size:13.5px;font-weight:600}
+.map-spinner{width:30px;height:30px;border:3px solid rgba(37,99,235,.18);border-top-color:#2563EB;border-radius:50%;animation:spinBtn .9s linear infinite;flex:none}
 .msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:24px;max-width:720px}
 .msg.err{border-color:var(--bad);background:var(--bad-bg)}
 .msg h2{margin:0 0 6px;font-size:16px}
@@ -1309,22 +1311,32 @@ function renderQuality() {
 
 /* ---------- Map (SVG style, bulletin-inspired: normalize, canonical match, scoped render, labels) ---------- */
 let MAP_GEOJSON = null;
-async function loadGeoJsonData(){
-  if (MAP_GEOJSON) return MAP_GEOJSON;
+let MAP_PROMISE = null;
+function loadGeoJsonData(){
+  if (MAP_GEOJSON) return Promise.resolve(MAP_GEOJSON);
+  if (MAP_PROMISE) return MAP_PROMISE;
   const urls = [
-    'assets/campaign-map.geojson?v=20261115-corrected',
-    'assets/addis-ababa.geojson?v=20261115-corrected',
+    'assets/campaign-map.geojson?v=20261117-slim',
+    'assets/addis-ababa.geojson?v=20261117-slim',
     'https://drive.google.com/uc?export=download&id=1w5rHRDxx6OLDwZa9dUo3B5eOECJlBkuw'
   ];
-  for (const url of urls){
-    try {
-      const res = await fetch(url, { cache: 'default' });
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data && (data.type === 'FeatureCollection' || data.type === 'Feature' || data.features || data.geometry)) { MAP_GEOJSON = data; return data; }
-    } catch(e) { /* try next */ }
-  }
-  return null;
+  MAP_PROMISE = (async function(){
+    for (const url of urls){
+      try {
+        const res = await fetch(url, { cache: 'default' });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data && (data.type === 'FeatureCollection' || data.type === 'Feature' || data.features || data.geometry)) { MAP_GEOJSON = data; return data; }
+      } catch(e) { /* try next */ }
+    }
+    MAP_PROMISE = null; // let the map tab retry after a failed load
+    return null;
+  })();
+  return MAP_PROMISE;
+}
+// Warm the boundary file right after sign-in so the Map tab paints instantly.
+function prefetchMapData(){
+  try { loadGeoJsonData(); } catch(e) {}
 }
 function renderMap(){
   app().innerHTML = '<div class="grid" style="margin-top:0">' +
@@ -1346,10 +1358,14 @@ function renderMap(){
       const note = document.getElementById('mapNote');
       const legend = document.getElementById('mapLegend');
       if (!wrap) return;
+      // Paint an immediate placeholder: the boundary file is fetched on first use.
+      wrap.innerHTML = '<div class="map-loading"><span class="map-spinner" aria-hidden="true"></span><span>Loading map boundaries…</span></div>';
       const gj = await loadGeoJsonData();
       if (!gj) {
-        wrap.innerHTML = '<div class="empty">GeoJSON not available.</div>';
-        if (note) note.innerHTML = 'Add the file to <code>campaign-portal/assets/campaign-map.geojson</code> (public in this site) and refresh.';
+        wrap.innerHTML = '<div class="empty" style="padding:24px;text-align:center">The map boundaries could not be downloaded.<br><button type="button" class="btn solid" id="mapRetry" style="margin-top:10px">Try again</button></div>';
+        const retry = document.getElementById('mapRetry');
+        if (retry) retry.addEventListener('click', function(){ MAP_GEOJSON = null; MAP_PROMISE = null; renderMap(); });
+        if (note) { note.style.display = ''; note.textContent = 'Check the internet connection and choose Try again.'; }
         return;
       }
       const features = gj.type === 'FeatureCollection' ? (gj.features || []) : gj.type === 'Feature' ? [gj] : [];
@@ -2080,6 +2096,7 @@ function applyLoginSession(res) {
   DASH_SCOPE = { mode: d.scope, zone: d.zone || '', woreda: d.woreda || '', woredaID: d.woredaID || '', facilities: scopedFacilities, facilityCount: facilityLocked ? (lockedFacility ? 1 : 0) : (scopedFacilities.length || d.facilityCount || 0), facilityIndex: facilityLocked ? 0 : -1, facilityLocked: facilityLocked, facility: lockedFacility || '' };
   if (facilityLocked) { DASH_FACILITY = 0; DASH_SCOPE.facilityIndex = 0; }
   else if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) { DASH_FACILITY = 0; DASH_SCOPE.facilityIndex = 0; }
+  prefetchMapData();
   load(false);
   return true;
 }
@@ -2880,18 +2897,21 @@ function init() {
     // officer coming from data entry
     document.getElementById('dashLogin').classList.add('hidden');
     // scope will be set by server from token
+    prefetchMapData();
     load(false);
     return;
   }
   if (epiToken && !dashToken) {
     // woreda officer - let server scope it
     document.getElementById('dashLogin').classList.add('hidden');
+    prefetchMapData();
     load(false);
     return;
   }
   if (dashToken) {
     document.getElementById('dashLogin').classList.add('hidden');
     try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '', facilities: info.facilities || [], facilityCount: info.facilityCount || 0, facilityIndex: -1, facilityLocked: !!info.facilityLocked, facility: info.facility || '' }; if (DASH_SCOPE.facilityLocked) { const fac = info.facility || (Array.isArray(info.facilities) && info.facilities.length === 1 ? info.facilities[0] : ''); DASH_SCOPE.facilities = fac ? [fac] : []; DASH_SCOPE.facilityCount = fac ? 1 : 0; DASH_SCOPE.facility = fac; DASH_SCOPE.facilityIndex = 0; DASH_FACILITY = 0; } else if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; } catch(e){}
+    prefetchMapData();
     load(false);
     return;
   }
