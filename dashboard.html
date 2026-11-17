@@ -2883,7 +2883,7 @@ function init() {
   }
   if (dashToken) {
     document.getElementById('dashLogin').classList.add('hidden');
-    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '', facilities: info.facilities || [], facilityCount: info.facilityCount || 0, facilityIndex: -1 }; if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; } catch(e){}
+    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '', facilities: info.facilities || [], facilityCount: info.facilityCount || 0, facilityIndex: -1, facilityLocked: !!info.facilityLocked, facility: info.facility || '' }; if (DASH_SCOPE.facilityLocked) DASH_FACILITY = 0; else if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; } catch(e){}
     load(false);
     return;
   }
