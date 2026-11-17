@@ -64,6 +64,11 @@ button,select,input{font:inherit;color:inherit}
 #dashLogin .login-card button .btn-spinner{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spinBtn .8s linear infinite;flex:none}
 @keyframes spinBtn{to{transform:rotate(360deg)}}
 #dashLogin .login-card .err{color:#c62828;font-size:12px;margin-top:10px;min-height:18px;font-weight:600;text-align:center}
+#dashLogin .login-tabs{display:flex;gap:6px;padding:4px;background:#eef2ff;border-radius:12px;margin-bottom:12px}
+#dashLogin .login-tab{flex:1;padding:8px 6px;border:none;background:transparent;border-radius:9px;font-size:12px;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;transition:all .15s ease;box-shadow:none;margin:0}
+#dashLogin .login-tab.active{background:#fff;color:#3730a3;box-shadow:0 2px 8px rgba(15,23,42,.12)}
+#dashLogin .login-tab:hover{color:#3730a3}
+#dashLogin .ofi-note{font-size:11px;color:#475569;margin-top:10px;text-align:center;font-weight:600}
 #dashLogin .login-card .hint{font-size:11px;color:var(--text-light,#64748b);margin-top:10px;text-align:center;line-height:1.5}
 .login-credit{margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;text-align:center}
 .login-credit .credit-org{font-size:10px;line-height:1.55;font-weight:700;color:#475569;letter-spacing:.01em}
@@ -469,14 +474,26 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwRXWRwn_yV1l
       <span class="lb-badge"><img src="assets/badge.png" alt="Badge"></span>
     </div>
     <h2>Campaign Update Login</h2>
-    <p class="subtitle">Enter your ID to view the campaign update</p>
-    <div class="field">
-      <label>Your ID</label>
-      <input id="dashId" type="text" placeholder="Enter your ID" autocomplete="off">
+    <p class="subtitle">Sign in to view the campaign update</p>
+    <div class="login-tabs">
+      <button type="button" class="login-tab active" id="loginTabOfficer">Officer sign-in</button>
+      <button type="button" class="login-tab" id="loginTabProgram">Sub-city / EPHI</button>
     </div>
-    <button id="dashLoginBtn">Open Dashboard</button>
+    <div id="officerForm">
+      <div class="field"><label>Full name</label><input id="offName" type="text" placeholder="e.g. GETASSEW ENGIDAW MEKONNEN" autocomplete="name"></div>
+      <div class="field"><label>Email</label><input id="offEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="field"><label>Phone number</label><input id="offPhone" type="text" placeholder="e.g. 0910804879" autocomplete="tel"></div>
+      <div class="field"><label>Woreda ID</label><input id="offWoredaID" type="text" placeholder="e.g. 1000" autocomplete="off"></div>
+      <button id="officerLoginBtn" type="button">Open my dashboard</button>
+      <div class="login-gate ofi-note">Your dashboard is locked to your health center — the facility you serve.</div>
+    </div>
+    <div id="programForm" hidden>
+      <div class="field"><label>Sub-city / zone / region ID</label><input id="dashId" type="text" placeholder="Enter sub-city, zone or region ID" autocomplete="off"></div>
+      <button id="dashLoginBtn" type="button">Open dashboard</button>
+      <div class="login-gate ofi-note">Program officers and zone/region staff sign in here.</div>
+    </div>
     <div class="err" id="dashErr"></div>
-    <div class="hint">Sign in with your assigned ID to view your dashboard.</div>
+    <div class="hint">Officers use the same credentials as the data-entry app — only their own health center's data is shown.</div>
     <div class="login-credit">
       <div class="credit-org">Addis Ababa City Public Health Emergency Management Research and Laboratory Directorate-AAPHREML</div>
       <div class="credit-by">Designed by : <b>Addis Ababa City Data Management Center</b></div>
@@ -813,7 +830,13 @@ function dayText(i) {
   return ds ? (d.label + ' (' + ds + ')') : d.label;
 }
 const dayName = () => M.days[S.upTo] ? M.days[S.upTo].label : '';
-function scopeName() { return S.woreda !== 'all' ? S.zone + ', ' + S.woreda : S.zone !== 'all' ? S.zone : 'All zones'; }
+function scopeName() {
+  let base = S.woreda !== 'all' ? S.zone + ', ' + S.woreda : S.zone !== 'all' ? S.zone : 'All zones';
+  if (DASH_SCOPE && DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilityCount >= 1 && DASH_FACILITY >= 0 && DASH_SCOPE.facilities && DASH_SCOPE.facilities[DASH_FACILITY]) {
+    base += ' — ' + DASH_SCOPE.facilities[DASH_FACILITY];
+  }
+  return base;
+}
 
 /* ===================== RENDERING ===================== */
 const $ = (s, el) => (el || document).querySelector(s);
@@ -1823,6 +1846,13 @@ function updateHCSelector() {
   } else {
     hcField.style.display = 'none';
   }
+  // Hide the merged-HC control when the officer is bound to a single facility that can't be merged.
+  const mergeBtn = document.getElementById('btnMergeHc');
+  if (mergeBtn) {
+    const locked = !!(DASH_SCOPE && DASH_SCOPE.facilityLocked);
+    mergeBtn.hidden = locked;
+    if (locked) { mergeBtn.setAttribute('aria-pressed', 'false'); }
+  }
 }
 function fillFilters() {
   $('#fZone').innerHTML = '<option value="all">All zones</option>' + M.zones.map(z => '<option>' + esc(z) + '</option>').join('');
@@ -2000,23 +2030,74 @@ function load(force) {
     .getDashboardData(payload);
 }
 
-// Login
+// Login tabs
+function setLoginTab(which) {
+  const officer = which === 'officer';
+  const officerTab = document.getElementById('loginTabOfficer');
+  const programTab = document.getElementById('loginTabProgram');
+  const officerForm = document.getElementById('officerForm');
+  const programForm = document.getElementById('programForm');
+  const subtitle = document.querySelector('#dashLogin .subtitle');
+  if (officerTab) officerTab.classList.toggle('active', officer);
+  if (programTab) programTab.classList.toggle('active', !officer);
+  if (officerForm) officerForm.hidden = !officer;
+  if (programForm) programForm.hidden = officer;
+  if (subtitle) subtitle.textContent = officer
+    ? 'Officer sign-in — only your own health center'
+    : 'Program officer / sub-city / zone / region ID';
+  document.getElementById('dashErr').textContent = '';
+}
+
+function applyLoginSession(res) {
+  const err = document.getElementById('dashErr');
+  if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return false; }
+  try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
+  document.getElementById('dashLogin').classList.add('hidden');
+  const d = res.dashboard || {};
+  const scopedFacilities = d.facilities || [];
+  const facilityLocked = !!d.facilityLocked;
+  const fiHint = (d.facilityIndex != null && d.facilityIndex >= 0) ? Number(d.facilityIndex) : -1;
+  DASH_SCOPE = { mode: d.scope, zone: d.zone || '', woreda: d.woreda || '', woredaID: d.woredaID || '', facilities: scopedFacilities, facilityCount: scopedFacilities.length || d.facilityCount || 0, facilityIndex: -1, facilityLocked: facilityLocked, facility: d.facility || '' };
+  if (facilityLocked && fiHint >= 0) { DASH_FACILITY = fiHint; DASH_SCOPE.facilityIndex = fiHint; }
+  else if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) { DASH_FACILITY = 0; DASH_SCOPE.facilityIndex = 0; }
+  load(false);
+  return true;
+}
+
+// Officer login — binds to their assigned facility
+function doOfficerLogin() {
+  const name = document.getElementById('offName').value.trim();
+  const email = document.getElementById('offEmail').value.trim();
+  const phone = document.getElementById('offPhone').value.trim();
+  const woredaID = document.getElementById('offWoredaID').value.trim();
+  const err = document.getElementById('dashErr');
+  err.textContent = '';
+  if (!name || !email || !phone || !woredaID) { err.textContent = 'All four fields are required.'; return; }
+  const loginBtn = document.getElementById('officerLoginBtn');
+  const defaultLabel = loginBtn ? loginBtn.innerHTML : 'Open my dashboard';
+  if (loginBtn) { loginBtn.disabled = true; loginBtn.classList.add('is-loading'); loginBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span>Signing in…</span>'; }
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = defaultLabel; }
+      applyLoginSession(res);
+    })
+    .withFailureHandler(function(e){ if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = defaultLabel; } err.textContent = (e && e.message) || String(e); })
+    .dashboardLogin({ name, email, phone, woredaID });
+}
+
+// Program login (zone / region / EPHI / woreda-level program view)
 function doDashLogin() {
   const id = document.getElementById('dashId').value.trim();
   const err = document.getElementById('dashErr');
   err.textContent = '';
-  if (!id) { err.textContent = 'Enter your ID.'; return; }
+  if (!id) { err.textContent = 'Enter sub-city or zone ID.'; return; }
   const loginBtn = document.getElementById('dashLoginBtn');
-  const loginBtnDefault = loginBtn ? loginBtn.innerHTML : 'Open Dashboard';
-  if (loginBtn) { loginBtn.disabled = true; loginBtn.classList.add('is-loading'); loginBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span>Opening Dashboard…</span>'; }
+  const loginBtnDefault = loginBtn ? loginBtn.innerHTML : 'Open dashboard';
+  if (loginBtn) { loginBtn.disabled = true; loginBtn.classList.add('is-loading'); loginBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span>Opening dashboard…</span>'; }
   google.script.run
     .withSuccessHandler(function(res){
       if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = loginBtnDefault; }
-      if (!res || !res.ok) { err.textContent = (res && res.error) || 'Login failed.'; return; }
-      try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
-      document.getElementById('dashLogin').classList.add('hidden');
-      if (res.dashboard) { const fiHint = (res.dashboard.facilityIndex != null && res.dashboard.facilityIndex >= 0) ? Number(res.dashboard.facilityIndex) : -1; DASH_SCOPE = { mode: res.dashboard.scope, zone: res.dashboard.zone || '', woreda: res.dashboard.woreda || '', woredaID: res.dashboard.woredaID || '', facilities: res.dashboard.facilities || [], facilityCount: res.dashboard.facilityCount || 0, facilityIndex: -1 }; if (fiHint >= 0) { DASH_FACILITY = fiHint; DASH_SCOPE.facilityIndex = fiHint; } else if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) { DASH_FACILITY = 0; } }
-      load(false);
+      applyLoginSession(res);
     })
     .withFailureHandler(function(e){ if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = loginBtnDefault; } err.textContent = (e && e.message) || String(e); })
     .dashboardLogin({ id: id });
@@ -2743,7 +2824,16 @@ function init() {
     S.tab = b.dataset.tab; $$('.tab-btn').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false')); render();
   }));
   document.getElementById('dashLoginBtn').addEventListener('click', doDashLogin);
+  document.getElementById('officerLoginBtn').addEventListener('click', doOfficerLogin);
+  document.getElementById('loginTabOfficer').addEventListener('click', function(){ setLoginTab('officer'); });
+  document.getElementById('loginTabProgram').addEventListener('click', function(){ setLoginTab('program'); });
+  ['offName','offEmail','offPhone','offWoredaID'].forEach(function(id){
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', function(e){ if (e.key === 'Enter') doOfficerLogin(); });
+  });
   document.getElementById('dashId').addEventListener('keydown', e => { if (e.key === 'Enter') doDashLogin(); });
+  document.getElementById('officerLoginBtn').style.display = '';
+  setLoginTab('officer');
 
   // Auto-auth: woreda officer session -> direct to their woreda
   let epiToken = sessionStorage.getItem('epi_token');

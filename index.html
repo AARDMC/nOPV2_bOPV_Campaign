@@ -262,6 +262,11 @@
     .info-item span { font-weight: 700; font-size: 15px; color: #fff; }
 
     /* Tabs */
+    .facility-lock-pill { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px;
+      margin-bottom: 12px; border-radius: 12px; background: linear-gradient(135deg, #ede9fe, #e0e7ff);
+      color: #4338ca; font-size: 12px; font-weight: 700; border: 1px solid rgba(99,102,241,0.25); }
+    .facility-lock-pill b { color: #312e81; }
+    .facility-lock-pill svg { width: 15px; height: 15px; stroke: #4338ca; }
     .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
     .tabs.day-tabs { margin-bottom: 20px; }
     .tab {
@@ -994,7 +999,16 @@ function handleInitialData(data) {
   // 🔒 SCOPE LOCK — keep only the officer's woreda
   const officerID = String(state.officer ? state.officer.woredaID : "").trim();
   const allRows = data.plan;
-  const scoped = allRows.filter(r => String(r.woredaID).trim() === officerID);
+  let scoped = allRows.filter(r => String(r.woredaID).trim() === officerID);
+
+  // Server-side facility lock: when the server marks the plan row bound to this officer's
+  // health centre, keep ONLY that row — a split woreda is one row per health centre.
+  const serverBoundRow = (data.boundRowIndex != null) ? data.boundRowIndex
+    : (data.officer && data.officer.boundRowIndex != null ? data.officer.boundRowIndex : null);
+  if (serverBoundRow != null) {
+    const bound = scoped.filter(r => Number(r.rowIndex) === Number(serverBoundRow));
+    if (bound.length) scoped = bound;
+  }
 
   if (!scoped.length) {
     showError("Woreda not found in plan",
@@ -1006,7 +1020,10 @@ function handleInitialData(data) {
   state.planRows = scoped;
   state.settings = data.settings || {};
   state.selectedRow = scoped[0];
-  state.activeFacility = 0;
+  // If the officer is bound to one health facility (credentials say so), never show other ones.
+  state.facilityLocked = !!(state.officer && state.officer.facilityLocked);
+  state.lockedFacilityIndex = state.officer && typeof state.officer.facilityIndex === "number" ? state.officer.facilityIndex : 0;
+  state.activeFacility = state.facilityLocked ? state.lockedFacilityIndex : 0;
   loadRowData();
 }
 
@@ -1410,13 +1427,17 @@ function renderMain(rowData) {
   const zeroDosePlanned = (rowData && rowData["AZ"] !== "" && rowData["AZ"] != null && isFinite(Number(rowData["AZ"]))) ? Number(rowData["AZ"]) : 0;
   const c = computeRow(w, day, rowData);
 
-  const facilityTabs = w.facilityCount > 1 ? `
+  // When the officer is bound to one health centre, replace facility tabs with a static label.
+  const facilityLocked = !!state.facilityLocked;
+  const facilityTabs = facilityLocked
+    ? `<div class="facility-lock-pill">${ICONS.lock}Your health center: <b>${escapeHtml((w.facilities && w.facilities[state.lockedFacilityIndex]) || state.officer?.facility || w.healthCenter || "")}</b></div>`
+    : (w.facilityCount > 1 ? `
     <div class="tabs facility-tabs">
       ${w.facilities.map((f, i) =>
         `<div class="tab facility-tab ${i === state.activeFacility ? 'active' : ''}" data-fac="${i}">
           <span>${ICONS.building}</span><span>${escapeHtml(f)}</span>
         </div>`).join("")}
-    </div>` : "";
+    </div>` : "");
 
   const dayTabs = DAYS.map(d =>
     `<div class="tab ${d === day ? 'active' : ''}" data-day="${escapeAttr(d)}"><span>${escapeHtml(d)}</span></div>`
@@ -1584,6 +1605,7 @@ function renderMain(rowData) {
   });
   document.querySelectorAll(".tab[data-fac]").forEach(t => {
     t.onclick = () => {
+      if (state.facilityLocked) return; // bound to a single health center — tab is disabled
       state.activeFacility = Number(t.dataset.fac);
       state.rowDataCache = {};
       loadRowData();
