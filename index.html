@@ -246,7 +246,14 @@
     .btn-photo.ghost svg { stroke: #1558B8; }
     .btn-photo.ghost:hover { box-shadow: 0 8px 18px rgba(15,37,82,.14); }
     .photo-optional { font-size: 11px; font-weight: 700; color: #fff; background: rgba(255,255,255,.22); border-radius: 999px; padding: 3px 9px; margin-left: 8px; letter-spacing: .3px; }
-    @media (max-width: 640px) { .photo-preview { width: 100%; flex-basis: 100%; height: 150px; } .photo-actions .btn-photo { flex: 1 1 140px; justify-content: center; padding: 10px 12px; font-size: 12px; gap: 6px; } .photo-actions .btn-photo svg { display: none; } }
+    .photo-current { font-size: 11px; font-weight: 800; color: #0c6b4f; background: #e8f7f0; border: 1px solid rgba(12,107,79,.2); border-radius: 999px; padding: 3px 9px; display: inline-block; align-self: flex-start; }
+    .btn-photo.remove { background: #fff; color: #b42318; border: 1.5px solid rgba(180,35,24,.4); box-shadow: 0 4px 12px rgba(180,35,24,.08); }
+    .btn-photo.remove svg { stroke: #b42318; }
+    .btn-photo.remove:hover { box-shadow: 0 8px 18px rgba(180,35,24,.16); }
+    .btn-photo.remove.confirm { background: #b42318; color: #fff; border-color: #b42318; box-shadow: 0 6px 16px rgba(180,35,24,.3); }
+    .btn-photo.remove.confirm svg { stroke: #fff; }
+    .btn-photo[hidden] { display: none; }
+    @media (max-width: 640px) { .photo-preview { width: 100%; flex-basis: 100%; height: 150px; } .photo-actions .btn-photo { flex: 1 1 140px; justify-content: center; padding: 10px 12px; font-size: 12px; gap: 6px; } .photo-actions .btn-photo svg { display: none; } .photo-actions .btn-photo.remove { flex: 1 1 100%; } }
     .info-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px;
       position: relative; z-index: 1; margin-top: 14px; max-height: 180px;
@@ -555,7 +562,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
   var ACTIONS = [
     "authenticateUser", "loginAndGetInitialData", "getInitialData", "getRowData", "saveAndReturn",
     "saveSettings", "getWoredaExport", "getNativeScopedExport", "exportToExcelWithFormulas",
-    "dashboardLogin", "getDashboardData", "getCoverPhotos", "uploadCoverPhoto"
+    "dashboardLogin", "getDashboardData", "getCoverPhotos", "uploadCoverPhoto", "removeCoverPhoto"
   ];
 
   function fail(message) {
@@ -735,8 +742,9 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
     if (action === "getWoredaExport") return { facilityIndex: args[0] || 0, woredaID: args[1] || "" };
     if (action === "getNativeScopedExport") return (args[0] && typeof args[0] === "object") ? args[0] : { facilityIndex: args[0] || 0 };
     if (action === "dashboardLogin") return args[0] || {};
-    if (action === "getCoverPhotos") return {};
-    if (action === "uploadCoverPhoto") return { image: args[0] && args[0].image ? args[0].image : "" };
+    if (action === "getCoverPhotos") return { day: (args[0] && args[0].day) || "" };
+    if (action === "uploadCoverPhoto") return { image: args[0] && args[0].image ? args[0].image : "", day: (args[0] && args[0].day) || "" };
+    if (action === "removeCoverPhoto") return { day: (args[0] && args[0].day) || "" };
     if (action === "getDashboardData") return { force: !!args[0] };
     return {};
   }
@@ -806,7 +814,8 @@ const ICONS = {
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>',
   camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="4"/></svg>',
-  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>'
 };
 
 // ================= STATE =================
@@ -1359,6 +1368,9 @@ let photoBusy_ = false;
 function initPhotoUpload_() {
   const galleryBtn = document.getElementById("photoGalleryBtn");
   const cameraBtn = document.getElementById("photoCameraBtn");
+  const removeBtn = document.getElementById("photoRemoveBtn");
+  const removeLabel = document.getElementById("photoRemoveLabel");
+  const currentBadge = document.getElementById("photoCurrent");
   if (!galleryBtn || !cameraBtn) return;
   // Two separate inputs keep the two actions distinct on every phone/browser:
   // the gallery input has no capture attribute (opens locally saved photos),
@@ -1370,29 +1382,89 @@ function initPhotoUpload_() {
   const preview = document.getElementById("photoPreview");
   const status = document.getElementById("photoStatus");
   let hasPhoto = false;
+  let currentPhotoId = "";
+  let confirmTimer = null;
   const note = (text, isWarn) => {
     if (status) { status.textContent = text || ""; status.classList.toggle("warn", !!isWarn); }
+  };
+  const resetRemove = () => {
+    if (removeBtn) removeBtn.classList.remove("confirm");
+    if (removeLabel) removeLabel.textContent = "Remove photo";
+    if (confirmTimer) { clearTimeout(confirmTimer); confirmTimer = null; }
   };
   const paint = (has, src, message, isWarn) => {
     hasPhoto = !!has;
     if (preview) preview.classList.toggle("has-photo", hasPhoto);
-    if (thumb && src && hasPhoto) thumb.src = src;
+    if (thumb) {
+      if (hasPhoto && src) thumb.src = src;
+      else thumb.removeAttribute("src");
+    }
+    if (removeBtn) removeBtn.hidden = !hasPhoto;
+    if (currentBadge) {
+      currentBadge.hidden = !hasPhoto;
+      if (hasPhoto) currentBadge.textContent = "Current photo · " + (state.activeDay || "Day 1");
+    }
+    if (!hasPhoto) resetRemove();
     note(message, isWarn);
   };
   const setBusy = (on) => {
     photoBusy_ = !!on;
     galleryBtn.disabled = cameraBtn.disabled = !!on;
+    if (removeBtn) removeBtn.disabled = !!on || !hasPhoto;
   };
   galleryBtn.onclick = () => { if (!photoBusy_) galleryInput.click(); };
   cameraBtn.onclick = () => { if (!photoBusy_) cameraInput.click(); };
+  if (removeBtn) {
+    removeBtn.onclick = async () => {
+      if (photoBusy_ || !hasPhoto) return;
+      // Two taps so a mis-tap cannot delete a photo permanently.
+      if (!removeBtn.classList.contains("confirm")) {
+        resetRemove();
+        removeBtn.classList.add("confirm");
+        if (removeLabel) removeLabel.textContent = "Tap again to remove";
+        note("Tap Remove again to delete this photo.", false);
+        confirmTimer = setTimeout(() => {
+          resetRemove();
+          if (hasPhoto) note("Current photo saved — choose an option above to replace it, or Remove photo to delete it.", false);
+        }, 4000);
+        return;
+      }
+      resetRemove();
+      setBusy(true);
+      note("Removing…", false);
+      try {
+        const res = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .removeCoverPhoto({ day: state.activeDay });
+        });
+        if (!res || !res.ok) throw new Error((res && res.error) || "The photo could not be removed.");
+        currentPhotoId = "";
+        paint(false, null, "Photo removed — this step is optional.", false);
+        toast("Photo removed for " + (state.activeDay || "Day 1") + ".");
+      } catch (err) {
+        const msg = (err && err.message) ? err.message : "Could not remove the photo.";
+        note(msg, true);
+        toast(msg, true);
+      } finally {
+        setBusy(false);
+      }
+    };
+  }
   google.script.run
     .withSuccessHandler(res => {
       const first = res && res.ok && Array.isArray(res.photos) && res.photos[0];
-      if (first) paint(true, first.thumb, "A photo is already saved for your woreda. Choose an option above to replace it.", false);
-      else paint(false, null, "No photo uploaded yet — this step is optional.", false);
+      if (first) {
+        currentPhotoId = first.id || "";
+        paint(true, first.thumb, "Current photo saved — choose an option above to replace it, or Remove photo to delete it.", false);
+      } else {
+        currentPhotoId = "";
+        paint(false, null, "No photo uploaded yet — this step is optional.", false);
+      }
     })
     .withFailureHandler(() => {})
-    .getCoverPhotos({});
+    .getCoverPhotos({ day: state.activeDay });
   const onChosen = async (e) => {
     const input = e.target;
     const file = input.files && input.files[0];
@@ -1422,7 +1494,8 @@ function initPhotoUpload_() {
           .uploadCoverPhoto({ image: dataUrl, day: state.activeDay });
       });
       if (!res || !res.ok) throw new Error((res && res.error) || "The server rejected the photo.");
-      paint(true, res.thumb || res.url, "Saved for your woreda — " + (state.activeDay || "Day 1") + ".", false);
+      currentPhotoId = res.id || "";
+      paint(true, res.thumb || res.url, "Saved for " + (state.activeDay || "Day 1") + " — choose an option above to replace it, or Remove photo to delete it.", false);
       toast("Woreda photo saved for " + (state.activeDay || "Day 1") + ". It will appear on the dashboard.");
     } catch (err) {
       const msg = (err && err.message) ? err.message : "Could not upload the photo.";
@@ -1597,10 +1670,12 @@ function renderMain(rowData) {
           </div>
           <div class="photo-question-side">
             <p class="photo-q-title">Add a vaccination photo?</p>
-            <p class="photo-q-hint">Optional. <b>Upload from Gallery</b> opens the photos saved on your phone. <b>Take a Photo</b> opens your camera to capture one now. One photo per woreda per day — choosing another replaces it. Photos appear on the Campaign Update dashboard.</p>
+            <span class="photo-current" id="photoCurrent" hidden>Current photo</span>
+            <p class="photo-q-hint">Optional. <b>Upload from Gallery</b> opens the photos saved on your phone. <b>Take a Photo</b> opens your camera to capture one now. One photo per woreda per day — choosing either option replaces the current one, and <b>Remove photo</b> deletes it. Photos appear on the Campaign Update dashboard.</p>
             <div class="photo-actions">
               <button type="button" class="btn-photo ghost" id="photoGalleryBtn">${ICONS.image}<span>Upload from Gallery</span></button>
               <button type="button" class="btn-photo" id="photoCameraBtn">${ICONS.camera}<span>Take a Photo</span></button>
+              <button type="button" class="btn-photo remove" id="photoRemoveBtn" hidden>${ICONS.trash}<span id="photoRemoveLabel">Remove photo</span></button>
             </div>
             <!-- Two dedicated pickers: gallery has no capture (local photos), camera forces the rear camera. -->
             <input type="file" id="photoGalleryInput" accept="image/*" hidden>
