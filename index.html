@@ -241,7 +241,12 @@
     .btn-photo:focus-visible { outline: 3px solid #0F2552; outline-offset: 2px; }
     .btn-photo[disabled] { opacity: .55; cursor: default; transform: none; }
     .btn-photo svg { width: 22px; height: 22px; stroke: #fff; }
-    @media (max-width: 640px) { .photo-preview { width: 100%; flex-basis: 100%; height: 150px; } }
+    .photo-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-photo.ghost { background: #fff; color: #1558B8; border: 1.5px solid rgba(21,88,184,.35); box-shadow: 0 4px 12px rgba(15,37,82,.08); }
+    .btn-photo.ghost svg { stroke: #1558B8; }
+    .btn-photo.ghost:hover { box-shadow: 0 8px 18px rgba(15,37,82,.14); }
+    .photo-optional { font-size: 11px; font-weight: 700; color: #fff; background: rgba(255,255,255,.22); border-radius: 999px; padding: 3px 9px; margin-left: 8px; letter-spacing: .3px; }
+    @media (max-width: 640px) { .photo-preview { width: 100%; flex-basis: 100%; height: 150px; } .photo-actions .btn-photo { flex: 1 1 140px; justify-content: center; padding: 10px 12px; } }
     .info-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px;
       position: relative; z-index: 1; margin-top: 14px; max-height: 180px;
@@ -800,7 +805,8 @@ const ICONS = {
   key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>',
-  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="4"/></svg>'
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="4"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'
 };
 
 // ================= STATE =================
@@ -1351,28 +1357,42 @@ function resizeImageToDataUrl_(file, maxSide, quality) {
 
 let photoBusy_ = false;
 function initPhotoUpload_() {
-  const btn = document.getElementById("photoUploadBtn");
-  if (!btn) return;
+  const galleryBtn = document.getElementById("photoGalleryBtn");
+  const cameraBtn = document.getElementById("photoCameraBtn");
+  if (!galleryBtn || !cameraBtn) return;
   const input = document.getElementById("photoFile");
+  if (!input) return;
   const thumb = document.getElementById("photoThumb");
   const preview = document.getElementById("photoPreview");
-  const label = document.getElementById("photoLabel");
   const status = document.getElementById("photoStatus");
   let hasPhoto = false;
-  const paint = (has, src, note, isWarn) => {
+  const note = (text, isWarn) => {
+    if (status) { status.textContent = text || ""; status.classList.toggle("warn", !!isWarn); }
+  };
+  const paint = (has, src, message, isWarn) => {
     hasPhoto = !!has;
     if (preview) preview.classList.toggle("has-photo", hasPhoto);
     if (thumb && src && hasPhoto) thumb.src = src;
-    if (label) label.textContent = hasPhoto ? "Replace photo" : "Snap or upload photo";
-    if (status) { status.textContent = note || ""; status.classList.toggle("warn", !!isWarn); }
+    note(message, isWarn);
   };
-  const setBusy = (on) => { photoBusy_ = on; btn.disabled = !!on; };
-  btn.onclick = () => { if (!photoBusy_) input.click(); };
+  const setBusy = (on) => {
+    photoBusy_ = !!on;
+    galleryBtn.disabled = cameraBtn.disabled = !!on;
+  };
+  const openPicker = (useCamera) => {
+    if (photoBusy_) return;
+    // capture is set per tap: gallery = no capture attribute, camera = rear camera
+    if (useCamera) input.setAttribute("capture", "environment");
+    else input.removeAttribute("capture");
+    input.click();
+  };
+  galleryBtn.onclick = () => openPicker(false);
+  cameraBtn.onclick = () => openPicker(true);
   google.script.run
     .withSuccessHandler(res => {
       const first = res && res.ok && Array.isArray(res.photos) && res.photos[0];
-      if (first) paint(true, first.thumb, "A photo is already saved for your woreda. Upload again to replace it.", false);
-      else paint(false, null, "No photo uploaded yet.", false);
+      if (first) paint(true, first.thumb, "A photo is already saved for your woreda. Choose an option above to replace it.", false);
+      else paint(false, null, "No photo uploaded yet — this step is optional.", false);
     })
     .withFailureHandler(() => {})
     .getCoverPhotos({});
@@ -1380,24 +1400,22 @@ function initPhotoUpload_() {
     const file = input.files && input.files[0];
     if (!file) return;
     if (!/^image\//i.test(file.type || "")) {
-      if (status) { status.textContent = "Please choose an image file (JPG or PNG)."; status.classList.add("warn"); }
+      note("Please choose an image file (JPG or PNG).", true);
       input.value = "";
       return;
     }
-    const previousLabel = label ? label.textContent : "";
     setBusy(true);
-    if (label) label.textContent = "Checking…";
+    note("Checking…", false);
     try {
       const issue = await photoOrientationIssue_(file);
       if (issue) {
-        if (status) { status.textContent = "This photo looks " + issue + ". Please take it again straight and upload it."; status.classList.add("warn"); }
+        note("This photo looks " + issue + ". Please take it again straight and upload it.", true);
         toast("This photo looks " + issue + ". Please take a straight photo and upload it.", true);
-        if (label) label.textContent = previousLabel || "Snap or upload photo";
         setBusy(false);
         input.value = "";
         return;
       }
-      if (label) label.textContent = "Uploading…";
+      note("Uploading…", false);
       const dataUrl = await resizeImageToDataUrl_(file, 1600, 0.82);
       const res = await new Promise((resolve, reject) => {
         google.script.run
@@ -1409,13 +1427,11 @@ function initPhotoUpload_() {
       paint(true, res.thumb || res.url, "Saved for your woreda — " + (state.activeDay || "Day 1") + ".", false);
       toast("Woreda photo saved for " + (state.activeDay || "Day 1") + ". It will appear on the dashboard.");
     } catch (e) {
-      if (label) label.textContent = previousLabel || "Snap or upload photo";
       const msg = (e && e.message) ? e.message : "Could not upload the photo.";
-      if (status) { status.textContent = msg; status.classList.add("warn"); }
+      note(msg, true);
       toast(msg, true);
     } finally {
       setBusy(false);
-      if (label && label.textContent === "Checking…") label.textContent = previousLabel || "Snap or upload photo";
       input.value = "";
     }
   };
@@ -1573,17 +1589,20 @@ function renderMain(rowData) {
         <div id="placeDiffWrap"></div>
       </div>
       <div class="form-section section-photo">
-        <h4><span class="section-icon">${ICONS.camera}</span>Upload any vaccination photo<span class="req">*</span></h4>
+        <h4><span class="section-icon">${ICONS.camera}</span>Field photo<span class="photo-optional">OPTIONAL</span></h4>
         <div class="photo-question">
           <div class="photo-preview" id="photoPreview">
             <img id="photoThumb" alt="">
             <span class="photo-cam" aria-hidden="true">📷</span>
           </div>
           <div class="photo-question-side">
-            <p class="photo-q-title">Upload any vaccination photo</p>
-            <p class="photo-q-hint">Snap or choose one photo from the vaccination activity &mdash; it appears on the Campaign Update dashboard with the other field photos. Only one photo per woreda per day &mdash; uploading again for the same day replaces it.</p>
-            <button type="button" class="btn-photo" id="photoUploadBtn">${ICONS.camera}<span id="photoLabel">Snap or upload photo</span></button>
-            <input type="file" id="photoFile" accept="image/*" capture="environment" hidden>
+            <p class="photo-q-title">Add a vaccination photo?</p>
+            <p class="photo-q-hint">Optional. Choose <b>Upload from Gallery</b> to pick a photo already on your phone, or <b>Take a Photo</b> to capture one now. One photo per woreda per day — choosing another replaces it. Photos appear on the Campaign Update dashboard.</p>
+            <div class="photo-actions">
+              <button type="button" class="btn-photo ghost" id="photoGalleryBtn">${ICONS.image}<span>Upload from Gallery</span></button>
+              <button type="button" class="btn-photo" id="photoCameraBtn">${ICONS.camera}<span>Take a Photo</span></button>
+            </div>
+            <input type="file" id="photoFile" accept="image/*" hidden>
             <p class="photo-status" id="photoStatus" role="status" aria-live="polite"></p>
           </div>
         </div>
