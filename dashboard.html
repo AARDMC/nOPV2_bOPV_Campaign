@@ -1939,8 +1939,24 @@ document.addEventListener('keydown', function(e) {
 function onData(payload, fromCache) {
   if (!payload || payload.ok === false) { if (!fromCache) showError(payload && payload.error ? payload.error : 'Failed to load data'); return; }
   if (!fromCache) { try { saveDashCache(payload); } catch(e) {} }
-  if (payload.scope) DASH_SCOPE = Object.assign({facilities:[],facilityCount:0,facilityIndex:-1}, payload.scope);
-  if (payload.scope && payload.scope.facilityIndex != null && payload.scope.facilityIndex >= 0) DASH_FACILITY = payload.scope.facilityIndex;
+  if (payload.scope) {
+    const locked = !!(DASH_SCOPE && DASH_SCOPE.facilityLocked);
+    DASH_SCOPE = Object.assign({facilities:[],facilityCount:0,facilityIndex:-1}, payload.scope);
+    if (locked && DASH_SCOPE.facilities && DASH_SCOPE.facilities.length) {
+      DASH_SCOPE.facilityLocked = true;
+      DASH_SCOPE.facilityCount = DASH_SCOPE.facilities.length || 1;
+      DASH_SCOPE.facilityIndex = 0;
+    } else if (locked) {
+      DASH_SCOPE.facilityLocked = true;
+      const fac = (payload.scope && payload.scope.facility) || (DASH_SCOPE && DASH_SCOPE.facility) || '';
+      DASH_SCOPE.facilities = fac ? [fac] : [];
+      DASH_SCOPE.facilityCount = 1;
+      DASH_SCOPE.facilityIndex = 0;
+    }
+  }
+  if (payload.scope && payload.scope.facilityIndex != null && payload.scope.facilityIndex >= 0) {
+    DASH_FACILITY = (DASH_SCOPE && DASH_SCOPE.facilityLocked) ? 0 : payload.scope.facilityIndex;
+  }
   buildModel(payload);
   if (!onData.done) { S.upTo = M.last; onData.done = true; }
   if (S.upTo > M.last || !M.days[S.upTo]) S.upTo = M.last;
