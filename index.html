@@ -1063,6 +1063,9 @@ function computeRow(w, day, r) {
   let dt;
   if (["Day 1","Day 2","Day 3","Day 4"].indexOf(day) !== -1) dt = (Number(w.totalPlanned) || 0) / (Number(S.campaignDays) || 4);
   else dt = n(r.G);
+  // A daily target is a whole number of children: 653 planned over 4 days reads 163, not 163.25.
+  // Rounding here keeps the target, the coverage % and the alerts on the same figure.
+  if (isFinite(dt)) dt = Math.round(dt);
   let L = n(r.H)+n(r.I)+n(r.J)+n(r.K);
   if (day !== "Day 1" && day !== "Cumulative" && Number(S.countRevisit) === 1) L += n(r.BH);
   const M = (r.M === "" || r.M == null) ? null : Number(r.M);
