@@ -1693,7 +1693,7 @@ function renderMain(rowData) {
         ${!readonly
           ? `<button class="btn btn-primary" id="saveBtn" onclick="saveCurrent()">${ICONS.save}Save ${escapeHtml(day)}</button>`
           : `<span class="readonly-note">${ICONS.lock}Read-only (auto-calculated)</span>`}
-        <button class="btn btn-fire" onclick="exportExcel()">${ICONS.excel}Export my woreda (Excel)</button>
+        <button class="btn btn-fire" id="btnExportWoreda" onclick="exportExcel()">${ICONS.excel}Export my woreda (Excel)</button>
       </div>
       <div id="exportResult"></div>
     </div>
@@ -2101,11 +2101,19 @@ function fallbackLocalWoredaExport_(el, reason) {
 }
 function exportWoreda() {
   const el = document.getElementById("exportResult");
-  if (!state.selectedRow || !el) return;
+  if (!state.selectedRow || !el || state._exporting) return;
+  state._exporting = true;
+  const exportBtn = document.getElementById("btnExportWoreda");
+  if (exportBtn) { exportBtn.dataset.html = exportBtn.innerHTML; exportBtn.disabled = true; exportBtn.textContent = "Preparing…"; }
+  const releaseExport = () => {
+    state._exporting = false;
+    if (exportBtn) { exportBtn.disabled = false; exportBtn.innerHTML = exportBtn.dataset.html || "Export my woreda (Excel)"; }
+  };
   const w = state.selectedRow;
   el.innerHTML = `<div class="export-result"><div class="polio-loader" aria-hidden="true" style="height:28px;gap:6px;margin:0"><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span><span class="drop" style="width:10px;height:14px"></span></div><span style="color:var(--text-light);font-weight:600">Refreshing the export workbook (identical to the master sheet)…</span></div>`;
   google.script.run
     .withSuccessHandler(res => {
+      releaseExport();
       if (!res || res.ok === false) {
         // The server could not build the file, but it may have left a workbook open — still offer it.
         if (res && res.downloadUrl) {
@@ -2144,6 +2152,7 @@ function exportWoreda() {
       fallbackLocalWoredaExport_(el, "native export not supported by server");
     })
     .withFailureHandler(err => {
+      releaseExport();
       fallbackLocalWoredaExport_(el, (err && err.message) || String(err));
     })
     .getNativeScopedExport({ facilityIndex: state.activeFacility });
