@@ -489,8 +489,9 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
     </div>
     <div id="programForm" hidden>
       <div class="field"><label>Sub-city / zone / region ID</label><input id="dashId" type="text" placeholder="Enter sub-city, zone or region ID" autocomplete="off"></div>
+      <div class="field"><label>Access PIN</label><input id="dashPin" type="text" placeholder="Your access PIN" autocomplete="off" spellcheck="false"></div>
       <button id="dashLoginBtn" type="button">Open dashboard</button>
-      <div class="login-gate ofi-note">Program officers and zone/region staff sign in here.</div>
+      <div class="login-gate ofi-note">Program officers and zone/region staff sign in with their ID and access PIN.</div>
     </div>
     <div class="err" id="dashErr"></div>
     <div class="hint">Officers use the same credentials as the data-entry app — only their own health center's data is shown.</div>
@@ -1836,7 +1837,8 @@ function updateHeader() {
 }
 function updateHCSelector() {
   const hcField = $('#hcField');
-  if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilities && DASH_SCOPE.facilities.length > 1) {
+  const locked = !!(DASH_SCOPE && DASH_SCOPE.facilityLocked);
+  if (!locked && DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilities && DASH_SCOPE.facilities.length > 1) {
     hcField.style.display = '';
     const hcSel = $('#fHC');
     const prev = String(DASH_FACILITY >= 0 ? DASH_FACILITY : 0);
@@ -1849,8 +1851,8 @@ function updateHCSelector() {
   // Hide the merged-HC control when the officer is bound to a single facility that can't be merged.
   const mergeBtn = document.getElementById('btnMergeHc');
   if (mergeBtn) {
-    const locked = !!(DASH_SCOPE && DASH_SCOPE.facilityLocked);
     mergeBtn.hidden = locked;
+    mergeBtn.style.display = locked ? 'none' : '';
     if (locked) { mergeBtn.setAttribute('aria-pressed', 'false'); }
   }
 }
@@ -1940,18 +1942,20 @@ function onData(payload, fromCache) {
   if (!payload || payload.ok === false) { if (!fromCache) showError(payload && payload.error ? payload.error : 'Failed to load data'); return; }
   if (!fromCache) { try { saveDashCache(payload); } catch(e) {} }
   if (payload.scope) {
-    const locked = !!(DASH_SCOPE && DASH_SCOPE.facilityLocked);
+    const prevLocked = !!(DASH_SCOPE && DASH_SCOPE.facilityLocked);
+    const prevFacilities = (DASH_SCOPE && Array.isArray(DASH_SCOPE.facilities)) ? DASH_SCOPE.facilities.slice() : [];
+    const prevFacility = (DASH_SCOPE && DASH_SCOPE.facility) || '';
     DASH_SCOPE = Object.assign({facilities:[],facilityCount:0,facilityIndex:-1}, payload.scope);
-    if (locked && DASH_SCOPE.facilities && DASH_SCOPE.facilities.length) {
+    const locked = prevLocked || !!DASH_SCOPE.facilityLocked;
+    if (locked) {
+      // A bound officer sees only the ONE facility the server pinned. The payload carries the
+      // whole split-woreda union list, which would otherwise re-introduce the sibling HC.
+      const fac = DASH_SCOPE.facility || (payload.scope && payload.scope.facility) || prevFacility || (prevFacilities.length === 1 ? prevFacilities[0] : '');
       DASH_SCOPE.facilityLocked = true;
-      DASH_SCOPE.facilityCount = DASH_SCOPE.facilities.length || 1;
-      DASH_SCOPE.facilityIndex = 0;
-    } else if (locked) {
-      DASH_SCOPE.facilityLocked = true;
-      const fac = (payload.scope && payload.scope.facility) || (DASH_SCOPE && DASH_SCOPE.facility) || '';
       DASH_SCOPE.facilities = fac ? [fac] : [];
-      DASH_SCOPE.facilityCount = 1;
+      DASH_SCOPE.facilityCount = fac ? 1 : 0;
       DASH_SCOPE.facilityIndex = 0;
+      DASH_SCOPE.facility = fac;
     }
   }
   if (payload.scope && payload.scope.facilityIndex != null && payload.scope.facilityIndex >= 0) {
@@ -2060,7 +2064,7 @@ function setLoginTab(which) {
   if (programForm) programForm.hidden = officer;
   if (subtitle) subtitle.textContent = officer
     ? 'Officer sign-in — only your own health center'
-    : 'Program officer / sub-city / zone / region ID';
+    : 'Program officer / sub-city / zone / region ID + access PIN';
   document.getElementById('dashErr').textContent = '';
 }
 
@@ -2070,11 +2074,11 @@ function applyLoginSession(res) {
   try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
   document.getElementById('dashLogin').classList.add('hidden');
   const d = res.dashboard || {};
-  const scopedFacilities = d.facilities || [];
   const facilityLocked = !!d.facilityLocked;
-  const fiHint = (d.facilityIndex != null && d.facilityIndex >= 0) ? Number(d.facilityIndex) : -1;
-  DASH_SCOPE = { mode: d.scope, zone: d.zone || '', woreda: d.woreda || '', woredaID: d.woredaID || '', facilities: scopedFacilities, facilityCount: scopedFacilities.length || d.facilityCount || 0, facilityIndex: -1, facilityLocked: facilityLocked, facility: d.facility || '' };
-  if (facilityLocked && fiHint >= 0) { DASH_FACILITY = fiHint; DASH_SCOPE.facilityIndex = fiHint; }
+  const lockedFacility = d.facility || (Array.isArray(d.facilities) && d.facilities.length === 1 ? d.facilities[0] : '');
+  const scopedFacilities = facilityLocked ? (lockedFacility ? [lockedFacility] : []) : (d.facilities || []);
+  DASH_SCOPE = { mode: d.scope, zone: d.zone || '', woreda: d.woreda || '', woredaID: d.woredaID || '', facilities: scopedFacilities, facilityCount: facilityLocked ? (lockedFacility ? 1 : 0) : (scopedFacilities.length || d.facilityCount || 0), facilityIndex: facilityLocked ? 0 : -1, facilityLocked: facilityLocked, facility: lockedFacility || '' };
+  if (facilityLocked) { DASH_FACILITY = 0; DASH_SCOPE.facilityIndex = 0; }
   else if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) { DASH_FACILITY = 0; DASH_SCOPE.facilityIndex = 0; }
   load(false);
   return true;
@@ -2104,6 +2108,8 @@ function doOfficerLogin() {
 // Program login (zone / region / EPHI / woreda-level program view)
 function doDashLogin() {
   const id = document.getElementById('dashId').value.trim();
+  const pinEl = document.getElementById('dashPin');
+  const pin = pinEl ? pinEl.value.trim() : '';
   const err = document.getElementById('dashErr');
   err.textContent = '';
   if (!id) { err.textContent = 'Enter sub-city or zone ID.'; return; }
@@ -2116,7 +2122,7 @@ function doDashLogin() {
       applyLoginSession(res);
     })
     .withFailureHandler(function(e){ if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = loginBtnDefault; } err.textContent = (e && e.message) || String(e); })
-    .dashboardLogin({ id: id });
+    .dashboardLogin({ id: id, pin: pin });
 }
 
 
@@ -2848,6 +2854,8 @@ function init() {
     if (el) el.addEventListener('keydown', function(e){ if (e.key === 'Enter') doOfficerLogin(); });
   });
   document.getElementById('dashId').addEventListener('keydown', e => { if (e.key === 'Enter') doDashLogin(); });
+  const dashPinEl = document.getElementById('dashPin');
+  if (dashPinEl) dashPinEl.addEventListener('keydown', e => { if (e.key === 'Enter') doDashLogin(); });
   document.getElementById('officerLoginBtn').style.display = '';
   setLoginTab('officer');
 
@@ -2883,7 +2891,7 @@ function init() {
   }
   if (dashToken) {
     document.getElementById('dashLogin').classList.add('hidden');
-    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '', facilities: info.facilities || [], facilityCount: info.facilityCount || 0, facilityIndex: -1, facilityLocked: !!info.facilityLocked, facility: info.facility || '' }; if (DASH_SCOPE.facilityLocked) DASH_FACILITY = 0; else if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; } catch(e){}
+    try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); DASH_SCOPE = { mode: info.scope || 'all', zone: info.zone || '', woreda: info.woreda || '', woredaID: info.woredaID || '', facilities: info.facilities || [], facilityCount: info.facilityCount || 0, facilityIndex: -1, facilityLocked: !!info.facilityLocked, facility: info.facility || '' }; if (DASH_SCOPE.facilityLocked) { const fac = info.facility || (Array.isArray(info.facilities) && info.facilities.length === 1 ? info.facilities[0] : ''); DASH_SCOPE.facilities = fac ? [fac] : []; DASH_SCOPE.facilityCount = fac ? 1 : 0; DASH_SCOPE.facility = fac; DASH_SCOPE.facilityIndex = 0; DASH_FACILITY = 0; } else if (DASH_SCOPE.facilityCount > 1 && DASH_FACILITY < 0) DASH_FACILITY = 0; } catch(e){}
     load(false);
     return;
   }
