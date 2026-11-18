@@ -493,9 +493,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
     </div>
     <div id="programForm" hidden>
       <div class="field"><label>Sub-city / zone / region ID</label><input id="dashId" type="text" placeholder="Enter sub-city, zone or region ID" autocomplete="off"></div>
-      <div class="field"><label>Access PIN <span style="font-weight:400;text-transform:none;letter-spacing:0">(if one was issued)</span></label><input id="dashPin" type="text" placeholder="Leave blank if you were not given one" autocomplete="off" spellcheck="false"></div>
       <button id="dashLoginBtn" type="button">Open dashboard</button>
-      <div class="login-gate ofi-note">Program officers and zone/region staff sign in with their ID. Only type an access PIN if the campaign administrator gave you one.</div>
+      <div class="login-gate ofi-note">Program officers and zone/region staff sign in with their ID.</div>
     </div>
     <div class="err" id="dashErr"></div>
     <div class="hint">Officers use the same credentials as the data-entry app — only their own health center's data is shown.</div>
@@ -2197,8 +2196,6 @@ function doOfficerLogin() {
 // Program login (zone / region / EPHI / woreda-level program view)
 function doDashLogin() {
   const id = document.getElementById('dashId').value.trim();
-  const pinEl = document.getElementById('dashPin');
-  const pin = pinEl ? pinEl.value.trim() : '';
   const err = document.getElementById('dashErr');
   err.textContent = '';
   if (!id) { err.textContent = 'Enter sub-city or zone ID.'; return; }
@@ -2211,7 +2208,7 @@ function doDashLogin() {
       applyLoginSession(res);
     })
     .withFailureHandler(function(e){ if (loginBtn) { loginBtn.disabled = false; loginBtn.classList.remove('is-loading'); loginBtn.innerHTML = loginBtnDefault; } err.textContent = (e && e.message) || String(e); })
-    .dashboardLogin({ id: id, pin: pin });
+    .dashboardLogin({ id: id });
 }
 
 
@@ -2951,8 +2948,6 @@ function init() {
     if (el) el.addEventListener('keydown', function(e){ if (e.key === 'Enter') doOfficerLogin(); });
   });
   document.getElementById('dashId').addEventListener('keydown', e => { if (e.key === 'Enter') doDashLogin(); });
-  const dashPinEl = document.getElementById('dashPin');
-  if (dashPinEl) dashPinEl.addEventListener('keydown', e => { if (e.key === 'Enter') doDashLogin(); });
   document.getElementById('officerLoginBtn').style.display = '';
   setLoginTab('officer');
 
