@@ -1658,10 +1658,6 @@ function renderMain(rowData) {
             <div class="field-group-grid">${field("AS","Identified & linked")}${field("AT","Vaccinated")}</div>
           </div>
         </div>
-        <div class="reach-block">
-          <div class="reach-heading">Misconceptions, Rumors & Other Observations</div>
-          <div class="form-grid">${textField("AP","What misconceptions, rumors, concerns, or other practices did you encounter in the community?")}</div>
-        </div>
       </div>
       <div class="form-section section-aefi">
         <h4><span class="section-icon">${ICONS.alert}</span>AEFI</h4>
@@ -1679,6 +1675,10 @@ function renderMain(rowData) {
           ${reachCard("AM","Households visited", "HHs visited by social mobilizers", ICONS.home)}
           ${reachCard("AN","Group discussions", "Parents or caregivers participated in group discussion (Community Meetings)", ICONS.users)}
           ${reachCard("AO","Home-to-home education", "Parents or caregivers reached with Home-to-Home Education / Interpersonal Communication", ICONS.megaphone)}
+        </div>
+        <div class="reach-block">
+          <div class="reach-heading">${ICONS.alert} Misconceptions, Rumors &amp; Other Observations</div>
+          <div class="form-grid">${textField("AP","What misconceptions, rumors, concerns, or other practices did you encounter in the community?")}</div>
         </div>
       </div>
       <div class="form-section section-teams">
