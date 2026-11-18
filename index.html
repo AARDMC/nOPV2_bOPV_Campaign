@@ -1570,7 +1570,7 @@ function renderMain(rowData) {
         <label for="f_${col}">${escapeHtml(title)} <span class="req" aria-hidden="true">*</span></label>
         <p class="reach-card-sub">${escapeHtml(fullLabel)}</p>
         <input id="f_${col}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="9"
-          data-col="${col}" value="${escapeAttr(v)}" placeholder="0" ${readonly ? 'readonly' : ''}>
+          data-col="${col}" value="${escapeAttr(v)}" ${readonly ? 'readonly' : ''}>
       </div></div>`;
   };
   const textField = (col, label, value) => {
@@ -1617,7 +1617,7 @@ function renderMain(rowData) {
           ${calc("G","Daily Target (auto)", fmtNum(c.G))}
           ${calc("O","Daily Coverage %", fmtPct(c.O), cfC(c.O))}
           ${calc("P","Coverage from Total %", fmtPct(c.P), cfC(c.P))}
-          ${field("BE","Children Vaccinated in Revisit")}
+          ${day === "Day 1" ? field("BE","Children Vaccinated in Revisit (fixed 0)", true, 0) : field("BE","Children Vaccinated in Revisit")}
         </div>
       </div>
       <div class="form-section section-nopv">
