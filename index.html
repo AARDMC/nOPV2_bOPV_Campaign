@@ -1107,8 +1107,8 @@ function computeRow(w, day, r) {
   // Rounding here keeps the target, the coverage % and the alerts on the same figure.
   if (isFinite(dt)) dt = Math.round(dt);
   let L = n(r.H)+n(r.I)+n(r.J)+n(r.K);
-  // Revisit children are active on every day except Day 1 (where the field is not collected).
-  if (day !== "Day 1") L += n(r.BE);
+  // Revisit children are recorded separately but are already included in H:I/J:K,
+  // so they must never be added to the total again.
   const M = (r.M === "" || r.M == null) ? null : Number(r.M);
   const N = M === null ? null : L - M;
   const O = dt === 0 ? null : L / dt;
@@ -1617,7 +1617,7 @@ function renderMain(rowData) {
           ${calc("G","Daily Target (auto)", fmtNum(c.G))}
           ${calc("O","Daily Coverage %", fmtPct(c.O), cfC(c.O))}
           ${calc("P","Coverage from Total %", fmtPct(c.P), cfC(c.P))}
-          ${day !== "Day 1" ? field("BE","Children Vaccinated in Revisit") : ""}
+          ${field("BE","Children Vaccinated in Revisit")}
         </div>
       </div>
       <div class="form-section section-nopv">
