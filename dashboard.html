@@ -729,8 +729,14 @@ function buildModel(p) {
   const fields = p.fields;
   const units = p.units.map(u => Object.assign({}, u, { flags: [] }));
   const bySnU = {}; units.forEach(u => { bySnU[u.sn] = u; });
+  const days = p.meta.days || [];
+  // The Cumulative sheet already contains the sum of the daily sheets. Treating it
+  // as another selectable day adds the same children a second time to every
+  // cumulative figure, including "Total Vaccinated by Place" on the map.
+  const cumDay = days.findIndex(d => /cumulative/i.test(String((d && d.label) || '')));
   const recs = [];
   p.rows.forEach(r => {
+    if (cumDay >= 0 && r[0] === cumDay) return;
     const u = bySnU[r[1]]; if (!u) return;
     const o = { d: r[0], sn: r[1], u: u, flags: [] };
     fields.forEach((k, i) => { o[k] = r[i + 2]; });
@@ -738,7 +744,6 @@ function buildModel(p) {
   });
   const bySn = {}; units.forEach(u => { bySn[u.sn] = []; });
   recs.forEach(r => bySn[r.sn].push(r));
-  const days = p.meta.days;
   let last = 0; days.forEach((d, i) => { if (recs.some(r => r.d === i && r.tot > 0)) last = i; });
   M = { fields, units, recs, bySn, bySnU, days, last, meta: p.meta, remarks: p.remarks || [],
         zones: Array.from(new Set(units.map(u => u.zone))).sort() };
