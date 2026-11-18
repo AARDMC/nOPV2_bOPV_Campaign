@@ -2477,7 +2477,7 @@ function buildNarrationDeck(){
   if (bw != null && bw > CFG.maxWastage) disc.push('Review bOPV vial handling: wastage is ' + pct(bw) + ', above the ' + WL + ' limit.');
   if ((cur.teams||0) > 0 && (cur.teamsRep||0)/(cur.teams||1) < 0.95 && M.days[S.upTo] && M.days[S.upTo].type === 'campaign') disc.push('Improve team reporting: ' + pct((cur.teamsRep||0)/(cur.teams||1),0) + ' reported on ' + dayName() + '.');
   if ((cum.aefiSev||0) > 0) disc.push('Confirm that all ' + fmt(cum.aefiSev) + ' severe AEFI were investigated.');
-  if ((cum.afpAlt||0) > 0) disc.push('Follow up ' + fmt(cum.afpAlt) + ' AFP alerts with surveillance.');
+  if ((cum.afpAlt||0) > 0) disc.push('Follow up ' + fmt(cum.afpAlt) + ' AFP Alert reports with surveillance.');
   if (items.length) disc.push('Ask focal persons to correct the ' + pl(items.length,'flagged data entry').replace('entrys','entries') + '.');
   if (!disc.length) disc.push('No urgent issues were found. Maintain current performance and keep reporting daily.');
 
