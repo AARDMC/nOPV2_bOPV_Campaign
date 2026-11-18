@@ -550,7 +550,6 @@
     <h3><span id="icoGear"></span>Campaign Settings</h3>
     <div class="field"><label>nOPV2 doses per vial (BG2)</label><input type="number" id="setNopv" step="1"></div>
     <div class="field"><label>bOPV doses per vial (BG3)</label><input type="number" id="setBopv" step="1"></div>
-    <div class="field"><label>Count Revisit children? 1=Yes, 0=No (BG4)</label><input type="number" id="setRevisit" min="0" max="1"></div>
     <div class="field"><label>Wastage red-flag limit (BG5)</label><input type="number" id="setWastage" step="0.01"></div>
     <div class="field"><label>Number of daily campaign days (BG6)</label><input type="number" id="setDays" step="1"></div>
     <div class="footer">
@@ -1108,7 +1107,8 @@ function computeRow(w, day, r) {
   // Rounding here keeps the target, the coverage % and the alerts on the same figure.
   if (isFinite(dt)) dt = Math.round(dt);
   let L = n(r.H)+n(r.I)+n(r.J)+n(r.K);
-  if (day !== "Day 1" && day !== "Cumulative" && Number(S.countRevisit) === 1) L += n(r.BE);
+  // Revisit children are active on every day except Day 1 (where the field is not collected).
+  if (day !== "Day 1") L += n(r.BE);
   const M = (r.M === "" || r.M == null) ? null : Number(r.M);
   const N = M === null ? null : L - M;
   const O = dt === 0 ? null : L / dt;
@@ -1617,7 +1617,7 @@ function renderMain(rowData) {
           ${calc("G","Daily Target (auto)", fmtNum(c.G))}
           ${calc("O","Daily Coverage %", fmtPct(c.O), cfC(c.O))}
           ${calc("P","Coverage from Total %", fmtPct(c.P), cfC(c.P))}
-          ${day !== "Day 1" && day !== "Cumulative" ? field("BE","Children Vaccinated in Revisit") : ""}
+          ${day !== "Day 1" ? field("BE","Children Vaccinated in Revisit") : ""}
         </div>
       </div>
       <div class="form-section section-nopv">
@@ -1697,7 +1697,7 @@ function renderMain(rowData) {
         <div class="form-grid">
           ${field("AY","Children Vaccinated in House")}${field("AZ","Children Vaccinated in School")}
           ${field("BA","Children Vaccinated in Market")}${field("BB","Children Vaccinated in Street")}
-          ${field("BC","Children Vaccinated in Other Place")}${field("BD","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
+          ${field("BC","Children Vaccinated in Other Place")}${field("BD","Children Unvaccinated During Visit (Today)")}
           ${calc("BF","Total Vaccinated by Place", fmtNum(c.BF), (c.BF === c.L ? "flag-green" : "flag-red"))}
         </div>
         <div id="placeDiffWrap"></div>
@@ -2199,7 +2199,6 @@ function openSettings() {
   const s = state.settings || {};
   document.querySelector("#setNopv").value = s.nopvDosesPerVial ?? 50;
   document.querySelector("#setBopv").value = s.bopvDosesPerVial ?? 20;
-  document.querySelector("#setRevisit").value = s.countRevisit ?? 0;
   document.querySelector("#setWastage").value = s.wastageLimit ?? 0.1;
   document.querySelector("#setDays").value = s.campaignDays ?? 4;
   document.querySelector("#settingsModal").classList.add("open");
@@ -2209,7 +2208,7 @@ function applySettings() {
   const s = {
     nopvDosesPerVial: Number(document.querySelector("#setNopv").value) || 50,
     bopvDosesPerVial: Number(document.querySelector("#setBopv").value) || 20,
-    countRevisit: Number(document.querySelector("#setRevisit").value) === 1 ? 1 : 0,
+    countRevisit: 1, // revisit is always counted on every day except Day 1
     wastageLimit: Number(document.querySelector("#setWastage").value) || 0.1,
     campaignDays: Number(document.querySelector("#setDays").value) || 4
   };
