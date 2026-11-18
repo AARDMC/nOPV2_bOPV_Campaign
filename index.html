@@ -821,7 +821,7 @@ const ICONS = {
 // ================= STATE =================
 const DAYS = ["Day 1","Day 2","Day 3","Day 4","Mop Up Day 1","Mop Up Day 2","Cumulative"];
 const READONLY_DAYS = ["Cumulative"];
-const FORMULA_COLS = ["G","L","N","O","P","X","Y","AG","AH","AP","AQ","AR","BI"];
+const FORMULA_COLS = ["G","L","N","O","P","X","Y","AG","AH","BF"];
 let state = {
   planRows: [], settings: {}, selectedRow: null,
   activeDay: "Day 1", activeFacility: 0,
@@ -1082,7 +1082,7 @@ function computeRow(w, day, r) {
   // Rounding here keeps the target, the coverage % and the alerts on the same figure.
   if (isFinite(dt)) dt = Math.round(dt);
   let L = n(r.H)+n(r.I)+n(r.J)+n(r.K);
-  if (day !== "Day 1" && day !== "Cumulative" && Number(S.countRevisit) === 1) L += n(r.BH);
+  if (day !== "Day 1" && day !== "Cumulative" && Number(S.countRevisit) === 1) L += n(r.BE);
   const M = (r.M === "" || r.M == null) ? null : Number(r.M);
   const N = M === null ? null : L - M;
   const O = dt === 0 ? null : L / dt;
@@ -1096,13 +1096,8 @@ function computeRow(w, day, r) {
   const bopvDen = bopvNet * (Number(S.bopvDosesPerVial) || 20);
   const AG = bopvDen === 0 ? null : (bopvDen - L) / bopvDen;
   const AH = n(r.Z) - (n(r.AA)+n(r.AB)+n(r.AC)+n(r.AD)+n(r.AE)+n(r.AF));
-  // Polio-message reach: total reach is community meetings + house-to-house visits,
-  // recorded exactly once (no double counting).
-  const AP = n(r.AL) + n(r.AN);
-  const AQ = n(r.AM) + n(r.AO);
-  const AR = AP + AQ;
-  const BI = n(r.BB)+n(r.BC)+n(r.BD)+n(r.BE)+n(r.BF);
-  return { G: dt, L, M, N, O, P, X, Y, AG, AH, AP, AQ, AR, BI };
+  const BF = n(r.AY)+n(r.AZ)+n(r.BA)+n(r.BB)+n(r.BC);
+  return { G: dt, L, M, N, O, P, X, Y, AG, AH, BF };
 }
 const fmtPct = v => v == null || isNaN(v) ? "—" : (v*100).toFixed(2) + "%";
 function validateRow(w, day, r) {
@@ -1112,7 +1107,7 @@ function validateRow(w, day, r) {
 
   // Non-negative integer check (entry cells only)
   Object.keys(r || {}).forEach(col => {
-    if (col === "AS") return; // free text
+    if (col === "AP") return; // free text
     const v = r[col];
     if (v === "" || v === null || v === undefined) return;
     const num = Number(v);
@@ -1127,7 +1122,7 @@ function validateRow(w, day, r) {
   // Female check: L - M (calculated) must be >= 0 (covered by M check)
 
   // Total Vaccinated by Place must equal Total Vaccinated (0–59 months)
-  const pl = n(r.BB) + n(r.BC) + n(r.BD) + n(r.BE) + n(r.BF);
+  const pl = n(r.AY) + n(r.AZ) + n(r.BA) + n(r.BB) + n(r.BC);
   if (pl !== L) {
     const diff = pl - L;
     const diffText = diff > 0 ? (diff + " more than total") : (Math.abs(diff) + " less than total");
@@ -1144,16 +1139,16 @@ function validateRow(w, day, r) {
 
   // Teams reported cannot exceed planned/available teams
   const teamsPlanned = (w && w.teams !== "" && w.teams != null && isFinite(Number(w.teams))) ? Number(w.teams) : null;
-  if (teamsPlanned != null && n(r.AY) > teamsPlanned) add(["AY"], "Number of vaccination teams reported (" + fmtNum(n(r.AY)) + ") cannot exceed number of teams (" + fmtNum(teamsPlanned) + ").");
+  if (teamsPlanned != null && n(r.AV) > teamsPlanned) add(["AV"], "Number of vaccination teams reported (" + fmtNum(n(r.AV)) + ") cannot exceed number of teams (" + fmtNum(teamsPlanned) + ").");
   // Zero-dose teams reported cannot exceed the number of zero-dose teams
   // fielded (applies even when the fielded number is 0 or blank). When the woreda
   // has no zero-dose teams planned, the fields are hidden and this check skips.
-  if (n(r.BA) > n(r.AZ) && n(r.AZ) > 0) add(["AZ","BA"], "Zero-dose vaccination teams reported (" + n(r.BA) + ") cannot exceed number of zero-dose vaccination teams (" + n(r.AZ) + "). Correct the teams reported value before saving.");
+  if (n(r.AX) > n(r.AW) && n(r.AW) > 0) add(["AW","AX"], "Zero-dose vaccination teams reported (" + n(r.AX) + ") cannot exceed number of zero-dose vaccination teams (" + n(r.AW) + "). Correct the teams reported value before saving.");
 
   // Linkage: vaccinated can never exceed identified (applies even when identified is 0
   // or blank — vaccinating more children than were identified is always a data error).
-  if (n(r.AU) > n(r.AT)) add(["AT","AU"], "Zero-dose children vaccinated (" + n(r.AU) + ") cannot exceed zero-dose children identified (" + n(r.AT) + "). Correct one of the two values before saving.");
-  if (n(r.AW) > n(r.AV)) add(["AV","AW"], "Under-vaccinated children vaccinated (" + n(r.AW) + ") cannot exceed under-vaccinated children identified (" + n(r.AV) + "). Correct one of the two values before saving.");
+  if (n(r.AR) > n(r.AQ)) add(["AQ","AR"], "Zero-dose children vaccinated (" + n(r.AR) + ") cannot exceed zero-dose children identified (" + n(r.AQ) + "). Correct one of the two values before saving.");
+  if (n(r.AT) > n(r.AS)) add(["AS","AT"], "Under-vaccinated children vaccinated (" + n(r.AT) + ") cannot exceed under-vaccinated children identified (" + n(r.AS) + "). Correct one of the two values before saving.");
 
   // Daily target sanity: if day has a target, total should not be 0 on a campaign day
   const S = state.settings || {};
@@ -1193,7 +1188,7 @@ function requiredFieldErrors_() {
   document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     const col = inp.dataset.col;
     if (!col || FORMULA_COLS.indexOf(col) !== -1) return;
-    if (col === "AS") return; // misconceptions free text is optional
+    if (col === "AP") return; // misconceptions free text is optional
     if (inp.readOnly) return; // locked plan fields (e.g. AZ) are satisfied by their prefilled value
     if (String(inp.value).trim() === "") {
       if (seen[col]) return;
@@ -1212,7 +1207,7 @@ function refreshValidation() {
   document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
     const col = inp.dataset.col;
-    inputs[col] = col === "AS" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
+    inputs[col] = col === "AP" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
   });
   const errs = requiredFieldErrors_().concat(validateRow(w, day, inputs));
   applyValidationHighlights(errs);
@@ -1266,7 +1261,7 @@ function currentInputsFromForm_() {
   document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
     const col = inp.dataset.col;
-    inputs[col] = col === "AS" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
+    inputs[col] = col === "AP" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
   });
   return inputs;
 }
@@ -1281,9 +1276,9 @@ function updateCoverageAlertsDisplay_(r, c) {
   if (nEl) nEl.innerHTML = nopv.html;
   if (bEl) bEl.innerHTML = bopv.html;
   const pEl = document.getElementById("placeDiffWrap");
-  if (pEl) pEl.innerHTML = placeDiffInfo_(L, c.BI);
-  const baEl = document.getElementById("calc_BI");
-  if (baEl) baEl.className = (c.BI === L) ? "flag-green" : "flag-red";
+  if (pEl) pEl.innerHTML = placeDiffInfo_(L, c.BF);
+  const baEl = document.getElementById("calc_BF");
+  if (baEl) baEl.className = (c.BF === L) ? "flag-green" : "flag-red";
 }
 
 // ================= RENDER =================
@@ -1516,7 +1511,7 @@ function renderMain(rowData) {
   const readonly = READONLY_DAYS.indexOf(day) !== -1;
   // Zero-dose teams: this woreda's plan is fixed in the workbook. When no zero-dose
   // vaccination teams are planned, the two zero-dose team fields are hidden from data entry.
-  const zeroDosePlanned = (rowData && rowData["AZ"] !== "" && rowData["AZ"] != null && isFinite(Number(rowData["AZ"]))) ? Number(rowData["AZ"]) : 0;
+  const zeroDosePlanned = (rowData && rowData["AW"] !== "" && rowData["AW"] != null && isFinite(Number(rowData["AW"]))) ? Number(rowData["AW"]) : 0;
   const c = computeRow(w, day, rowData);
 
   // When the officer is bound to one health centre, replace facility tabs with a static label.
@@ -1585,7 +1580,7 @@ function renderMain(rowData) {
           ${calc("G","Daily Target (auto)", fmtNum(c.G))}
           ${calc("O","Daily Coverage %", fmtPct(c.O), cfC(c.O))}
           ${calc("P","Coverage from Total %", fmtPct(c.P), cfC(c.P))}
-          ${day !== "Day 1" && day !== "Cumulative" ? field("BH","Children Vaccinated in Revisit") : ""}
+          ${day !== "Day 1" && day !== "Cumulative" ? field("BE","Children Vaccinated in Revisit") : ""}
         </div>
       </div>
       <div class="form-section section-nopv">
@@ -1611,53 +1606,54 @@ function renderMain(rowData) {
         <div id="bopvCoverageAlert"></div>
       </div>
       <div class="form-section section-alerts">
-        <h4><span class="section-icon">${ICONS.megaphone}</span>Alerts & Social Mobilization</h4>
+        <h4><span class="section-icon">${ICONS.megaphone}</span>AFP, AEFI & Social Mobilization</h4>
         <div class="form-grid">
-          ${field("AI","Number of AFP Alerts")}${field("AJ","Number of AEFI Alerts")}
-          ${field("AK","Households visited during the house-to-house campaign")}
           <div class="field-group">
-            <div class="field-group-title">Vaccination teams</div>
-            <div class="field-group-grid teams-grid">${field("AY","Vaccination teams reported")}${zeroDosePlanned > 0
-              ? field("AZ","Number of zero-dose vaccination teams", true) + field("BA","Zero-dose vaccination teams reported")
-              : `<span class="readonly-note" style="grid-column:1/-1">${ICONS.lock}No zero-dose vaccination teams are planned for this woreda, so the zero-dose team fields are hidden from data entry. The plan can only be changed in the master workbook.</span>`}</div>
+            <div class="field-group-title">AFP</div>
+            <div class="field-group-grid">${field("AI","Number of AFP Signals (Rumors)")}${field("AJ","Number of AFP Alert")}</div>
+          </div>
+          <div class="field-group">
+            <div class="field-group-title">AEFI</div>
+            <div class="field-group-grid">${field("AK","Number of Mild AEFI")}${field("AL","Number of Severe AEFI")}</div>
           </div>
         </div>
         <div class="reach-block">
-          <div class="reach-heading">Parents/caregivers reached with key polio messages</div>
+          <div class="reach-heading">Social Mobilization & Community Engagement</div>
           <div class="form-grid">
             <div class="field-group">
-              <div class="field-group-title">Community meetings</div>
-              <div class="field-group-grid">${field("AL","Male")}${field("AM","Female")}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-group-title">House-to-house visits</div>
-              <div class="field-group-grid">${field("AN","Male")}${field("AO","Female")}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-group-title">Total reach (community meetings + house-to-house)</div>
-              <div class="field-group-grid reach-total-grid">${calc("AP","Male", fmtNum(c.AP))}${calc("AQ","Female", fmtNum(c.AQ))}${calc("AR","All", fmtNum(c.AR))}</div>
+              <div class="field-group-title">Community reach</div>
+              <div class="field-group-grid">${field("AM","HHs visited by social mobilizers")}${field("AN","Parents or caregivers participated in group discussion (Community Meetings)")}${field("AO","Parents or caregivers reached with Home-to-Home Education / Interpersonal Communication")}</div>
             </div>
           </div>
         </div>
         <div class="form-grid">
           <div class="field-group">
+            <div class="field-group-title">Vaccination teams</div>
+            <div class="field-group-grid teams-grid">${field("AV","Vaccination teams reported")}${zeroDosePlanned > 0
+              ? field("AW","Number of zero-dose vaccination teams", true) + field("AX","Zero-dose vaccination teams reported")
+              : `<span class="readonly-note" style="grid-column:1/-1">${ICONS.lock}No zero-dose vaccination teams are planned for this woreda, so the zero-dose team fields are hidden from data entry. The plan can only be changed in the master workbook.</span>`}</div>
+          </div>
+          <div class="field-group">
             <div class="field-group-title">Zero-dose children</div>
-            <div class="field-group-grid">${field("AT","Identified & linked")}${field("AU","Vaccinated")}</div>
+            <div class="field-group-grid">${field("AQ","Identified & linked")}${field("AR","Vaccinated")}</div>
           </div>
           <div class="field-group">
             <div class="field-group-title">Under-vaccinated children</div>
-            <div class="field-group-grid">${field("AV","Identified & linked")}${field("AW","Vaccinated")}</div>
+            <div class="field-group-grid">${field("AS","Identified & linked")}${field("AT","Vaccinated")}</div>
           </div>
-          ${textField("AS","Misconceptions, rumors, concerns (free text)")}
+        </div>
+        <div class="reach-block">
+          <div class="reach-heading">Misconceptions, Rumors & Other Observations</div>
+          <div class="form-grid">${textField("AP","What misconceptions, rumors, concerns, or other practices did you encounter in the community?")}</div>
         </div>
       </div>
       <div class="form-section section-place">
         <h4><span class="section-icon">${ICONS.pin}</span>Vaccination by Place</h4>
         <div class="form-grid">
-          ${field("BB","Children Vaccinated in House")}${field("BC","Children Vaccinated in School")}
-          ${field("BD","Children Vaccinated in Market")}${field("BE","Children Vaccinated in Street")}
-          ${field("BF","Children Vaccinated in Other Place")}${field("BG","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
-          ${calc("BI","Total Vaccinated by Place", fmtNum(c.BI), (c.BI === c.L ? "flag-green" : "flag-red"))}
+          ${field("AY","Children Vaccinated in House")}${field("AZ","Children Vaccinated in School")}
+          ${field("BA","Children Vaccinated in Market")}${field("BB","Children Vaccinated in Street")}
+          ${field("BC","Children Vaccinated in Other Place")}${field("BD","Children Unvaccinated During Visit", day === "Day 1", day === "Day 1" ? 0 : undefined)}
+          ${calc("BF","Total Vaccinated by Place", fmtNum(c.BF), (c.BF === c.L ? "flag-green" : "flag-red"))}
         </div>
         <div id="placeDiffWrap"></div>
       </div>
@@ -1715,7 +1711,7 @@ function renderMain(rowData) {
     document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
       inp.oninput = e => {
         const col = e.target.dataset.col;
-        if (col === "AS") { rowData["AS"] = e.target.value; refreshValidation(); return; }
+        if (col === "AP") { rowData["AP"] = e.target.value; refreshValidation(); return; }
         // Entry fields accept whole, non-negative numbers only.
         const clean = e.target.value.replace(/\D+/g, "");
         if (clean !== e.target.value) e.target.value = clean;
@@ -1727,7 +1723,7 @@ function renderMain(rowData) {
       };
       inp.onpaste = e => {
         const col = e.target.dataset.col;
-        if (col === "AS") { return; } // free text — default paste behaviour
+        if (col === "AP") { return; } // free text — default paste behaviour
         e.preventDefault();
         const text = (e.clipboardData || window.clipboardData).getData("text") || "";
         const clean = text.replace(/\D+/g, "").slice(0, 9);
@@ -1782,11 +1778,8 @@ function updateCalcDisplay(c) {
   set("Y", fmtNum(c.Y), cfB(c.Y));
   set("AG", fmtPct(c.AG), cfW(c.AG));
   set("AH", fmtNum(c.AH), cfB(c.AH));
-  set("AP", fmtNum(c.AP));
-  set("AQ", fmtNum(c.AQ));
-  set("AR", fmtNum(c.AR));
-  // BI styled by coverage/place-diff update
-  set("BI", fmtNum(c.BI));
+  // BF styled by coverage/place-diff update
+  set("BF", fmtNum(c.BF));
 }
 
 // ================= SAVE =================
@@ -1798,7 +1791,7 @@ function saveCurrent() {
   document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
     const col = inp.dataset.col;
-    inputs[col] = col === "AS" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
+    inputs[col] = col === "AP" ? inp.value : (inp.value === "" ? "" : Number(inp.value));
   });
   // Validate before saving (all fields mandatory)
   const errs = requiredFieldErrors_().concat(validateRow(w, day, inputs));
@@ -1877,32 +1870,29 @@ const EXPORT_COLUMNS = [
   ["AF", "bOPV Vials Lost", "raw"],
   ["AG", "bOPV Wastage Rate (%) (calc)", "pct"],
   ["AH", "bOPV Daily Vaccine Balance (calc)", "calc"],
-  ["AI", "AFP Alerts", "raw"],
-  ["AS", "Misconceptions, rumors, concerns (free text)", "text"],
-  ["AJ", "AEFI Alerts", "raw"],
-  ["AK", "Households visited (house-to-house)", "raw"],
-  ["AL", "Community meetings — Male", "raw"],
-  ["AM", "Community meetings — Female", "raw"],
-  ["AN", "House-to-house visits — Male", "raw"],
-  ["AO", "House-to-house visits — Female", "raw"],
-  ["AP", "Total reach — Male (calc)", "calc"],
-  ["AQ", "Total reach — Female (calc)", "calc"],
-  ["AR", "Total reach — All (calc)", "calc"],
-  ["AT", "Zero-dose children identified", "raw"],
-  ["AU", "Zero-dose children vaccinated", "raw"],
-  ["AV", "Under-vaccinated children identified", "raw"],
-  ["AW", "Under-vaccinated children vaccinated", "raw"],
-  ["AY", "Vaccination teams reported", "raw"],
-  ["AZ", "Number of zero-dose vaccination teams", "raw"],
-  ["BA", "Zero-dose vaccination teams reported", "raw"],
-  ["BB", "Vaccinated in House", "raw"],
-  ["BC", "Vaccinated in School", "raw"],
-  ["BD", "Vaccinated in Market", "raw"],
-  ["BE", "Vaccinated in Street", "raw"],
-  ["BF", "Vaccinated in Other Place", "raw"],
-  ["BG", "Unvaccinated During Visit", "raw"],
-  ["BH", "Vaccinated in Revisit", "raw"],
-  ["BI", "Total Vaccinated by Place (calc)", "calc"]
+  ["AI", "AFP Signals (Rumors)", "raw"],
+  ["AJ", "AFP Alert", "raw"],
+  ["AK", "Mild AEFI", "raw"],
+  ["AL", "Severe AEFI", "raw"],
+  ["AM", "HHs visited by social mobilizers", "raw"],
+  ["AN", "Parents/caregivers participated in group discussion (Community Meetings)", "raw"],
+  ["AO", "Parents/caregivers reached with Home-to-Home Education / Interpersonal Communication", "raw"],
+  ["AP", "Misconceptions, rumors, concerns (free text)", "text"],
+  ["AQ", "Zero-dose children identified", "raw"],
+  ["AR", "Zero-dose children vaccinated", "raw"],
+  ["AS", "Under-vaccinated children identified", "raw"],
+  ["AT", "Under-vaccinated children vaccinated", "raw"],
+  ["AV", "Vaccination teams reported", "raw"],
+  ["AW", "Number of zero-dose vaccination teams", "raw"],
+  ["AX", "Zero-dose vaccination teams reported", "raw"],
+  ["AY", "Vaccinated in House", "raw"],
+  ["AZ", "Vaccinated in School", "raw"],
+  ["BA", "Vaccinated in Market", "raw"],
+  ["BB", "Vaccinated in Street", "raw"],
+  ["BC", "Vaccinated in Other Place", "raw"],
+  ["BD", "Unvaccinated During Visit", "raw"],
+  ["BE", "Vaccinated in Revisit", "raw"],
+  ["BF", "Total Vaccinated by Place (calc)", "calc"]
 ];
 
 function safeFilePart_(s) { return String(s || "").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "woreda"; }

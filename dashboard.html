@@ -977,10 +977,9 @@ function renderOverview() {
   const camp = M.days[S.upTo].type === 'campaign';
   const dayCov = camp ? cov(cur.tot, cur.dtgt) : null;
   const fieldTeams = cur.teams > 0 ? cur.teamsRep / cur.teams : null;
-  // Polio-message reach: the six recorded variables, grouped. Total reach is shown
-  // as recorded (community meetings + house-to-house visits, never double counted).
-  const commAll = (cum.commM || 0) + (cum.commF || 0);
-  const h2hAll = (cum.h2hM || 0) + (cum.h2hF || 0);
+  // Safety and social mobilization indicators (new variable structure).
+  const afpTotal = (cum.afpSig || 0) + (cum.afpAlt || 0);
+  const aefiTotal = (cum.aefiMild || 0) + (cum.aefiSev || 0);
   const zdRepShare = cur.zdTeams > 0 ? cur.zdTeamsRep / cur.zdTeams : null;
   const strip = '<div class="strip">' +
     stat('Vaccinated on ' + esc(dayName()), fmt(cur.tot), camp ? pct(dayCov) + ' of the daily target' : 'Mop-up day, no daily target') +
@@ -988,15 +987,16 @@ function renderOverview() {
     stat('nOPV2 wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') +
     stat('bOPV wastage', pct(bWastage(cum)), 'Limit ' + pct(CFG.maxWastage, 0), bWastage(cum) != null && bWastage(cum) > CFG.maxWastage ? 'bad' : 'good') +
     stat('Not vaccinated before', fmt(cum.n011 + cum.n1259), '0–11m ' + fmt(cum.n011) + ', 12–59m ' + fmt(cum.n1259)) +
-    stat('AEFI reported', fmt(cum.aefiM + cum.aefiS), 'AFP alerts: ' + fmt(cum.afpA), cum.aefiS > 0 ? 'bad' : '') +
+    stat('AFP (signals + alerts)', fmt(afpTotal), 'Signals ' + fmt(cum.afpSig) + ' · Alerts ' + fmt(cum.afpAlt), afpTotal > 0 ? 'warn' : '') +
     stat('Teams reporting on ' + esc(dayName()), pct(fieldTeams, 0), fmt(cur.teamsRep) + ' of ' + fmt(cur.teams) + ' teams', fieldTeams != null && fieldTeams < 0.95 ? 'warn' : 'good') +
     stat('Zero-dose teams', fmt(cur.zdTeams), 'Number fielded on ' + esc(dayName())) +
     stat('Zero-dose teams reported', fmt(cur.zdTeamsRep), 'of ' + fmt(cur.zdTeams) + ' teams (' + pct(zdRepShare, 0) + ')', zdRepShare != null && zdRepShare < 0.95 ? 'warn' : 'good') +
-    stat('Households visited', fmt(cum.hh), 'By social mobilizers') + '</div>' +
+    stat('AEFI (mild + severe)', fmt(aefiTotal), 'Mild ' + fmt(cum.aefiMild) + ' · Severe ' + fmt(cum.aefiSev), (cum.aefiSev || 0) > 0 ? 'bad' : '') +
+    stat('HHs visited by social mobilizers', fmt(cum.hh), 'Social mobilization') + '</div>' +
     '<div class="strip">' +
-    stat('Community meetings', fmt(commAll), 'Male ' + fmt(cum.commM) + ' · Female ' + fmt(cum.commF)) +
-    stat('House-to-house visits', fmt(h2hAll), 'Male ' + fmt(cum.h2hM) + ' · Female ' + fmt(cum.h2hF)) +
-    stat('Total reach (as recorded)', fmt(cum.reachAll), 'Male ' + fmt(cum.reachM) + ' · Female ' + fmt(cum.reachF)) +
+    stat('Group discussions (Community Meetings)', fmt(cum.groupDisc), 'Parents/caregivers participated') +
+    stat('Home-to-Home Education / IPC', fmt(cum.homeEdu), 'Parents/caregivers reached') +
+    stat('Social mobilization reach', fmt((cum.groupDisc || 0) + (cum.homeEdu || 0)), 'Group discussion + home-to-home education') +
     '</div>';
 
   const g = groups(rows).sort((a, b) => (b.cov == null ? -1 : b.cov) - (a.cov == null ? -1 : a.cov));
@@ -1009,7 +1009,7 @@ function renderOverview() {
     panel('c4', 'Boys and girls', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
     panel('c7', 'Age group by day', 'Children aged 0–11 months and 12–59 months.', '<div class="chart"><canvas id="ch-age"></canvas></div>') +
     panel('c5', 'Where children were vaccinated', 'Through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-place"></canvas></div>') +
-    panel('c7', 'Polio-message reach by day', 'Parents and caregivers reached in community meetings and house-to-house visits, male and female. Total reach is the stack height and is recorded once — never double counted.', '<div class="chart"><canvas id="ch-reach"></canvas></div>') +
+    panel('c7', 'Community engagement by day', 'Parents and caregivers reached through group discussions and home-to-home education / interpersonal communication.', '<div class="chart"><canvas id="ch-reach"></canvas></div>') +
     panel('c5', 'Zero-dose vaccination teams', 'Teams fielded and teams reporting, each day.', '<div class="chart"><canvas id="ch-zdteams"></canvas></div>') +
     '</div>';
 
@@ -1045,11 +1045,9 @@ function renderOverview() {
       plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) } } } });
 
   draw('ch-reach', { type:'bar', data:{ labels, datasets:[
-    { label:'Community meetings — Male', data:dt.map(a => a.commM), backgroundColor:'#0891B2', stack:'reach' },
-    { label:'Community meetings — Female', data:dt.map(a => a.commF), backgroundColor:'#22D3EE', stack:'reach' },
-    { label:'House-to-house — Male', data:dt.map(a => a.h2hM), backgroundColor:'#BE185D', stack:'reach' },
-    { label:'House-to-house — Female', data:dt.map(a => a.h2hF), backgroundColor:'#F472B6', stack:'reach' }
-  ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } } }) });
+    { label:'Group discussions (Community Meetings)', data:dt.map(a => a.groupDisc), backgroundColor:'#0891B2', borderRadius:3 },
+    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#BE185D', borderRadius:3 }
+  ] }, options:vOpts() });
 
   draw('ch-zdteams', { type:'bar', data:{ labels, datasets:[
     { label:'Zero-dose teams planned', data:dt.map(a => a.zdTeams), backgroundColor:'#8B5CF6', borderRadius:3 },
@@ -1194,26 +1192,18 @@ function renderVaccine() {
 function reachTotalsOf(recs) { const a = sumRecs(recs); return a; }
 function communityReachHTML(title, rows, keyLabel) {
   const header = '<thead><tr><th class="tl">' + keyLabel + '</th>' +
-    '<th>Comm M</th><th>Comm F</th><th>Comm All</th>' +
-    '<th>H2H M</th><th>H2H F</th><th>H2H All</th>' +
-    '<th>Reach M</th><th>Reach F</th><th>Reach All</th>' +
+    '<th>HHs visited</th><th>Group discussions</th><th>Home-to-home education</th>' +
     '<th>ZD teams</th><th>ZD reported</th></tr></thead>';
-  const sumRow = { commM:0, commF:0, h2hM:0, h2hF:0, reachM:0, reachF:0, reachAll:0, zdTeams:0, zdTeamsRep:0 };
+  const sumRow = { hh:0, groupDisc:0, homeEdu:0, zdTeams:0, zdTeamsRep:0 };
   const body = rows.map(g => {
     const a = g.a;
-    const cAll = a.commM + a.commF, hAll = a.h2hM + a.h2hF;
     Object.keys(sumRow).forEach(k => { sumRow[k] += (a[k] || 0); });
     return '<tr><td class="tl">' + esc(g.key) + '</td>' +
-      '<td>' + fmt(a.commM) + '</td><td>' + fmt(a.commF) + '</td><td>' + fmt(cAll) + '</td>' +
-      '<td>' + fmt(a.h2hM) + '</td><td>' + fmt(a.h2hF) + '</td><td>' + fmt(hAll) + '</td>' +
-      '<td>' + fmt(a.reachM) + '</td><td>' + fmt(a.reachF) + '</td><td>' + fmt(a.reachAll) + '</td>' +
+      '<td>' + fmt(a.hh) + '</td><td>' + fmt(a.groupDisc) + '</td><td>' + fmt(a.homeEdu) + '</td>' +
       '<td>' + fmt(a.zdTeams) + '</td><td>' + fmt(a.zdTeamsRep) + '</td></tr>';
   }).join('');
-  const tCommAll = sumRow.commM + sumRow.commF, tH2hAll = sumRow.h2hM + sumRow.h2hF;
   const footer = '<tr class="total"><td class="tl">Total (selection)</td>' +
-    '<td>' + fmt(sumRow.commM) + '</td><td>' + fmt(sumRow.commF) + '</td><td>' + fmt(tCommAll) + '</td>' +
-    '<td>' + fmt(sumRow.h2hM) + '</td><td>' + fmt(sumRow.h2hF) + '</td><td>' + fmt(tH2hAll) + '</td>' +
-    '<td>' + fmt(sumRow.reachM) + '</td><td>' + fmt(sumRow.reachF) + '</td><td>' + fmt(sumRow.reachAll) + '</td>' +
+    '<td>' + fmt(sumRow.hh) + '</td><td>' + fmt(sumRow.groupDisc) + '</td><td>' + fmt(sumRow.homeEdu) + '</td>' +
     '<td>' + fmt(sumRow.zdTeams) + '</td><td>' + fmt(sumRow.zdTeamsRep) + '</td></tr>';
   return '<div class="tbl-wrap"><table>' + header + '<tbody>' + body + footer + '</tbody></table></div>';
 }
@@ -1221,50 +1211,49 @@ function communityReachHTML(title, rows, keyLabel) {
 function renderCommunity() {
   const recs = scopeRecs(), cumRecs = recs.filter(r => r.d <= S.upTo), cum = sumRecs(cumRecs);
   const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
-  const commAll = (cum.commM || 0) + (cum.commF || 0);
-  const h2hAll = (cum.h2hM || 0) + (cum.h2hF || 0);
-  const commShare = (commAll + h2hAll) > 0 ? commAll / (commAll + h2hAll) : null;
+  const afpTotal = (cum.afpSig || 0) + (cum.afpAlt || 0);
+  const aefiTotal = (cum.aefiMild || 0) + (cum.aefiSev || 0);
+  const mobTotal = (cum.groupDisc || 0) + (cum.homeEdu || 0);
+  const groupShare = mobTotal > 0 ? (cum.groupDisc || 0) / mobTotal : null;
   const zdRepShare = cum.zdTeams > 0 ? cum.zdTeamsRep / cum.zdTeams : null;
   const strip = '<div class="strip">' +
-    stat('Households visited', fmt(cum.hh), 'By social mobilizers') +
-    stat('Community meetings', fmt(commAll), 'Male ' + fmt(cum.commM) + ' · Female ' + fmt(cum.commF)) +
-    stat('House-to-house visits', fmt(h2hAll), 'Male ' + fmt(cum.h2hM) + ' · Female ' + fmt(cum.h2hF)) +
-    stat('Total reach (as recorded)', fmt(cum.reachAll), 'Male ' + fmt(cum.reachM) + ' · Female ' + fmt(cum.reachF)) +
-    stat('Community share of reach', pct(commShare, 0), 'Community ' + fmt(commAll) + ' vs house-to-house ' + fmt(h2hAll)) +
+    stat('HHs visited by social mobilizers', fmt(cum.hh), 'Social mobilization') +
+    stat('Group discussions (Community Meetings)', fmt(cum.groupDisc), 'Parents/caregivers participated') +
+    stat('Home-to-Home Education / IPC', fmt(cum.homeEdu), 'Parents/caregivers reached') +
+    stat('Social mobilization reach', fmt(mobTotal), 'Group discussion + home-to-home education') +
+    stat('Group discussion share', pct(groupShare, 0), 'Group discussion ' + fmt(cum.groupDisc) + ' vs home-to-home ' + fmt(cum.homeEdu)) +
     stat('Zero-dose children', fmt(cum.zdV) + ' of ' + fmt(cum.zdId), 'Vaccinated of identified') +
     stat('Under-vaccinated children', fmt(cum.uvV) + ' of ' + fmt(cum.uvId), 'Vaccinated of identified') +
     stat('Zero-dose teams', fmt(cum.zdTeams), 'Number fielded, all days through ' + esc(dayName())) +
     stat('Zero-dose teams reported', fmt(cum.zdTeamsRep), 'of ' + fmt(cum.zdTeams) + ' fielded (' + pct(zdRepShare, 0) + ')', zdRepShare != null && zdRepShare < 0.95 ? 'warn' : 'good') +
-    stat('AFP alerts', fmt(cum.afpA), '', cum.afpA > 0 ? 'bad' : '') +
-    stat('AEFI', fmt(cum.aefiM + cum.aefiS), 'AFP alerts: ' + fmt(cum.afpA), cum.aefiS > 0 ? 'bad' : '') + '</div>';
+    stat('AFP (signals + alerts)', fmt(afpTotal), 'Signals ' + fmt(cum.afpSig) + ' · Alerts ' + fmt(cum.afpAlt), afpTotal > 0 ? 'warn' : '') +
+    stat('AEFI (mild + severe)', fmt(aefiTotal), 'Mild ' + fmt(cum.aefiMild) + ' · Severe ' + fmt(cum.aefiSev), (cum.aefiSev || 0) > 0 ? 'bad' : '') + '</div>';
 
   const urows = unitRows();
-  const zoneGroups = rollup(urows, r => r.u.zone).sort((a, b) => (b.a.reachAll || 0) - (a.a.reachAll || 0));
-  const woredaGroups = urows.slice().sort((a, b) => (b.a.reachAll || 0) - (a.a.reachAll || 0))
+  const mobOf = a => (a.groupDisc || 0) + (a.homeEdu || 0);
+  const zoneGroups = rollup(urows, r => r.u.zone).sort((a, b) => mobOf(b.a) - mobOf(a.a));
+  const woredaGroups = urows.slice().sort((a, b) => mobOf(b.a) - mobOf(a.a))
     .map(r => ({ key: r.u.hc ? (r.u.woreda + ' — ' + r.u.hc) : r.u.woreda, a: r.a }));
 
   app().innerHTML = strip + '<div class="grid">' +
-    panel('c6', 'Social mobilization by day', 'Households visited and parents or caregivers reached (M + F combined per day).', '<div class="chart"><canvas id="ch-mob"></canvas></div>') +
-    panel('c6', 'Community meetings vs house-to-house', 'Compare the two outreach channels, male and female.', '<div class="chart"><canvas id="ch-cmp"></canvas></div>') +
+    panel('c6', 'Social mobilization by day', 'Households visited and parents or caregivers reached through each community channel.', '<div class="chart"><canvas id="ch-mob"></canvas></div>') +
+    panel('c6', 'Group discussions vs home-to-home education', 'Compare the two community engagement channels.', '<div class="chart"><canvas id="ch-cmp"></canvas></div>') +
     panel('c6', 'Zero-dose and under-vaccinated children', 'Identified vs vaccinated.', '<div class="chart"><canvas id="ch-link"></canvas></div>') +
     panel('c6', 'Vaccination teams reporting', 'Share of planned teams that reported each day, including zero-dose teams.', '<div class="chart"><canvas id="ch-teams"></canvas></div>') +
     panel('c6', 'Children not vaccinated on the visit', 'Unvaccinated during visit and vaccinated on revisit.', '<div class="chart"><canvas id="ch-revisit"></canvas></div>') +
     '</div>' +
     '<div class="grid">' +
-    panel('c12', 'Reach breakdown by sub-city', 'Male/Female disaggregated. Total reach is recorded once — community meetings plus house-to-house visits. Totals for the current selection are shown in the footer.' + (S.mergeHc ? ' Merge HC is on: split woredas are consolidated.' : ''), communityReachHTML(null, zoneGroups, 'Sub-city')) +
-    panel('c12', 'Reach breakdown by woreda and health center', 'Male/Female disaggregated. Totals for the current selection are shown in the footer.' + (S.mergeHc ? ' Merge HC is on: split woredas are consolidated.' : ''), communityReachHTML(null, woredaGroups, 'Woreda — Health center')) +
+    panel('c12', 'Community engagement by sub-city', 'Households visited, group discussions and home-to-home education. Totals for the current selection are shown in the footer.' + (S.mergeHc ? ' Merge HC is on: split woredas are consolidated.' : ''), communityReachHTML(null, zoneGroups, 'Sub-city')) +
+    panel('c12', 'Community engagement by woreda and health center', 'Households visited, group discussions and home-to-home education. Totals for the current selection are shown in the footer.' + (S.mergeHc ? ' Merge HC is on: split woredas are consolidated.' : ''), communityReachHTML(null, woredaGroups, 'Woreda — Health center')) +
     '</div>';
 
   draw('ch-mob', { type:'bar', data:{ labels, datasets:[
-    { label:'Households visited', data:dt.map(a => a.hh), backgroundColor:'#6D28D9' },
-    { label:'Community meetings', data:dt.map(a => a.commM + a.commF), backgroundColor:'#06B6D4' },
-    { label:'House-to-house', data:dt.map(a => a.h2hM + a.h2hF), backgroundColor:'#F472B6' } ] }, options:vOpts() });
+    { label:'HHs visited by social mobilizers', data:dt.map(a => a.hh), backgroundColor:'#6D28D9' },
+    { label:'Group discussions (Community Meetings)', data:dt.map(a => a.groupDisc), backgroundColor:'#06B6D4' },
+    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#F472B6' } ] }, options:vOpts() });
   draw('ch-cmp', { type:'bar', data:{ labels, datasets:[
-    { label:'Community meetings — Male', data:dt.map(a => a.commM), backgroundColor:'#0891B2', stack:'comm' },
-    { label:'Community meetings — Female', data:dt.map(a => a.commF), backgroundColor:'#22D3EE', stack:'comm' },
-    { label:'House-to-house — Male', data:dt.map(a => a.h2hM), backgroundColor:'#BE185D', stack:'h2h' },
-    { label:'House-to-house — Female', data:dt.map(a => a.h2hF), backgroundColor:'#F472B6', stack:'h2h' } ] },
-    options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } } }) });
+    { label:'Group discussions', data:dt.map(a => a.groupDisc), backgroundColor:'#0891B2', borderRadius:3 },
+    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#BE185D', borderRadius:3 } ] }, options:vOpts() });
   draw('ch-link', { type:'bar', data:{ labels, datasets:[
     { label:'Zero-dose identified', data:dt.map(a => a.zdId), backgroundColor:'#6D28D9' },
     { label:'Zero-dose vaccinated', data:dt.map(a => a.zdV), backgroundColor:'#06B6D4' },
@@ -2312,7 +2301,7 @@ function buildNarrationDeck(){
   const peakI = dt.length ? dt.reduce((b,a,i)=> a.tot > dt[b].tot ? i : b, 0) : 0;
   const lossN = (cum.brk||0)+(cum.retB||0)+(cum.lost||0);
   const lossB = (cum.bbrk||0)+(cum.bretB||0)+(cum.blost||0);
-  const sev = recs.filter(r => r.d <= S.upTo && (r.aefiS||0) > 0).map(r => (r.u.woreda||'') + (r.u.zone?(' ('+r.u.zone+')'):'') + ', ' + M.days[r.d].label);
+  const sev = recs.filter(r => r.d <= S.upTo && (r.aefiSev||0) > 0).map(r => (r.u.woreda||'') + (r.u.zone?(' ('+r.u.zone+')'):'') + ', ' + M.days[r.d].label);
   let crossI = -1, run = 0;
   for (let i=0;i<dt.length;i++){ run += dt[i].tot; if(tgt>0 && run/tgt >= CFG.targetCoverage){ crossI=i; break; } }
   const gs = groups(rows).filter(g=>g.cov!=null).sort((a,b)=>b.cov-a.cov);
@@ -2450,26 +2439,27 @@ function buildNarrationDeck(){
       'Wastage follows doses-per-vial assumptions (' + (CFG.dosesPerVial||50) + ' nOPV2, ' + (CFG.bopvDosesPerVial||20) + ' bOPV); mop-up days can show higher wastage with low vial use.'
     ]});
 
+  const afpTotal = (cum.afpSig||0) + (cum.afpAlt||0), aefiTotal = (cum.aefiMild||0) + (cum.aefiSev||0);
   slides.push({ kind:'table', title:'Community and safety', heading:'Community engagement, teams and safety',
     headers:['Indicator','Value','Notes'],
     rows:[
-      ['Households visited', fmt(cum.hh||0), 'Social mobilizers'],
-      ['Community meetings', fmt((cum.commM||0)+(cum.commF||0)), 'Male '+fmt(cum.commM||0)+' · Female '+fmt(cum.commF||0)],
-      ['House-to-house visits', fmt((cum.h2hM||0)+(cum.h2hF||0)), 'Male '+fmt(cum.h2hM||0)+' · Female '+fmt(cum.h2hF||0)],
-      ['Total reach (as recorded)', fmt(cum.reachAll||0), 'Male '+fmt(cum.reachM||0)+' · Female '+fmt(cum.reachF||0)],
+      ['HHs visited by social mobilizers', fmt(cum.hh||0), 'Social mobilization'],
+      ['Group discussions (Community Meetings)', fmt(cum.groupDisc||0), 'Parents/caregivers participated'],
+      ['Home-to-Home Education / IPC', fmt(cum.homeEdu||0), 'Parents/caregivers reached'],
+      ['Social mobilization reach', fmt((cum.groupDisc||0)+(cum.homeEdu||0)), 'Group discussion + home-to-home'],
       ['Zero-dose vaccinated / identified', fmt(cum.zdV||0)+' / '+fmt(cum.zdId||0), 'Linkage'],
       ['Under-vaccinated vaccinated / identified', fmt(cum.uvV||0)+' / '+fmt(cum.uvId||0), 'Linkage'],
       ['Teams reporting (selected day)', fmt(cur.teamsRep||0)+' of '+fmt(cur.teams||0), pct((cur.teams||0)>0 ? (cur.teamsRep||0)/(cur.teams||1) : null,0)],
       ['Zero-dose teams (selected day)', fmt(cur.zdTeams||0), 'Number fielded'],
       ['Zero-dose teams reporting (selected day)', fmt(cur.zdTeamsRep||0)+' of '+fmt(cur.zdTeams||0), pct((cur.zdTeams||0)>0 ? (cur.zdTeamsRep||0)/(cur.zdTeams||1) : null,0)],
-      ['AFP alerts', fmt(cum.afpA||0), (cum.afpA||0)>0?'Follow up alerts':''],
-      ['AEFI alerts', fmt(cum.aefiS||0), sev.length?('Needs confirmation in: '+listOf(sev,2)):((cum.aefiS||0)>0?'Confirm investigation':'No AEFI alerts')]
+      ['AFP (signals + alerts)', fmt(afpTotal||0), 'Signals '+fmt(cum.afpSig||0)+' · Alerts '+fmt(cum.afpAlt||0)],
+      ['AEFI (mild + severe)', fmt(aefiTotal||0), sev.length?('Needs confirmation in: '+listOf(sev,2)):((cum.aefiSev||0)>0?'Confirm investigation':'No severe AEFI')]
     ],
     narration: [
-      'Social mobilization reached ' + fmt(cum.hh||0) + ' households, ' + fmt((cum.commM||0)+(cum.commF||0)) + ' caregivers in community meetings and ' + fmt((cum.h2hM||0)+(cum.h2hF||0)) + ' in house-to-house visits (total reach recorded: ' + fmt(cum.reachAll||0) + ').',
+      'Social mobilization visited ' + fmt(cum.hh||0) + ' households, engaged ' + fmt(cum.groupDisc||0) + ' parents/caregivers in group discussions and reached ' + fmt(cum.homeEdu||0) + ' through home-to-home education (total reach: ' + fmt((cum.groupDisc||0)+(cum.homeEdu||0)) + ').',
       (cum.zdId||0)>0 ? (fmt(cum.zdV||0)+' of '+fmt(cum.zdId||0)+' zero-dose children identified were vaccinated.') : 'No zero-dose children were identified and linked in this view.',
       (cum.uvId||0)>0 ? (fmt(cum.uvV||0)+' of '+fmt(cum.uvId||0)+' under-vaccinated children identified were vaccinated.') : 'No under-vaccinated children were identified and linked in this view.',
-      sev.length ? ('AEFI alerts reported in: '+sev.join('; ')+'. Confirm each was investigated.') : ((cum.aefiS||0)>0 ? 'AEFI alerts reported; confirm investigations.' : 'No AEFI alerts were reported in this selection.')
+      sev.length ? ('Severe AEFI reported in: '+sev.join('; ')+'. Confirm each was investigated.') : ((cum.aefiSev||0)>0 ? 'Severe AEFI reported; confirm investigations.' : 'No severe AEFI were reported in this selection.')
     ]});
 
   slides.push({ kind:'table', title:'Data quality', heading:'Data quality checks',
@@ -2486,8 +2476,8 @@ function buildNarrationDeck(){
   if (w != null && w > CFG.maxWastage) disc.push('Review nOPV2 vial handling: wastage is ' + pct(w) + ', above the ' + WL + ' limit.');
   if (bw != null && bw > CFG.maxWastage) disc.push('Review bOPV vial handling: wastage is ' + pct(bw) + ', above the ' + WL + ' limit.');
   if ((cur.teams||0) > 0 && (cur.teamsRep||0)/(cur.teams||1) < 0.95 && M.days[S.upTo] && M.days[S.upTo].type === 'campaign') disc.push('Improve team reporting: ' + pct((cur.teamsRep||0)/(cur.teams||1),0) + ' reported on ' + dayName() + '.');
-  if ((cum.aefiS||0) > 0) disc.push('Confirm that all ' + fmt(cum.aefiS) + ' AEFI alerts were investigated.');
-  if ((cum.afpA||0) > 0) disc.push('Follow up ' + fmt(cum.afpA) + ' AFP alerts with surveillance.');
+  if ((cum.aefiSev||0) > 0) disc.push('Confirm that all ' + fmt(cum.aefiSev) + ' severe AEFI were investigated.');
+  if ((cum.afpAlt||0) > 0) disc.push('Follow up ' + fmt(cum.afpAlt) + ' AFP alerts with surveillance.');
   if (items.length) disc.push('Ask focal persons to correct the ' + pl(items.length,'flagged data entry').replace('entrys','entries') + '.');
   if (!disc.length) disc.push('No urgent issues were found. Maintain current performance and keep reporting daily.');
 
