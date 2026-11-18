@@ -321,6 +321,14 @@
     .section-bopv h4 { background: linear-gradient(135deg,#16a34a 0%,#0d9488 100%); }
     .section-alerts h4 { background: linear-gradient(135deg,#0891b2 0%,#2563eb 100%); }
     .section-place h4 { background: linear-gradient(135deg,#8b5cf6 0%,#6d28d9 100%); }
+    .section-afp { background: linear-gradient(135deg, rgba(250,112,154,0.06), rgba(254,225,64,0.06)); }
+    .section-afp h4 { background: linear-gradient(135deg,#be185d 0%,#e11d48 100%); }
+    .section-aefi { background: linear-gradient(135deg, rgba(251,146,60,0.07), rgba(253,224,71,0.06)); }
+    .section-aefi h4 { background: linear-gradient(135deg,#c2410c 0%,#ea580c 100%); }
+    .section-social { background: linear-gradient(135deg, rgba(45,212,191,0.06), rgba(14,165,233,0.06)); }
+    .section-social h4 { background: linear-gradient(135deg,#0f766e 0%,#0891b2 100%); }
+    .section-teams { background: linear-gradient(135deg, rgba(129,140,248,0.07), rgba(192,132,252,0.06)); }
+    .section-teams h4 { background: linear-gradient(135deg,#4338ca 0%,#7c3aed 100%); }
     .section-icon {
       width: 26px; height: 26px; border-radius: 8px; display: inline-flex;
       align-items: center; justify-content: center; flex-shrink: 0;
@@ -1605,33 +1613,12 @@ function renderMain(rowData) {
         </div>
         <div id="bopvCoverageAlert"></div>
       </div>
-      <div class="form-section section-alerts">
-        <h4><span class="section-icon">${ICONS.megaphone}</span>AFP, AEFI & Social Mobilization</h4>
+      <div class="form-section section-afp">
+        <h4><span class="section-icon">${ICONS.shield}</span>AFP Surveillance</h4>
         <div class="form-grid">
           <div class="field-group">
-            <div class="field-group-title">AFP</div>
+            <div class="field-group-title">AFP signals & alerts</div>
             <div class="field-group-grid">${field("AI","Number of AFP Signals (Rumors)")}${field("AJ","Number of AFP Alert")}</div>
-          </div>
-          <div class="field-group">
-            <div class="field-group-title">AEFI</div>
-            <div class="field-group-grid">${field("AK","Number of Mild AEFI")}${field("AL","Number of Severe AEFI")}</div>
-          </div>
-        </div>
-        <div class="reach-block">
-          <div class="reach-heading">Social Mobilization & Community Engagement</div>
-          <div class="form-grid">
-            <div class="field-group">
-              <div class="field-group-title">Community reach</div>
-              <div class="field-group-grid">${field("AM","HHs visited by social mobilizers")}${field("AN","Parents or caregivers participated in group discussion (Community Meetings)")}${field("AO","Parents or caregivers reached with Home-to-Home Education / Interpersonal Communication")}</div>
-            </div>
-          </div>
-        </div>
-        <div class="form-grid">
-          <div class="field-group">
-            <div class="field-group-title">Vaccination teams</div>
-            <div class="field-group-grid teams-grid">${field("AV","Vaccination teams reported")}${zeroDosePlanned > 0
-              ? field("AW","Number of zero-dose vaccination teams", true) + field("AX","Zero-dose vaccination teams reported")
-              : `<span class="readonly-note" style="grid-column:1/-1">${ICONS.lock}No zero-dose vaccination teams are planned for this woreda, so the zero-dose team fields are hidden from data entry. The plan can only be changed in the master workbook.</span>`}</div>
           </div>
           <div class="field-group">
             <div class="field-group-title">Zero-dose children</div>
@@ -1645,6 +1632,35 @@ function renderMain(rowData) {
         <div class="reach-block">
           <div class="reach-heading">Misconceptions, Rumors & Other Observations</div>
           <div class="form-grid">${textField("AP","What misconceptions, rumors, concerns, or other practices did you encounter in the community?")}</div>
+        </div>
+      </div>
+      <div class="form-section section-aefi">
+        <h4><span class="section-icon">${ICONS.alert}</span>AEFI</h4>
+        <div class="form-grid">
+          <div class="field-group">
+            <div class="field-group-title">Adverse events following immunization</div>
+            <div class="field-group-grid">${field("AK","Number of Mild AEFI")}${field("AL","Number of Severe AEFI")}</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-section section-social">
+        <h4><span class="section-icon">${ICONS.megaphone}</span>Social Mobilization</h4>
+        <div class="form-grid">
+          <div class="field-group">
+            <div class="field-group-title">Community reach</div>
+            <div class="field-group-grid">${field("AM","HHs visited by social mobilizers")}${field("AN","Parents or caregivers participated in group discussion (Community Meetings)")}${field("AO","Parents or caregivers reached with Home-to-Home Education / Interpersonal Communication")}</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-section section-teams">
+        <h4><span class="section-icon">${ICONS.users}</span>Vaccination Teams</h4>
+        <div class="form-grid">
+          <div class="field-group">
+            <div class="field-group-title">Teams deployed & reported</div>
+            <div class="field-group-grid teams-grid">${field("AV","Vaccination teams reported")}${zeroDosePlanned > 0
+              ? field("AW","Number of zero-dose vaccination teams", true) + field("AX","Zero-dose vaccination teams reported")
+              : `<span class="readonly-note" style="grid-column:1/-1">${ICONS.lock}No zero-dose vaccination teams are planned for this woreda, so the zero-dose team fields are hidden from data entry. The plan can only be changed in the master workbook.</span>`}</div>
+          </div>
         </div>
       </div>
       <div class="form-section section-place">
