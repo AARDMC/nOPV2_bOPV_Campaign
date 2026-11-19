@@ -459,7 +459,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
   function postJson(body){ var url=window.CAMPAIGN_API_URL; if(!url) return Promise.reject(fail('No server URL')); url+=(url.indexOf('?')>=0?'&':'?')+'cb='+Date.now(); return fetchWithTimeout(url,{method:'POST',mode:'cors',redirect:'follow',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)},timeoutForAction(body&&body.action)).then(function(res){return res.text().then(function(text){var data=parseJson(text); if(!res.ok&&(!data||!data.error)) throw fail('Server error '+res.status); return data;});}); }
   function postViaIframe(body){ return new Promise(function(resolve,reject){ var url=window.CAMPAIGN_API_URL; if(!url){reject(fail('No server URL'));return;} var id='r'+Math.floor(Math.random()*1e9).toString(36); var iframe=document.createElement('iframe'); iframe.name=id; iframe.style.cssText='position:absolute;width:0;height:0;border:0;visibility:hidden'; var form=document.createElement('form'); form.method='POST'; form.action=url; form.target=id; form.style.display='none'; var fields={action:body.action,payload:JSON.stringify(body.payload||{}),token:body.token||'',transport:'iframe',requestId:id}; Object.keys(fields).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=fields[k];form.appendChild(i);}); var settled=false; var timer=setTimeout(function(){finish();reject(fail('Server not responding'));},timeoutForAction(body&&body.action)); function finish(){if(settled)return; settled=true; clearTimeout(timer); window.removeEventListener('message',onMessage); setTimeout(function(){if(form.parentNode)form.parentNode.removeChild(form); if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},1500);} function onMessage(ev){var d=ev.data; if(!d||d.source!=='nopv2-campaign'||d.requestId!==id) return; finish(); resolve(d.result);} window.addEventListener('message',onMessage); document.body.appendChild(iframe); document.body.appendChild(form); form.submit(); }); }
   function callApi(action,payload,tokenOverride){ var body={action:action,payload:payload||{},token:tokenOverride||sessionToken()}; var attempts=0,maxAttempts=3; function attempt(){ attempts++; return postJson(body).catch(function(err){ if(err&&err.campaignMessage&&/unreadable/i.test(err.campaignMessage)) throw err; if(attempts<maxAttempts&&isRetryableError(err)) return sleep(Math.min(1500*Math.pow(2,attempts-1),6000)).then(attempt); return postViaIframe(body).catch(function(err2){ if(attempts<maxAttempts&&isRetryableError(err2)){ attempts++; return sleep(Math.min(1500*Math.pow(2,attempts-2),6000)).then(function(){return postViaIframe(body);}); } throw err2||err; }); }).then(function(out){ if(out && out.code==='AUTH_REQUIRED'){ try{sessionStorage.removeItem('dash_token'); sessionStorage.removeItem('epi_token');}catch(e){} } return out; }); } return attempt(); }
-  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getNativeScopedExport','getLogo','getCoverPhotos','getMergedExportSheet','getEphiExport'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; else if(action==='getDashboardData') p=(args[0]&&typeof args[0]==='object')?args[0]:{force:!!args[0]}; else if(action==='getDashboardExport'||action==='getNativeScopedExport'||action==='getMergedExportSheet') p=args[0]||{}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
+  function makeRunner(){ var r={__success:null,__failure:null}; r.withSuccessHandler=function(fn){r.__success=fn;return r;}; r.withFailureHandler=function(fn){r.__failure=fn;return r;}; ['dashboardLogin','getDashboardData','getDashboardExport','getNativeScopedExport','getLogo','getCoverPhotos','getMergedExportSheet','getEphiExport','getDayLocks','setDayLock'].forEach(function(action){ r[action]=function(){ var args=Array.prototype.slice.call(arguments); var p={}; if(action==='dashboardLogin') p=args[0]||{}; else if(action==='getDashboardData') p=(args[0]&&typeof args[0]==='object')?args[0]:{force:!!args[0]}; else if(action==='getDashboardExport'||action==='getNativeScopedExport'||action==='getMergedExportSheet') p=args[0]||{}; else if(action==='setDayLock') p=args[0]||{}; callApi(action,p).then(function(res){ if(r.__success) r.__success(res); }).catch(function(err){ if(r.__failure) r.__failure(err); else alert((err&&err.message)||String(err)); }); return r; }; }); return r; }
 
     window.google=window.google||{}; window.google.script=window.google.script||{};
   Object.defineProperty(window.google.script,'run',{configurable:true,get:function(){return makeRunner();}});
@@ -544,6 +544,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
     <button class="btn solid" id="btnExportPpt" type="button" title="Download filtered presentation (PPT) on your device">Download PPT</button>
     <button class="btn dark" id="btnPresent" type="button" title="Present dashboard in full screen">▶ Present</button>
     <button class="btn dark" id="btnMergeHc" type="button" aria-pressed="false" title="Combine split woredas (e.g. Woreda 03/1 + Woreda 03/2) into Woreda 03">Merge HC</button>
+    <button class="btn ephi" id="btnDayLocks" type="button" hidden title="Super admin: lock or unlock daily data entry">🔒 Day locks</button>
   </div>
 </div>
 <div class="ephi-wrap"><div id="ephiResult" class="ephi-card" hidden></div></div>
@@ -603,6 +604,7 @@ let CFG = null, M = null;
 const S = { zone:'all', woreda:'all', upTo:0, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all', mergeHc:false };
 let DASH_SCOPE = { mode:'all', zone:'', woreda:'', woredaID:'', facilities: [], facilityCount: 0, facilityIndex: -1 };
 let DASH_FACILITY = -1;
+let IS_SUPER_ADMIN = false; // signed in as @Get-Man — may lock/unlock data-entry days
 
 const nf = new Intl.NumberFormat('en-US');
 const fmt = n => (n == null || !isFinite(n)) ? '–' : nf.format(Math.round(n));
@@ -2166,6 +2168,8 @@ function applyLoginSession(res) {
   try { sessionStorage.setItem('dash_token', res.token); sessionStorage.setItem('dash_info', JSON.stringify(res.dashboard)); } catch(e){}
   document.getElementById('dashLogin').classList.add('hidden');
   const d = res.dashboard || {};
+  IS_SUPER_ADMIN = !!d.superAdmin;
+  updateDayLocksVisibility();
   const facilityLocked = !!d.facilityLocked;
   const lockedFacility = d.facility || (Array.isArray(d.facilities) && d.facilities.length === 1 ? d.facilities[0] : '');
   const scopedFacilities = facilityLocked ? (lockedFacility ? [lockedFacility] : []) : (d.facilities || []);
@@ -2175,6 +2179,81 @@ function applyLoginSession(res) {
   prefetchMapData();
   load(false);
   return true;
+}
+
+/* ---------- Super-admin manual day locks (@Get-Man) ---------- */
+let DAY_LOCK_DAYS = [];
+
+function updateDayLocksVisibility(){
+  const btn = document.getElementById('btnDayLocks');
+  if (btn) btn.hidden = !IS_SUPER_ADMIN;
+}
+
+function openDayLocks(){
+  const modal = document.getElementById('dayLocksModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  loadDayLocks();
+}
+
+function closeDayLocks(){
+  const modal = document.getElementById('dayLocksModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function loadDayLocks(){
+  const list = document.getElementById('dlList');
+  if (list) list.innerHTML = '<div style="padding:18px 0;color:#64748b;font-size:13px">Loading…</div>';
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (!res || res.ok === false) {
+        if (list) list.innerHTML = '<div style="padding:18px 0;color:#b42318;font-size:13px">' + esc((res && res.error) || 'Could not load locks.') + '</div>';
+        return;
+      }
+      DAY_LOCK_DAYS = res.lockableDays || [];
+      renderDayLocks(res.lockedDays || [], DAY_LOCK_DAYS);
+    })
+    .withFailureHandler(function(e){
+      if (list) list.innerHTML = '<div style="padding:18px 0;color:#b42318;font-size:13px">' + esc((e && e.message) || String(e)) + '</div>';
+    })
+    .getDayLocks();
+}
+
+function renderDayLocks(lockedDays, lockableDays){
+  const list = document.getElementById('dlList');
+  const stateEl = document.getElementById('dlState');
+  if (!list) return;
+  const days = (lockableDays && lockableDays.length) ? lockableDays : ['Day 1','Day 2','Day 3','Day 4','Mop Up Day 1','Mop Up Day 2'];
+  list.innerHTML = days.map(function(day){
+    const locked = lockedDays.indexOf(day) !== -1;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #eef2f7">'
+      + '<div><b style="font-size:13px;color:#0f172a">' + esc(day) + '</b>'
+      + '<div style="font-size:11px;color:' + (locked ? '#b42318' : '#059669') + '">' + (locked ? 'Locked — data entry closed' : 'Open for data entry') + '</div></div>'
+      + '<button type="button" data-lock-day="' + esc(day) + '" data-lock-next="' + (locked ? '0' : '1') + '" style="border:0;border-radius:9px;padding:8px 13px;font-weight:700;font-size:12px;cursor:pointer;color:#fff;background:' + (locked ? '#0d9488' : '#c62828') + '">' + (locked ? 'Unlock' : 'Lock day') + '</button>'
+      + '</div>';
+  }).join('');
+  if (stateEl) stateEl.textContent = lockedDays.length + ' of ' + days.length + ' locked';
+  list.querySelectorAll('button[data-lock-day]').forEach(function(b){
+    b.onclick = function(){ changeDayLock(b.getAttribute('data-lock-day'), b.getAttribute('data-lock-next') === '1'); };
+  });
+}
+
+function changeDayLock(day, locked){
+  const list = document.getElementById('dlList');
+  if (list) list.style.opacity = '0.6';
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (list) list.style.opacity = '1';
+      if (!res || res.ok === false) { toast('Lock change failed: ' + ((res && res.error) || 'unknown'), true); loadDayLocks(); return; }
+      toast(day + (res.locked ? ' locked — data entry closed.' : ' unlocked — data entry open.'));
+      renderDayLocks(res.lockedDays || [], DAY_LOCK_DAYS);
+    })
+    .withFailureHandler(function(e){
+      if (list) list.style.opacity = '1';
+      toast('Lock change failed: ' + ((e && e.message) || String(e)), true);
+      loadDayLocks();
+    })
+    .setDayLock({ day: day, locked: locked });
 }
 
 // Officer login — binds to their assigned facility
@@ -2903,6 +2982,8 @@ function doPptExport(){
 
 function init() {
   setupChartDefaults();
+  try { const info = JSON.parse(sessionStorage.getItem('dash_info') || '{}'); IS_SUPER_ADMIN = !!info.superAdmin; } catch(e){}
+  updateDayLocksVisibility();
   $('#heroArt').innerHTML = ART_SVG; $('#bannerArt').innerHTML = ART_SVG;
   $('#btnRefresh').addEventListener('click', () => load(true));
   $('#fZone').addEventListener('change', e => { S.zone = e.target.value; S.woreda = 'all'; fillWoredas(); render(); });
@@ -2945,6 +3026,12 @@ function init() {
     render();
   }));
   document.getElementById('dashLoginBtn').addEventListener('click', doDashLogin);
+  const btnDayLocks = document.getElementById('btnDayLocks');
+  if (btnDayLocks) btnDayLocks.addEventListener('click', openDayLocks);
+  const dlClose = document.getElementById('dlClose');
+  if (dlClose) dlClose.addEventListener('click', closeDayLocks);
+  const dlModal = document.getElementById('dayLocksModal');
+  if (dlModal) dlModal.addEventListener('click', function(e){ if (e.target === dlModal) closeDayLocks(); });
   document.getElementById('officerLoginBtn').addEventListener('click', doOfficerLogin);
   document.getElementById('loginTabOfficer').addEventListener('click', function(){ setLoginTab('officer'); });
   document.getElementById('loginTabProgram').addEventListener('click', function(){ setLoginTab('program'); });
@@ -2999,5 +3086,23 @@ function init() {
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>
+
+<!-- Super-admin manual day locks -->
+<div id="dayLocksModal" style="position:fixed;inset:0;z-index:9999;background:rgba(8,15,30,.55);display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:16px;max-width:480px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.28);overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <b style="font-size:16px;color:#0f172a">Daily data-entry locks</b>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">Lock a day when its data entry is complete. Locked days become read-only and can no longer be saved.</div>
+      </div>
+      <button type="button" id="dlClose" aria-label="Close" style="border:0;background:#f1f5f9;color:#475569;width:30px;height:30px;border-radius:8px;font-size:18px;line-height:1;cursor:pointer;flex-shrink:0">×</button>
+    </div>
+    <div id="dlList" style="padding:8px 20px 12px;max-height:52vh;overflow:auto"></div>
+    <div style="padding:12px 20px;background:#f8fafc;color:#475569;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span>Only @Get-Man can change these locks.</span>
+      <span id="dlState" style="font-weight:700;color:#4338ca"></span>
+    </div>
+  </div>
+</div>
 </body>
 </html>

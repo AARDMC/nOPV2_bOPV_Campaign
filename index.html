@@ -290,6 +290,10 @@
     .tab::before { content: ''; position: absolute; inset: 0; background: var(--grad-primary); opacity: 0; transition: opacity 0.25s; z-index: 0; }
     .tab > span { position: relative; z-index: 1; }
     .tab svg { width: 14px; height: 14px; position: relative; z-index: 1; }
+    .tab.day-locked { color: #4338ca; border-color: rgba(67,56,202,0.25); }
+    .tab.day-locked svg { width: 11px; height: 11px; stroke: #4338ca; }
+    .tab.day-locked.active { color: #fff; border-color: transparent; }
+    .tab.day-locked.active svg { stroke: #fff; }
     .tab:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); color: #667eea; }
     .tab.active { color: #fff; box-shadow: 0 8px 22px rgba(102,126,234,0.45); border-color: transparent; }
     .tab.active::before { opacity: 1; }
@@ -586,7 +590,8 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
   var ACTIONS = [
     "authenticateUser", "loginAndGetInitialData", "getInitialData", "getRowData", "saveAndReturn",
     "saveSettings", "getWoredaExport", "getNativeScopedExport", "exportToExcelWithFormulas",
-    "dashboardLogin", "getDashboardData", "getCoverPhotos", "uploadCoverPhoto", "removeCoverPhoto"
+    "dashboardLogin", "getDashboardData", "getCoverPhotos", "uploadCoverPhoto", "removeCoverPhoto",
+    "getDayLocks"
   ];
 
   function fail(message) {
@@ -770,6 +775,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
     if (action === "uploadCoverPhoto") return { image: args[0] && args[0].image ? args[0].image : "", day: (args[0] && args[0].day) || "" };
     if (action === "removeCoverPhoto") return { day: (args[0] && args[0].day) || "" };
     if (action === "getDashboardData") return { force: !!args[0] };
+    if (action === "getDayLocks") return {};
     return {};
   }
 
@@ -851,7 +857,7 @@ let state = {
   planRows: [], settings: {}, selectedRow: null,
   activeDay: "Day 1", activeFacility: 0,
   rowDataCache: {}, busy: false,
-  officer: null
+  officer: null, lockedDays: []
 };
 
 // Inject icons
@@ -938,7 +944,7 @@ function doLogin() {
       sessionStorage.removeItem('epi_notice');
       // Fast path: combined login + initial data in one round trip
       if (res.plan) {
-        state._initialData = { ok: true, plan: res.plan, settings: res.settings || {} };
+        state._initialData = { ok: true, plan: res.plan, settings: res.settings || {}, lockedDays: res.lockedDays || [] };
       }
       openApp();
     })
@@ -1017,12 +1023,32 @@ function openApp() {
   document.getElementById('logName').focus();
 })();
 
+// Refresh the manual day locks from the server. Officers see the current state
+// even if an administrator closed a day while the app was already open.
+function refreshLockedDays() {
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res || res.ok === false) return;
+      const next = res.lockedDays || [];
+      const changed = JSON.stringify(next) !== JSON.stringify(state.lockedDays || []);
+      state.lockedDays = next;
+      if (changed && state.selectedRow) {
+        const key = `${state.selectedRow.woredaID}_${state.activeFacility}_${state.activeDay}`;
+        const cached = state.rowDataCache[key];
+        if (cached && typeof renderMain === "function") renderMain(cached);
+      }
+    })
+    .withFailureHandler(function() {})
+    .getDayLocks();
+}
+
 // ================= BOOT =================
 function boot() {
   document.querySelector("#mainArea").innerHTML =
     `<div class="panel" style="background:#fff;border-radius:20px;padding:20px;margin:18px 0">
       <div class="empty"><div class="spinner"></div><b>Loading…</b></div>
     </div>`;
+  refreshLockedDays();
   if (state._initialData) {
     const data = state._initialData;
     state._initialData = null;
@@ -1059,6 +1085,7 @@ function handleInitialData(data) {
 
   state.planRows = scoped;
   state.settings = data.settings || {};
+  state.lockedDays = data.lockedDays || state.lockedDays || [];
   state.selectedRow = scoped[0];
   // If the officer is bound to one health facility (credentials say so), never show other ones.
   state.facilityLocked = !!(state.officer && state.officer.facilityLocked);
@@ -1534,7 +1561,8 @@ function initPhotoUpload_() {
 function renderMain(rowData) {
   const w = state.selectedRow;
   const day = state.activeDay;
-  const readonly = READONLY_DAYS.indexOf(day) !== -1;
+  const dayLocked = state.lockedDays.indexOf(day) !== -1;
+  const readonly = READONLY_DAYS.indexOf(day) !== -1 || dayLocked;
   // Zero-dose teams: this woreda's plan is fixed in the workbook. When no zero-dose
   // vaccination teams are planned, the two zero-dose team fields are hidden from data entry.
   const zeroDosePlanned = (rowData && rowData["AW"] !== "" && rowData["AW"] != null && isFinite(Number(rowData["AW"]))) ? Number(rowData["AW"]) : 0;
@@ -1552,9 +1580,10 @@ function renderMain(rowData) {
         </div>`).join("")}
     </div>` : "");
 
-  const dayTabs = DAYS.map(d =>
-    `<div class="tab ${d === day ? 'active' : ''}" data-day="${escapeAttr(d)}"><span>${escapeHtml(d)}</span></div>`
-  ).join("");
+  const dayTabs = DAYS.map(d => {
+    const locked = state.lockedDays.indexOf(d) !== -1;
+    return `<div class="tab ${d === day ? 'active' : ''} ${locked ? 'day-locked' : ''}" data-day="${escapeAttr(d)}" title="${locked ? 'Locked by the campaign administrator' : escapeAttr(d)}"><span>${escapeHtml(d)}</span>${locked ? ICONS.lock : ''}</div>`;
+  }).join("");
 
   const field = (col, label, forceReadonly = false, forceValue) => {
     const v = (forceValue !== undefined) ? forceValue : (rowData[col] ?? "");
@@ -1731,9 +1760,11 @@ function renderMain(rowData) {
         <span class="ly">Yellow = coverage &lt; 80%</span>
       </div>
       <div class="footer">
-        ${!readonly
-          ? `<button class="btn btn-primary" id="saveBtn" onclick="saveCurrent()">${ICONS.save}Save ${escapeHtml(day)}</button>`
-          : `<span class="readonly-note">${ICONS.lock}Read-only (auto-calculated)</span>`}
+        ${dayLocked
+          ? `<span class="readonly-note" style="background:linear-gradient(135deg,#eef2ff,#e0e7ff)">${ICONS.lock}Locked by the campaign administrator — data entry is closed for ${escapeHtml(day)}</span>`
+          : (!readonly
+              ? `<button class="btn btn-primary" id="saveBtn" onclick="saveCurrent()">${ICONS.save}Save ${escapeHtml(day)}</button>`
+              : `<span class="readonly-note">${ICONS.lock}Read-only (auto-calculated)</span>`)}
         <button class="btn btn-fire" id="btnExportWoreda" onclick="exportExcel()">${ICONS.excel}Export my woreda (Excel)</button>
       </div>
       <div id="exportResult"></div>
@@ -1832,6 +1863,10 @@ function saveCurrent() {
   if (state.busy) return;
   const w = state.selectedRow;
   const day = state.activeDay;
+  if (state.lockedDays.indexOf(day) !== -1) {
+    toast(day + " is locked by the campaign administrator — data entry is closed.", true);
+    return;
+  }
   const inputs = {};
   document.querySelectorAll("#formPanel input[data-col], #formPanel textarea[data-col]").forEach(inp => {
     if (FORMULA_COLS.indexOf(inp.dataset.col) !== -1) return;
@@ -1864,6 +1899,12 @@ function saveCurrent() {
     .withSuccessHandler(res => {
       state.busy = false;
       if (!res || res.ok === false) {
+        if (res && res.code === "DAY_LOCKED" && state.lockedDays.indexOf(day) === -1) {
+          state.lockedDays.push(day);
+          const key = `${w.woredaID}_${state.activeFacility}_${day}`;
+          const cached = state.rowDataCache[key];
+          if (cached) renderMain(cached);
+        }
         toast("Save failed: " + ((res && res.error) || "unknown"), true);
         if (btn) { btn.disabled = false; btn.innerHTML = ICONS.save + "Save " + day; }
         return;
