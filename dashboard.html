@@ -2244,13 +2244,14 @@ function changeDayLock(day, locked){
   google.script.run
     .withSuccessHandler(function(res){
       if (list) list.style.opacity = '1';
-      if (!res || res.ok === false) { toast('Lock change failed: ' + ((res && res.error) || 'unknown'), true); loadDayLocks(); return; }
-      toast(day + (res.locked ? ' locked — data entry closed.' : ' unlocked — data entry open.'));
-      renderDayLocks(res.lockedDays || [], DAY_LOCK_DAYS);
+      if (!res || res.ok === false) { toast('Lock change failed: ' + esc((res && res.error) || 'unknown'), true); loadDayLocks(); return; }
+      toast(esc(day) + (res.locked ? ' locked — data entry closed.' : ' unlocked — data entry open.'));
+      // Re-read the authoritative lock list instead of trusting the toggle reply.
+      loadDayLocks();
     })
     .withFailureHandler(function(e){
       if (list) list.style.opacity = '1';
-      toast('Lock change failed: ' + ((e && e.message) || String(e)), true);
+      toast('Lock change failed: ' + esc((e && e.message) || String(e)), true);
       loadDayLocks();
     })
     .setDayLock({ day: day, locked: locked });
