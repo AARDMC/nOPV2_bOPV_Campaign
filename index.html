@@ -1745,7 +1745,8 @@ function renderMain(rowData) {
             <p class="photo-q-title">Add a vaccination photo?</p>
             <span class="photo-current" id="photoCurrent" hidden>Current photo</span>
             <p class="photo-q-hint">Optional. <b>Upload from Gallery</b> opens the photos saved on your phone. <b>Take a Photo</b> opens your camera to capture one now. One photo per woreda per day — choosing either option replaces the current one, and <b>Remove photo</b> deletes it. Photos appear on the Campaign Update dashboard.</p>
-            <div class="photo-actions">
+            ${readonly ? `<p class="readonly-note">${ICONS.lock}Read-only — photo changes are closed for ${escapeHtml(day)}</p>` : ""}
+            <div class="photo-actions" ${readonly ? "hidden" : ""}>
               <button type="button" class="btn-photo ghost" id="photoGalleryBtn">${ICONS.image}<span>Upload from Gallery</span></button>
               <button type="button" class="btn-photo" id="photoCameraBtn">${ICONS.camera}<span>Take a Photo</span></button>
               <button type="button" class="btn-photo remove" id="photoRemoveBtn" hidden>${ICONS.trash}<span id="photoRemoveLabel">Remove photo</span></button>
