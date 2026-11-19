@@ -870,7 +870,10 @@ document.getElementById('icoGear').innerHTML = ICONS.settings;
 function openDashboard() {
   const wid = state.selectedRow ? state.selectedRow.woredaID : (state.officer ? state.officer.woredaID : "");
   try {
-    if (state.token) localStorage.setItem("epi_token_bridge", state.token);
+    // The dashboard runs in a new tab (noopener), so it cannot see this tab's
+    // sessionStorage. Bridge the signed token through localStorage instead.
+    const tok = state.token || sessionStorage.getItem("epi_token") || "";
+    if (tok) localStorage.setItem("epi_token_bridge", tok);
     if (wid) localStorage.setItem("epi_woreda_bridge", wid);
     if (typeof state.activeFacility === "number") localStorage.setItem("epi_facility_bridge", String(state.activeFacility));
   } catch (e) {}
@@ -940,7 +943,7 @@ function doLogin() {
       if (!res.ok) { errEl.textContent = res.error || "Login failed"; return; }
       state.officer = res.officer;
       sessionStorage.setItem('epi_officer', JSON.stringify(res.officer));
-      if (res.token) sessionStorage.setItem('epi_token', res.token);
+      if (res.token) { state.token = res.token; sessionStorage.setItem('epi_token', res.token); }
       sessionStorage.removeItem('epi_notice');
       // Fast path: combined login + initial data in one round trip
       if (res.plan) {
