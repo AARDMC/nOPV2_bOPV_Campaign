@@ -1046,6 +1046,11 @@ function refreshLockedDays() {
     .getDayLocks();
 }
 
+// Re-check when the user returns to this tab so mid-session lock changes appear.
+document.addEventListener("visibilitychange", function() {
+  if (!document.hidden && state.officer) refreshLockedDays();
+});
+
 // ================= BOOT =================
 function boot() {
   document.querySelector("#mainArea").innerHTML =
