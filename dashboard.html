@@ -1076,23 +1076,27 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
 
 let _chartDefaultsReady = false;
 function setupChartDefaults() {
-  if (_chartDefaultsReady || typeof Chart === 'undefined') return;
+  if (typeof Chart === 'undefined') return;
+  if (_chartDefaultsReady) return;
   _chartDefaultsReady = true;
-  Chart.register(refLine, barLabels, dataLabels);
+  try { Chart.register(refLine, barLabels, dataLabels); } catch (e) {}
   Chart.defaults.font.family = '"Public Sans", system-ui, sans-serif';
   Chart.defaults.font.size = 12;
   Chart.defaults.color = '#44577F';
   Chart.defaults.borderColor = '#D9E8F7';
   Chart.defaults.maintainAspectRatio = false;
   Chart.defaults.animation = false;
+  if (!Chart.defaults.plugins.legend.labels) Chart.defaults.plugins.legend.labels = {};
   Chart.defaults.plugins.legend.labels.boxWidth = 10;
   Chart.defaults.plugins.legend.labels.boxHeight = 10;
-  Chart.defaults.plugins.dataLabels = Object.assign({}, Chart.defaults.plugins.dataLabels || {}, {
+  const dlDefaults = {
     display: true,
     color: '#0F2552',
     font: '700 12px "Public Sans", sans-serif',
     outline: true
-  });
+  };
+  Chart.defaults.plugins.dataLabels = Object.assign({}, Chart.defaults.plugins.dataLabels || {}, dlDefaults);
+  try { if (Chart.defaults.set) Chart.defaults.set('plugins.dataLabels', Chart.defaults.plugins.dataLabels); } catch (e) {}
 }
 const _drawQueue = [];
 let _drawScheduled = false;
