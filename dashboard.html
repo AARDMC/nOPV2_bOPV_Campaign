@@ -1242,22 +1242,21 @@ function renderOverview() {
   const aefiTotal = (cum.aefiMild || 0) + (cum.aefiSev || 0);
 
   const afpCls = afpTotal > 0 ? 'warn' : '';
-  const aefiCls = (cum.aefiSev || 0) > 0 ? 'bad' : '';
+  const aefiCls = (cum.aefiSev || 0) > 0 ? 'bad' : (aefiTotal > 0 ? 'warn' : '');
   const strip = '<div class="strip-label">Vaccination &amp; coverage</div><div class="strip">' +
     stat('Vaccinated on ' + esc(dayName()), fmt(cur.tot), camp ? pct(dayCov) + ' of the daily target' : 'Mop-up day, no daily target') +
-    stat('Woredas at or above ' + pct(CFG.targetCoverage, 0) + ' (daily)', atT + ' of ' + rows.length, 'Daily coverage · ' + below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
+    stat('Woredas at/above ' + pct(CFG.targetCoverage, 0) + ' (daily)', atT + ' of ' + rows.length, 'Daily coverage · ' + below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
     stat('nOPV2 wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') +
     stat('bOPV wastage', pct(bWastage(cum)), 'Limit ' + pct(CFG.maxWastage, 0), bWastage(cum) != null && bWastage(cum) > CFG.maxWastage ? 'bad' : 'good') +
-    stat('Not vaccinated before', fmt(cum.n011 + cum.n1259), '0–11m ' + fmt(cum.n011) + ', 12–59m ' + fmt(cum.n1259)) +
+    stat('Vax before 0–11m', fmt(cum.v011 || 0), '0–11 months') +
+    stat('Not vax 0–11m', fmt(cum.n011 || 0), '0–11 months') +
+    stat('Vax before 12–59m', fmt(cum.v1259 || 0), '12–59 months') +
+    stat('Not vax 12–59m', fmt(cum.n1259 || 0), '12–59 months') +
     '</div>' +
-    '<div class="strip-label">AFP</div><div class="strip">' +
-    '<div class="stat ' + afpCls + '" style="grid-column:1/-1"><div class="l">AFP (Signals + Alerts)</div><div class="v ' + afpCls + '">' + fmt(afpTotal) + ' <span style="font-size:14px;font-weight:700;color:#44577F">total</span></div><div class="s"><b>Signals:</b> ' + fmt(cum.afpSig || 0) + ' &nbsp;&nbsp; <b>Alerts:</b> ' + fmt(cum.afpAlt || 0) + '</div></div>' +
-    '</div>' +
-    '<div class="strip-label">AEFI</div><div class="strip">' +
-    '<div class="stat ' + aefiCls + '" style="grid-column:1/-1"><div class="l">AEFI (Mild + Severe)</div><div class="v ' + aefiCls + '">' + fmt(aefiTotal) + ' <span style="font-size:14px;font-weight:700;color:#44577F">total</span></div><div class="s"><b>Mild:</b> ' + fmt(cum.aefiMild || 0) + ' &nbsp;&nbsp; <b>Severe:</b> ' + fmt(cum.aefiSev || 0) + '</div></div>' +
-    '</div>' +
-    '<div class="strip-label">Vaccination teams</div><div class="strip">' +
-    stat('Teams reporting on ' + esc(dayName()), pct(fieldTeams, 0), fmt(cur.teamsRep) + ' of ' + fmt(cur.teams) + ' teams', fieldTeams != null && fieldTeams < 0.95 ? 'warn' : 'good') +
+    '<div class="strip-label">AFP, AEFI &amp; teams</div><div class="strip">' +
+    stat('AFP (S+A)', fmt(afpTotal), 'Signals: ' + fmt(cum.afpSig || 0) + ' · Alerts: ' + fmt(cum.afpAlt || 0), afpCls) +
+    stat('AEFI (Mild+Sev)', fmt(aefiTotal), 'Mild: ' + fmt(cum.aefiMild || 0) + ' · Severe: ' + fmt(cum.aefiSev || 0), aefiCls) +
+    stat('Teams reporting (' + esc(dayName()) + ')', pct(fieldTeams, 0), fmt(cur.teamsRep) + ' of ' + fmt(cur.teams), fieldTeams != null && fieldTeams < 0.95 ? 'warn' : 'good') +
     '</div>' +
     '<div class="strip-label">Social mobilization</div><div class="strip">' +
     stat('Number of HHs Visited by Social Mobilizers', fmt(cum.hh || 0), 'Cumulative through ' + esc(dayName())) +
