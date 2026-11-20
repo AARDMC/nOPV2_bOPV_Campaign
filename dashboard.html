@@ -999,23 +999,31 @@ function _dlDefaultFormatter(value, chart, ctx) {
   return isFinite(n) ? fmt(n) : String(value);
 }
 const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
+  try {
   const o = (chart.options.plugins && chart.options.plugins.dataLabels) || {};
-  if (o.display === false) return;
+  const globalO = (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.plugins && Chart.defaults.plugins.dataLabels) || {};
+  const enabled = (o.display !== undefined ? o.display : globalO.display);
+  if (enabled === false) return;
   const ctx = chart.ctx;
-  const type = chart.config.type || (chart.data.datasets[0] && chart.data.datasets[0].type) || 'bar';
-  const indexAxis = chart.options.indexAxis || 'x';
-  chart.data.datasets.forEach((ds, di) => {
-    if (ds.datalabels && ds.datalabels.display === false) return;
+  const area = chart.chartArea;
+  if (!ctx || !area) return;
+  const type = chart.config.type || (chart.data.datasets && chart.data.datasets[0] && chart.data.datasets[0].type) || 'bar';
+  const indexAxis = (chart.options && chart.options.indexAxis) || 'x';
+  (chart.data.datasets || []).forEach((ds, di) => {
+    try {
+    if (ds && ds.datalabels && ds.datalabels.display === false) return;
     if (chart.isDatasetVisible && !chart.isDatasetVisible(di)) return;
     const meta = chart.getDatasetMeta(di);
     if (!meta || meta.hidden) return;
-    meta.data.forEach((el, i) => {
+    (meta.data || []).forEach((el, i) => {
+      try {
+      if (!el) return;
       const raw = ds.data[i];
       if (raw == null) return;
       const v = (typeof raw === 'object' && raw) ? (raw.y != null ? raw.y : raw.x) : raw;
-      if (v == null || Number.isNaN(v)) return;
-      const dsOpt = ds.datalabels || {};
-      const formatter = dsOpt.formatter || o.formatter || ((val, c) => _dlDefaultFormatter(val, chart, c));
+      if (v == null || (typeof v === 'number' && !isFinite(v))) return;
+      const dsOpt = (ds && ds.datalabels) || {};
+      const formatter = dsOpt.formatter || o.formatter || globalO.formatter || ((val, c) => _dlDefaultFormatter(val, chart, c));
       const label = formatter(v, { chart, datasetIndex: di, dataIndex: i, dataset: ds, element: el });
       if (label == null || label === '') return;
       const isPie = type === 'pie' || type === 'doughnut' || type === 'polarArea';
@@ -1023,17 +1031,17 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
       const isVertBar = !isPie && !isHoriz && (meta.type === 'bar' || ds.type === 'bar' || type === 'bar');
       const isLine = meta.type === 'line' || ds.type === 'line' || type === 'line';
       const isStacked = !!(chart.options.scales && ((chart.options.scales.x && chart.options.scales.x.stacked) || (chart.options.scales.y && chart.options.scales.y.stacked)));
-      const area = chart.chartArea;
-      let x = el.x, y = el.y, align = 'center', baseline = 'middle', color = dsOpt.color || o.color || _dlColor(chart, di, i, '#0F2552');
+      let x = el.x, y = el.y, align = 'center', baseline = 'middle', color = dsOpt.color || o.color || globalO.color || _dlColor(chart, di, i, '#0F2552');
+      if (x == null || y == null || !isFinite(x) || !isFinite(y)) return;
       if (isPie) {
         const pos = typeof el.tooltipPosition === 'function' ? el.tooltipPosition() : { x: el.x, y: el.y };
-        x = pos.x; y = pos.y;
+        if (pos && isFinite(pos.x) && isFinite(pos.y)) { x = pos.x; y = pos.y; }
         const total = (ds.data || []).reduce((s, n) => s + (Number(n) || 0), 0);
         const share = total > 0 ? (Number(v) || 0) / total : 1;
-        if (share < 0.045 && !o.showSmallPie) return;
-        color = dsOpt.color || o.color || '#fff';
+        if (share < 0.045 && !(o.showSmallPie || globalO.showSmallPie)) return;
+        color = dsOpt.color || o.color || globalO.color || '#fff';
         ctx.save();
-        ctx.font = (dsOpt.font || o.font || '700 11px "Public Sans", sans-serif');
+        ctx.font = (dsOpt.font || o.font || globalO.font || '700 11px "Public Sans", sans-serif');
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(15,37,82,.35)';
         ctx.strokeText(String(label), x, y);
@@ -1042,14 +1050,14 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
         ctx.restore();
         return;
       } else if (isHoriz) {
-        const baseX = (chart.scales.x && typeof chart.scales.x.getPixelForValue === 'function') ? chart.scales.x.getPixelForValue(0) : area.left;
+        const baseX = (chart.scales && chart.scales.x && typeof chart.scales.x.getPixelForValue === 'function') ? chart.scales.x.getPixelForValue(0) : area.left;
         const outside = (x + 6) <= (chart.width - 8);
         x = outside ? x + 5 : Math.max(baseX + 4, x - 5);
         align = outside ? 'left' : 'right';
         if (!outside) color = '#fff';
         baseline = 'middle';
       } else if (isVertBar) {
-        const baseY = (chart.scales.y && typeof chart.scales.y.getPixelForValue === 'function') ? chart.scales.y.getPixelForValue(0) : area.bottom;
+        const baseY = (chart.scales && chart.scales.y && typeof chart.scales.y.getPixelForValue === 'function') ? chart.scales.y.getPixelForValue(0) : area.bottom;
         const val = Number(v) || 0;
         const goingUp = y <= baseY;
         const barH = Math.abs(y - baseY);
@@ -1076,21 +1084,25 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
       } else {
         x = el.x; y = el.y - 6; align = 'center'; baseline = 'bottom';
       }
+      if (!isFinite(x) || !isFinite(y)) return;
       const inChart = (x >= -2 && x <= chart.width + 2 && y >= -2 && y <= chart.height + 2);
       const inArea = (x >= area.left - 2 && x <= area.right + 2 && y >= area.top - 2 && y <= area.bottom + 2);
       if ((isHoriz || isVertBar) ? !inChart : !inArea) return;
       ctx.save();
-      ctx.font = dsOpt.font || o.font || '700 12px "Public Sans", sans-serif';
+      ctx.font = dsOpt.font || o.font || globalO.font || '700 12px "Public Sans", sans-serif';
       ctx.textAlign = align; ctx.textBaseline = baseline;
-      if (o.outline || dsOpt.outline || (isVertBar && align === 'center') || isHoriz) {
+      if (o.outline || dsOpt.outline || globalO.outline || (isVertBar && align === 'center') || isHoriz) {
         ctx.lineWidth = 3; ctx.strokeStyle = (color === '#fff') ? 'rgba(15,37,82,.35)' : 'rgba(255,255,255,.85)';
         ctx.strokeText(String(label), x, y);
       }
       ctx.fillStyle = color;
       ctx.fillText(String(label), x, y);
       ctx.restore();
+      } catch (e) {}
     });
+    } catch (e) {}
   });
+  } catch (e) {}
 }};
 
 let _chartDefaultsReady = false;
@@ -1098,7 +1110,9 @@ function setupChartDefaults() {
   if (typeof Chart === 'undefined') return;
   if (_chartDefaultsReady) return;
   _chartDefaultsReady = true;
-  try { Chart.register(refLine, barLabels, dataLabels); } catch (e) {}
+  try { Chart.register(refLine); } catch (e) {}
+  try { Chart.register(barLabels); } catch (e) {}
+  try { Chart.register(dataLabels); } catch (e) {}
   Chart.defaults.font.family = '"Public Sans", system-ui, sans-serif';
   Chart.defaults.font.size = 12;
   Chart.defaults.color = '#44577F';
