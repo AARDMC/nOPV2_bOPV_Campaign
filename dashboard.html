@@ -1289,7 +1289,7 @@ function renderGeo() {
   }).join('');
 
   const zt = '<div class="tbl-wrap"><table><thead><tr><th>Zone</th><th>Woredas</th><th>Daily target</th><th>Vaccinated</th><th>Daily coverage</th><th>At or above ' + pct(CFG.targetCoverage, 0) + ' (daily)</th><th>Wastage</th><th>AEFI</th></tr></thead><tbody>' +
-    zg.map(g => '<tr><td>' + esc(g.key) + '</td><td>' + g.rows.length + '</td><td>' + fmt(g.dtgt) + '</td><td>' + fmt(g.a.tot) + '</td><td>' + covCell(g.dcov) + '</td><td>' + g.atTarget + ' of ' + g.rows.length + '</td><td>' + pct(g.w) + '</td><td>' + fmt(g.a.aefiM + g.a.aefiS) + '</td></tr>').join('') +
+    zg.map(g => '<tr><td>' + esc(g.key) + '</td><td>' + g.rows.length + '</td><td>' + fmt(g.dtgt) + '</td><td>' + fmt(g.a.tot) + '</td><td>' + covCell(g.dcov) + '</td><td>' + g.atTarget + ' of ' + g.rows.length + '</td><td>' + pct(g.w) + '</td><td>' + fmt((g.a.aefiMild || 0) + (g.a.aefiSev || 0)) + '</td></tr>').join('') +
     '</tbody></table></div>';
 
   app().innerHTML = '<div class="grid" style="margin-top:0">' +
