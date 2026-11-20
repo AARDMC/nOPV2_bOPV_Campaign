@@ -109,6 +109,17 @@ button,select,input{font:inherit;color:inherit}
 .fld label{font-size:12px;color:var(--ink2);font-weight:500}
 .fld select{border:1.5px solid var(--card-line);background:#fff;border-radius:6px;padding:7px 10px;min-width:170px}
 .fld select:disabled{background:var(--line2);color:var(--ink3)}
+#dayField{position:relative}
+.fld .day-btn{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:170px;min-height:36px;padding:7px 10px;border:1.5px solid var(--card-line);border-radius:6px;background:#fff;font-weight:500;text-align:left}
+.fld .day-btn:hover{border-color:#9FB4D8;background:#F8FAFF}
+.fld .day-caret{font-size:11px;color:var(--ink2);flex:none}
+.fld .day-btn #fDayText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.day-menu{position:absolute;top:100%;left:0;z-index:50;margin-top:4px;min-width:230px;max-height:300px;overflow:auto;background:#fff;border:1.5px solid var(--card-line);border-radius:8px;box-shadow:0 14px 30px rgba(15,37,82,.18);padding:6px}
+.day-menu label{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:6px;font-size:13px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.day-menu label:hover{background:#EEF4FF}
+.day-menu input{width:16px;height:16px;accent-color:#1558B8;margin:0;flex:none}
+.day-menu .day-all{display:flex;gap:8px;border-bottom:1px solid var(--line2);padding:2px 8px 8px;margin-bottom:4px}
+.day-menu .day-all button{border:0;background:none;color:#1558B8;font-size:12px;font-weight:600;padding:3px 2px;cursor:pointer}
 .tabbar{background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(245,250,255,.98));border-bottom:1.5px solid var(--card-line);backdrop-filter:blur(6px)}
 .tabs{max-width:1320px;margin:0 auto;padding:10px 20px 12px;display:flex;gap:8px;overflow-x:auto;align-items:center}
 .tab-btn{position:relative;background:rgba(255,255,255,.75);border:1.5px solid #d8e8f8;padding:9px 16px;cursor:pointer;color:var(--ink2);font-weight:600;font-size:13.5px;white-space:nowrap;font-family:"Poppins",sans-serif;border-radius:999px;transition:all .18s ease;box-shadow:0 2px 6px rgba(15,37,82,.04)}
@@ -287,6 +298,8 @@ main,.bannerhost,.filters-inner,.tabs,.top-inner{max-width:100%}
   .filters-inner{padding:10px 12px;gap:10px}
   .fld{min-width:0;flex:1 1 calc(50% - 10px)}
   .fld select{min-width:0;width:100%}
+  .fld .day-btn{min-width:0;width:100%}
+  .day-menu{left:auto;right:0;min-width:min(260px,88vw)}
   .filters-inner .btn{flex:1 1 calc(50% - 10px);width:100%;justify-content:center}
   .tabs{padding:8px 12px 10px;gap:6px}
   .tab-btn{padding:8px 12px;font-size:12.5px}
@@ -537,7 +550,11 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
     <div class="fld"><label for="fZone">Zone</label><select id="fZone"></select></div>
     <div class="fld"><label for="fWoreda">Woreda</label><select id="fWoreda" disabled></select></div>
     <div class="fld" id="hcField" style="display:none"><label for="fHC">Health center</label><select id="fHC"></select></div>
-    <div class="fld"><label for="fDay">Cumulative through</label><select id="fDay"></select></div>
+    <div class="fld" id="dayField">
+      <label id="fDayLabel">Days</label>
+      <button type="button" id="fDayBtn" class="day-btn" aria-haspopup="true" aria-expanded="false" aria-labelledby="fDayLabel"><span id="fDayText">All days</span><span class="day-caret" aria-hidden="true">▾</span></button>
+      <div id="fDayMenu" class="day-menu" role="group" aria-labelledby="fDayLabel" hidden></div>
+    </div>
     <button class="btn dark" id="btnReset" type="button">Clear filters</button>
     <button class="btn solid" id="btnExport" type="button" title="Download scoped Excel from the Google Sheet (keeps formulas, formatting and validation)">Download Excel</button>
     <button class="btn ephi" id="btnEphiExport" type="button" hidden title="Region-level only: clean EPHI workbook (polio-message reach + zero-dose teams, split woredas consolidated)">EPHI Excel Export</button>
@@ -601,7 +618,13 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
 <script>
 /* ===================== LOGIC ===================== */
 let CFG = null, M = null;
-const S = { zone:'all', woreda:'all', upTo:0, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all', mergeHc:false };
+// Day filter: the set of campaign-day indices included in every dashboard figure.
+// Selecting several days sums them (cumulative total over the selected days).
+const S = { zone:'all', woreda:'all', days:null, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all', mergeHc:false };
+const allDayIdxs = () => (M ? Array.from({ length:(M.last || 0) + 1 }, (_, i) => i) : [0]);
+const selectedDayIdxs = () => Array.from(S.days || allDayIdxs()).sort((a, b) => a - b);
+const inDays = d => (S.days ? S.days.has(d) : d <= (M ? M.last : 0));
+const dayRangeText = (withDate) => selectedDayIdxs().map(i => withDate ? dayText(i) : (M && M.days[i] ? M.days[i].label : '')).join(' + ');
 let DASH_SCOPE = { mode:'all', zone:'', woreda:'', woredaID:'', facilities: [], facilityCount: 0, facilityIndex: -1 };
 let DASH_FACILITY = -1;
 let IS_SUPER_ADMIN = false; // signed in as @Get-Man — may lock/unlock data-entry days
@@ -800,8 +823,8 @@ function scopeRecs() { const set = new Set(scopeUnits().map(u => u.sn)); return 
 
 function unitRows() {
   return scopeUnits().map(u => {
-    const rs = M.bySn[u.sn].filter(r => r.d <= S.upTo);
-    const a = sumRecs(rs), day = sumRecs(M.bySn[u.sn].filter(r => r.d === S.upTo));
+    const rs = M.bySn[u.sn].filter(r => inDays(r.d));
+    const a = sumRecs(rs), day = a; // "day" columns follow the Day filter selection
     return { u, a, day, tgt: u.tgt, cov: cov(a.tot, u.tgt), w: wastage(a), bw: bWastage(a),
              flags: rs.reduce((n, r) => n + r.flags.length, 0) + u.flags.length };
   });
@@ -817,12 +840,12 @@ function rollup(rows, keyFn) {
 }
 const groupBy = () => S.zone === 'all' ? 'zone' : 'woreda';
 function groups(rows) { return rollup(rows, r => S.zone === 'all' ? r.u.zone : r.u.woreda); }
-function dayTotals(recs) { return M.days.slice(0, M.last + 1).map((d, i) => sumRecs(recs.filter(r => r.d === i))); }
+function dayTotals(recs) { return M.days.slice(0, M.last + 1).map((d, i) => inDays(i) ? sumRecs(recs.filter(r => r.d === i)) : zeroObj()); }
 
 function qualityItems() {
   const set = new Set(scopeUnits().map(u => u.sn)), items = [];
   M.recs.forEach(r => {
-    if (!set.has(r.sn) || r.d > S.upTo) return;
+    if (!set.has(r.sn) || !inDays(r.d)) return;
     r.flags.forEach(f => items.push({ rule:f.rule, text:f.text, day:M.days[r.d].label, d:r.d, zone:r.u.zone, woreda:r.u.woreda }));
   });
   M.units.forEach(u => {
@@ -843,7 +866,7 @@ function dayText(i) {
   const ds = fmtDateSafe_(d.date, { day:'numeric', month:'short' });
   return ds ? (d.label + ' (' + ds + ')') : d.label;
 }
-const dayName = () => M.days[S.upTo] ? M.days[S.upTo].label : '';
+const dayName = () => dayRangeText(false);
 function scopeName() {
   let base = S.woreda !== 'all' ? S.zone + ', ' + S.woreda : S.zone !== 'all' ? S.zone : 'All zones';
   if (DASH_SCOPE && DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.facilityCount >= 1 && DASH_FACILITY >= 0 && DASH_SCOPE.facilities && DASH_SCOPE.facilities[DASH_FACILITY]) {
@@ -957,12 +980,12 @@ function covCell(c) {
 /* ---------- Overview ---------- */
 function renderOverview() {
   const units = scopeUnits(), recs = scopeRecs(), tgt = tgtOf(units);
-  const cumRecs = recs.filter(r => r.d <= S.upTo);
-  const cum = sumRecs(cumRecs), cur = sumRecs(recs.filter(r => r.d === S.upTo));
+  const cumRecs = recs.filter(r => inDays(r.d));
+  const cum = sumRecs(cumRecs), cur = cum; // selected days are the reporting scope
   const c = cov(cum.tot, tgt), rows = unitRows(), w = wastage(cum);
   const atT = rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length;
   const below = rows.filter(r => r.cov != null && r.cov < CFG.warnCoverage).length;
-  const dt = dayTotals(recs).slice(0, S.upTo + 1);
+  const dt = dayTotals(recs);
 
   const scaleMax = Math.max(1.05, (c || 0) * 1.04);
   let segs = '', legend = '';
@@ -985,7 +1008,7 @@ function renderOverview() {
     '<div class="legend">' + legend + '</div>' +
     '<div class="hero-note ' + (gap >= 0 ? '' : 'bad') + '">' + note + '</div></div></div>';
 
-  const camp = M.days[S.upTo].type === 'campaign';
+  const camp = selectedDayIdxs().some(i => M.days[i] && M.days[i].type === 'campaign');
   const dayCov = camp ? cov(cur.tot, cur.dtgt) : null;
   const fieldTeams = cur.teams > 0 ? cur.teamsRep / cur.teams : null;
   // Safety and social mobilization indicators (new variable structure).
@@ -1131,9 +1154,9 @@ function renderGeoTable() {
 
 /* ---------- Vaccine use ---------- */
 function renderVaccine() {
-  const recs = scopeRecs(), cumRecs = recs.filter(r => r.d <= S.upTo), cum = sumRecs(cumRecs);
+  const recs = scopeRecs(), cumRecs = recs.filter(r => inDays(r.d)), cum = sumRecs(cumRecs);
   const w = wastage(cum), bw = bWastage(cum);
-  const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
   const gN = groups(unitRows()).filter(x => x.w != null).sort((a, b) => b.w - a.w);
   const gB = groups(unitRows()).filter(x => x.bw != null).sort((a, b) => b.bw - a.bw);
   const ghN = Math.max(220, gN.length * 28 + 50);
@@ -1228,8 +1251,8 @@ function communityReachHTML(title, rows, keyLabel) {
 
 /* ---------- AFP ---------- */
 function renderAfp() {
-  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => r.d <= S.upTo));
-  const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
+  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
   const afpTotal = (cum.afpSig || 0) + (cum.afpAlt || 0);
   const zdShare = (cum.zdId || 0) > 0 ? (cum.zdV || 0) / cum.zdId : null;
   const uvShare = (cum.uvId || 0) > 0 ? (cum.uvV || 0) / cum.uvId : null;
@@ -1261,8 +1284,8 @@ function renderAfp() {
 
 /* ---------- AEFI ---------- */
 function renderAefi() {
-  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => r.d <= S.upTo));
-  const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
+  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
   const aefiTotal = (cum.aefiMild || 0) + (cum.aefiSev || 0);
   const sevShare = aefiTotal > 0 ? (cum.aefiSev || 0) / aefiTotal : null;
   const strip = '<div class="strip">' +
@@ -1291,9 +1314,9 @@ function renderAefi() {
 
 /* ---------- Teams ---------- */
 function renderTeams() {
-  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => r.d <= S.upTo));
-  const cur = sumRecs(recs.filter(r => r.d === S.upTo));
-  const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
+  const cur = cum;
+  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
   const fieldTeams = cur.teams > 0 ? cur.teamsRep / cur.teams : null;
   const zdRepShare = cum.zdTeams > 0 ? cum.zdTeamsRep / cum.zdTeams : null;
   const strip = '<div class="strip">' +
@@ -1325,8 +1348,8 @@ function renderTeams() {
 
 /* ---------- Social mobilization ---------- */
 function renderSocial() {
-  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => r.d <= S.upTo));
-  const dt = dayTotals(recs).slice(0, S.upTo + 1), labels = dt.map((a, i) => M.days[i].label);
+  const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
+  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
   const mobTotal = (cum.groupDisc || 0) + (cum.homeEdu || 0);
   const groupShare = mobTotal > 0 ? (cum.groupDisc || 0) / mobTotal : null;
   const strip = '<div class="strip">' +
@@ -1374,7 +1397,7 @@ function renderQuality() {
     : '<div class="empty">No issues found for this selection.</div>';
 
   const set = new Set(scopeUnits().map(u => u.sn));
-  const rem = M.remarks.filter(x => set.has(x[1]) && x[0] <= S.upTo);
+  const rem = M.remarks.filter(x => set.has(x[1]) && inDays(x[0]));
   const remTbl = rem.length
     ? '<div class="tbl-wrap"><table><thead><tr><th class="tl">Day</th><th class="tl">Zone</th><th class="tl">Woreda</th><th class="tl">Remark</th></tr></thead><tbody>' +
       rem.map(x => { const u = M.bySnU[x[1]]; return '<tr><td class="tl">' + esc(M.days[x[0]].label) + '</td><td class="tl">' + esc(u.zone) + '</td><td class="tl">' + esc(u.woreda) + '</td><td class="wrap">' + esc(x[2]) + '</td></tr>'; }).join('') + '</tbody></table></div>'
@@ -1529,7 +1552,7 @@ function renderMap(){
           M.units.forEach(u => {
             if (DASH_SCOPE && DASH_SCOPE.mode === 'zone' && String(u.zone || '').toLowerCase() !== String(DASH_SCOPE.zone || '').toLowerCase()) return;
             if (DASH_SCOPE && DASH_SCOPE.mode === 'woreda' && String(u.woredaID || '') !== String(DASH_SCOPE.woredaID || '')) return;
-            const recsU = (M.bySn[u.sn] || []).filter(rec => rec.d <= S.upTo);
+            const recsU = (M.bySn[u.sn] || []).filter(rec => inDays(rec.d));
             const pt = placeTotAgg(sumRecs(recsU));
             placeRegionAll += pt;
             if (u.zone) {
@@ -1923,8 +1946,8 @@ function updateHeader() {
   const b = $('#banner'); if (!b) return;
   b.hidden = false;
   $('#bannerTitle').textContent = TAB_TITLES[S.tab] || '';
-  $('#bannerSub').textContent = scopeName() + ' | cumulative through ' + dayText(S.upTo);
-  const d = M.days[S.upTo];
+  $('#bannerSub').textContent = scopeName() + ' | days: ' + dayRangeText(false);
+  const d = M.days[selectedDayIdxs().slice(-1)[0]];
   const rd = d && d.date ? fmtDateSafe_(d.date, { month:'short', day:'numeric', year:'numeric' }) : '';
   $('#repDate').textContent = rd || (d ? d.label : '–');
   updateEphiVisibility();
@@ -1959,8 +1982,39 @@ function fillFilters() {
   }
   fillWoredas();
   updateHCSelector();
-  $('#fDay').innerHTML = M.days.map((d, i) => i > M.last ? '' : '<option value="' + i + '">' + esc(dayText(i)) + '</option>').join('');
-  $('#fDay').value = S.upTo;
+  dayMenuBuild();
+}
+/* ---------- Day filter (multi-select) ---------- */
+function dayMenuBuild() {
+  const menu = document.getElementById('fDayMenu');
+  if (!menu || !M) return;
+  const checked = i => selectedDayIdxs().indexOf(i) >= 0 ? ' checked' : '';
+  menu.innerHTML = '<div class="day-all">' +
+      '<button type="button" data-dayact="all">All days</button>' +
+      '<button type="button" data-dayact="first">Day 1 only</button></div>' +
+    M.days.map((d, i) => i > M.last ? '' :
+      '<label><input type="checkbox" value="' + i + '"' + checked(i) + '><span>' + esc(dayText(i)) + '</span></label>').join('');
+  dayMenuSync();
+}
+function dayMenuSync() {
+  const txt = document.getElementById('fDayText');
+  const sel = selectedDayIdxs();
+  if (txt) { txt.textContent = sel.length ? sel.map(i => (M && M.days[i]) ? M.days[i].label : String(i)).join(' + ') : 'No days'; txt.title = txt.textContent; }
+  const menu = document.getElementById('fDayMenu');
+  if (menu) Array.from(menu.querySelectorAll('input[type=checkbox]')).forEach(cb => { cb.checked = S.days ? S.days.has(Number(cb.value)) : false; });
+}
+function closeDayMenu() {
+  const menu = document.getElementById('fDayMenu'), btn = document.getElementById('fDayBtn');
+  if (menu) menu.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+function setDaySelection(idxs, keepOpen) {
+  const allowed = new Set(allDayIdxs());
+  const cleaned = idxs.filter(i => allowed.has(i));
+  S.days = new Set(cleaned.length ? cleaned : allDayIdxs());
+  dayMenuSync();
+  if (!keepOpen) closeDayMenu();
+  render();
 }
 function fillWoredas() {
   const sel = $('#fWoreda');
@@ -2056,8 +2110,9 @@ function onData(payload, fromCache) {
     DASH_FACILITY = (DASH_SCOPE && DASH_SCOPE.facilityLocked) ? 0 : payload.scope.facilityIndex;
   }
   buildModel(payload);
-  if (!onData.done) { S.upTo = M.last; onData.done = true; }
-  if (S.upTo > M.last || !M.days[S.upTo]) S.upTo = M.last;
+  if (!onData.done) { S.days = new Set(allDayIdxs()); onData.done = true; }
+  S.days = new Set(selectedDayIdxs().filter(i => i <= M.last && M.days[i]));
+  if (!S.days.size) S.days = new Set(allDayIdxs());
   // apply scope defaults
   if (DASH_SCOPE.zone) S.zone = DASH_SCOPE.zone;
   if (DASH_SCOPE.woreda) S.woreda = DASH_SCOPE.woreda;
@@ -2440,11 +2495,11 @@ function doEphiExport(){
 function buildNarrationDeck(){
   const scopeTitle = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.woreda) ? (DASH_SCOPE.zone+' / '+DASH_SCOPE.woreda) : (DASH_SCOPE.mode==='zone' && DASH_SCOPE.zone ? DASH_SCOPE.zone : 'Addis Ababa (Scoped View)');
   const hcName = (DASH_SCOPE.mode==='woreda' && DASH_SCOPE.facilities && DASH_FACILITY>=0 && DASH_SCOPE.facilities[DASH_FACILITY]) ? DASH_SCOPE.facilities[DASH_FACILITY] : '';
-  const asOf = 'Cumulative through ' + dayText(S.upTo);
+  const asOf = 'Days: ' + dayRangeText(false);
   const stamp = M.meta && M.meta.generated ? ('Data read ' + M.meta.generated) : '';
   const recs = scopeRecs(), units = scopeUnits(), tgt = tgtOf(units);
-  const cum = sumRecs(recs.filter(r => r.d <= S.upTo)), cur = sumRecs(recs.filter(r => r.d === S.upTo));
-  const rows = unitRows(), dt = dayTotals(recs).slice(0, S.upTo + 1);
+  const cum = sumRecs(recs.filter(r => inDays(r.d))), cur = cum;
+  const rows = unitRows(), dt = dayTotals(recs);
   const c = cov(cum.tot, tgt), w = wastage(cum), bw = bWastage(cum), den = cum.tot || 1;
   const T = pct(CFG.targetCoverage, 0), Wn = pct(CFG.warnCoverage, 0), WL = pct(CFG.maxWastage, 0);
   const belowT = rows.filter(r => r.cov != null && r.cov < CFG.targetCoverage).sort((a,b)=>a.cov-b.cov);
@@ -2466,7 +2521,7 @@ function buildNarrationDeck(){
   const peakI = dt.length ? dt.reduce((b,a,i)=> a.tot > dt[b].tot ? i : b, 0) : 0;
   const lossN = (cum.brk||0)+(cum.retB||0)+(cum.lost||0);
   const lossB = (cum.bbrk||0)+(cum.bretB||0)+(cum.blost||0);
-  const sev = recs.filter(r => r.d <= S.upTo && (r.aefiSev||0) > 0).map(r => (r.u.woreda||'') + (r.u.zone?(' ('+r.u.zone+')'):'') + ', ' + M.days[r.d].label);
+  const sev = recs.filter(r => inDays(r.d) && (r.aefiSev||0) > 0).map(r => (r.u.woreda||'') + (r.u.zone?(' ('+r.u.zone+')'):'') + ', ' + M.days[r.d].label);
   let crossI = -1, run = 0;
   for (let i=0;i<dt.length;i++){ run += dt[i].tot; if(tgt>0 && run/tgt >= CFG.targetCoverage){ crossI=i; break; } }
   const gs = groups(rows).filter(g=>g.cov!=null).sort((a,b)=>b.cov-a.cov);
@@ -2491,7 +2546,7 @@ function buildNarrationDeck(){
   slides.push({ kind:'title', title:'Title', heading: M.meta && M.meta.title ? M.meta.title : 'nOPV2 + bOPV Campaign Update',
     narration: [
       'This presentation reviews campaign performance against targets for ' + scopeLabel + '.',
-      'It covers all data entered through ' + dayText(S.upTo) + '. ' + (stamp || ''),
+      'It covers data for ' + dayRangeText(false) + '. ' + (stamp || ''),
       'Figures are based on the campaign workbook/dashboard data and can be traced back to reported entries.'
     ]});
 
@@ -2506,7 +2561,7 @@ function buildNarrationDeck(){
     narration: [
       'Scope: ' + scopeLabel + '.',
       'This view includes ' + fmt(uniqueWoredas) + ' woreda(s), ' + fmt(hcCount) + ' health center(s), and ' + fmt(teamCount) + ' vaccination team(s) (planned).',
-      'Total vaccinated children (cumulative through ' + dayText(S.upTo) + '): ' + fmt(cum.tot) + '.'
+      'Total vaccinated children (' + dayRangeText(false) + '): ' + fmt(cum.tot) + '.'
     ],
     kpis: [
       ['Woredas', fmt(uniqueWoredas)], ['Health centers', fmt(hcCount)], ['Vaccination teams', fmt(teamCount)],
@@ -2564,7 +2619,7 @@ function buildNarrationDeck(){
     narration: [
       dt.length ? (M.days[peakI].label + ' was the busiest day, with ' + fmt(dt[peakI].tot) + ' children vaccinated.') : 'No daily data available.',
       crossI >= 0 ? 'Cumulative coverage passed ' + T + ' on ' + M.days[crossI].label + '.' : 'Cumulative coverage has not yet reached ' + T + '.',
-      'On ' + dayText(S.upTo) + ', ' + fmt(cur.tot) + ' children were vaccinated' + (cur.dtgt ? (' against a daily target of ' + fmt(cur.dtgt) + ' (' + pct(cur.dtgt?cur.tot/cur.dtgt:null) + ').') : '.'),
+      'For ' + dayRangeText(false) + ', ' + fmt(cur.tot) + ' children were vaccinated' + (cur.dtgt ? (' against a daily target of ' + fmt(cur.dtgt) + ' (' + pct(cur.dtgt?cur.tot/cur.dtgt:null) + ').') : '.'),
       'Daily coverage compares children vaccinated with that day’s target; mop-up days may not have a daily target.'
     ]});
 
@@ -2640,7 +2695,7 @@ function buildNarrationDeck(){
   if (belowT.length) disc.push('Follow up ' + pl(belowT.length,'unit') + ' under ' + T + ': ' + listOf(belowT.slice(0,5).map(wname),5) + '.');
   if (w != null && w > CFG.maxWastage) disc.push('Review nOPV2 vial handling: wastage is ' + pct(w) + ', above the ' + WL + ' limit.');
   if (bw != null && bw > CFG.maxWastage) disc.push('Review bOPV vial handling: wastage is ' + pct(bw) + ', above the ' + WL + ' limit.');
-  if ((cur.teams||0) > 0 && (cur.teamsRep||0)/(cur.teams||1) < 0.95 && M.days[S.upTo] && M.days[S.upTo].type === 'campaign') disc.push('Improve team reporting: ' + pct((cur.teamsRep||0)/(cur.teams||1),0) + ' reported on ' + dayName() + '.');
+  if ((cur.teams||0) > 0 && (cur.teamsRep||0)/(cur.teams||1) < 0.95 && selectedDayIdxs().some(i => M.days[i] && M.days[i].type === 'campaign')) disc.push('Improve team reporting: ' + pct((cur.teamsRep||0)/(cur.teams||1),0) + ' reported on ' + dayName() + '.');
   if ((cum.aefiSev||0) > 0) disc.push('Confirm that all ' + fmt(cum.aefiSev) + ' severe AEFI were investigated.');
   if ((cum.afpAlt||0) > 0) disc.push('Follow up ' + fmt(cum.afpAlt) + ' AFP Alert reports with surveillance.');
   if (items.length) disc.push('Ask focal persons to correct the ' + pl(items.length,'flagged data entry').replace('entrys','entries') + '.');
@@ -2989,7 +3044,28 @@ function init() {
   $('#btnRefresh').addEventListener('click', () => load(true));
   $('#fZone').addEventListener('change', e => { S.zone = e.target.value; S.woreda = 'all'; fillWoredas(); render(); });
   $('#fWoreda').addEventListener('change', e => { S.woreda = e.target.value; render(); });
-  $('#fDay').addEventListener('change', e => { S.upTo = Number(e.target.value); render(); });
+  // Day filter: multi-select popover. Every change simply re-renders with the
+  // selected day set; all dashboard figures sum exactly those days.
+  $('#fDayBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    const menu = $('#fDayMenu'), open = menu.hidden;
+    menu.hidden = !open;
+    $('#fDayBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  $('#fDayMenu').addEventListener('change', e => {
+    if (!e.target.matches('input[type=checkbox]')) return;
+    const sel = $$('#fDayMenu input[type=checkbox]:checked').map(cb => Number(cb.value));
+    if (!sel.length) { e.target.checked = true; return; } // never leave an empty scope
+    S.days = new Set(sel);
+    dayMenuSync();
+    render();
+  });
+  $('#fDayMenu').addEventListener('click', e => {
+    const a = e.target.closest('[data-dayact]'); if (!a) return;
+    e.preventDefault();
+    setDaySelection(a.dataset.dayact === 'all' ? allDayIdxs() : [0], true);
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('#dayField')) closeDayMenu(); });
   $('#fHC').addEventListener('change', e => { DASH_FACILITY = Number(e.target.value); load(false); });
   $('#btnExport').addEventListener('click', doDashboardExport);
   $('#btnEphiExport').addEventListener('click', doEphiExport);
@@ -3014,7 +3090,7 @@ function init() {
     if (DASH_SCOPE.mode === 'woreda') { S.zone = DASH_SCOPE.zone; S.woreda = DASH_SCOPE.woreda; }
     else if (DASH_SCOPE.mode === 'zone') { S.zone = DASH_SCOPE.zone; S.woreda = 'all'; }
     else { S.zone = 'all'; S.woreda = 'all'; }
-    S.upTo = M ? M.last : 0; S.q = ''; S.rule = 'all'; if (M) { fillFilters(); render(); }
+    S.days = new Set(M ? allDayIdxs() : [0]); S.q = ''; S.rule = 'all'; if (M) { fillFilters(); render(); }
   });
   $$('.tab-btn').forEach(b => b.addEventListener('click', () => {
     S.tab = b.dataset.tab; $$('.tab-btn').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
