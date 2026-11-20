@@ -1192,6 +1192,17 @@ function renderOverview() {
   const g = groups(rows).sort((a, b) => (b.dcov == null ? -1 : b.dcov) - (a.dcov == null ? -1 : a.dcov));
   const gh = Math.max(240, g.length * 30 + 50);
 
+  const rowsWithCov = rows.filter(r => r.dcov != null);
+  const perfBands = perfBandCounts(rowsWithCov);
+  const perfBandTotal = (perfBands.labels || []).reduce((s, l) => s + (perfBands.counts[l] || 0), 0);
+  const perfBandSummary = perfBands.labels.map((label, i) => {
+    const n = perfBands.counts[label] || 0;
+    const names = (perfBands.lists[label] || []).map(r => r.u.woreda + ' (' + r.u.zone + ')');
+    const shown = names.slice(0, 6).join(', ');
+    const more = names.length > 6 ? (' and ' + (names.length - 6) + ' more') : '';
+    return '<div style="margin-top:8px"><span style="display:inline-block;min-width:56px;padding:2px 8px;border-radius:999px;background:' + perfBands.colors[i] + '22;color:' + perfBands.colors[i] + ';border:1px solid ' + perfBands.colors[i] + '44;font-weight:700;text-align:center">' + esc(label) + '</span> <b>' + n + '</b> woreda(s)' + (shown ? ': <span style="color:#44577F">' + esc(shown + more) + '</span>' : '') + '</div>';
+  }).join('');
+
   const placeVals = [['House', cum.pHouse || 0], ['School', cum.pSchool || 0], ['Market', cum.pMarket || 0], ['Street', cum.pStreet || 0], ['Other place', cum.pOther || 0]];
   const placeColors = ['#2563EB', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6'];
 
@@ -1202,6 +1213,7 @@ function renderOverview() {
     panel('c4', 'Sex Distribution', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
     panel('c7', 'Age group by day', 'Children aged 0–11 months and 12–59 months.', '<div class="chart"><canvas id="ch-age"></canvas></div>') +
     panel('c5', 'Where children were vaccinated', 'Through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-place"></canvas></div>') +
+    panel('c12', 'Woreda performance classification', 'Woredas classified by daily coverage for selected day(s): ≥90%, 80–89%, <80%.', '<div class="chart"><canvas id="ch-perf-bands-summary"></canvas></div><div style="margin-top:8px;font-size:12px;line-height:1.45">' + perfBandSummary + '</div>') +
     panel('c6', 'Total Vaccination Teams vs. Reported Teams', 'Selected day(s): total vaccination teams fielded/planned compared with teams that reported.', '<div class="chart"><canvas id="ch-teams-cmp"></canvas></div>') +
     panel('c6', 'Total Zero-Dose Teams vs. Reported Teams', 'Selected day(s): total zero-dose teams fielded compared with zero-dose teams that reported.', '<div class="chart"><canvas id="ch-zdteams-cmp"></canvas></div>') +
     '</div>';
@@ -1239,6 +1251,9 @@ function renderOverview() {
     options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v,ctx)=>{ const arr = (ctx.chart.data.datasets[0]||{}).data || []; const base = Number(arr[0] || 0); return base > 0 ? (fmt(v) + ' (' + pct((Number(v)||0)/base) + ')') : fmt(v); } } } }) });
   draw('ch-zdteams-cmp', { type:'bar', data:{ labels:['Total zero-dose teams','Reported zero-dose teams'], datasets:[{ label:'Teams', data:[cur.zdTeams||0, cur.zdTeamsRep||0], backgroundColor:['#8B5CF6','#34D399'], borderRadius:4 }] },
     options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v,ctx)=>{ const arr = (ctx.chart.data.datasets[0]||{}).data || []; const base = Number(arr[0] || 0); return base > 0 ? (fmt(v) + ' (' + pct((Number(v)||0)/base) + ')') : fmt(v); } } } }) });
+
+  draw('ch-perf-bands-summary', { type:'bar', data:{ labels: perfBands.labels, datasets:[{ label:'Woredas', data: perfBands.labels.map(function(l){ return perfBands.counts[l] || 0; }), backgroundColor: perfBands.colors, borderRadius:4 }] },
+    options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ precision:0, callback: function(v){ return fmt(v); } } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:function(v){ var n = Number(v)||0; return perfBandTotal>0 ? (fmt(n)+' ('+pct(n/perfBandTotal)+')') : fmt(n); } } } }) });
 }
 
 /* ---------- Zones and woredas ---------- */
