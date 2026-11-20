@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap"></noscript>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js" defer></script>
 <style>
 :root{
@@ -954,23 +954,25 @@ function chartTotalsAt_(chart, dataIndex) {
 function _dlDefaultFormatter(value, chart, ctx) {
   if (value == null || value === '') return '';
   const o = (chart.options.plugins && chart.options.plugins.dataLabels) || {};
+  const ds = (chart && chart.data && chart.data.datasets && chart.data.datasets[ctx.datasetIndex]) || {};
+  const dsOpt = ds.datalabels || {};
+  const isPctContext = !!(dsOpt.percentOnly || dsOpt.yPercent || dsOpt.valuePercent || o.percentOnly || o.yPercent || o.valuePercent ||
+    (chart && chart.config && chart.config._pctLabel) ||
+    (chart && chart.options && chart.options.scales && ((chart.options.scales.y && chart.options.scales.y._pct) || (chart.options.scales.x && chart.options.scales.x._pct))));
   if (o.percent) {
     const vals = ((chart.data.datasets || [])[ctx.datasetIndex] || {}).data || [];
     const total = vals.reduce((s, v) => s + (Number(v) || 0), 0);
-    if (total > 0) {
-      const p = (Number(value) || 0) / total * 100;
-      return fmt(value) + ' (' + (p < 10 ? p.toFixed(1) : p.toFixed(0)) + '%)';
-    }
+    if (total > 0) return Math.round((Number(value) || 0) / total * 100) + '%';
   }
-  if (o.percentOnly) {
-    const vals = ((chart.data.datasets || [])[ctx.datasetIndex] || {}).data || [];
-    const total = vals.reduce((s, v) => s + (Number(v) || 0), 0);
-    return total > 0 ? ((Number(value) || 0) / total * 100).toFixed(1) + '%' : '';
+  if (isPctContext) {
+    let n = Number(value);
+    if (!isFinite(n)) return '';
+    if ((dsOpt.valuePercent || o.valuePercent) && n <= 1) n = n * 100;
+    return Math.round(n) + '%';
   }
-  if (o.yPercent) return Number(value).toFixed(1) + '%';
-  if (o.valuePercent) return (Number(value) <= 1 ? (Number(value) * 100).toFixed(1) : Number(value).toFixed(1)) + '%';
   if (typeof value === 'number') return fmt(value);
-  return String(value);
+  const n = Number(value);
+  return isFinite(n) ? fmt(n) : String(value);
 }
 const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
   const o = (chart.options.plugins && chart.options.plugins.dataLabels) || {};
@@ -1027,17 +1029,22 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
         const val = Number(v) || 0;
         const goingUp = y <= baseY;
         const barH = Math.abs(y - baseY);
-        if (isStacked && barH < 6 && !dsOpt.force) return;
-        const outside = !isStacked && (goingUp ? (y - 8 >= area.top) : (y + 14 <= area.bottom));
-        if (outside) {
+        if (isStacked && barH < 8 && !dsOpt.force) return;
+        // For columns: place label above the bar (outside). For stacked bars, place inside segments when possible.
+        if (!isStacked) {
           y = goingUp ? y - 6 : y + 6;
           align = 'center'; baseline = goingUp ? 'bottom' : 'top';
         } else {
-          y = goingUp ? y + 12 : y - 12;
-          align = 'center'; baseline = goingUp ? 'top' : 'bottom';
-          color = dsOpt.color || '#fff';
+          const canInside = barH >= 14;
+          if (canInside) {
+            y = goingUp ? y + 10 : y - 10;
+            align = 'center'; baseline = goingUp ? 'top' : 'bottom';
+            color = dsOpt.color || '#fff';
+          } else {
+            y = goingUp ? y - 4 : y + 4;
+            align = 'center'; baseline = goingUp ? 'bottom' : 'top';
+          }
         }
-        if (!outside && barH < 6 && !dsOpt.force) return;
       } else if (isLine) {
         x = el.x; y = el.y - 8;
         if (y < area.top + 8) y = el.y + 14;
@@ -1045,11 +1052,11 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
       } else {
         x = el.x; y = el.y - 6; align = 'center'; baseline = 'bottom';
       }
-      const inChart = (x >= 0 && x <= chart.width && y >= -2 && y <= chart.height + 2);
+      const inChart = (x >= -2 && x <= chart.width + 2 && y >= -2 && y <= chart.height + 2);
       const inArea = (x >= area.left - 2 && x <= area.right + 2 && y >= area.top - 2 && y <= area.bottom + 2);
-      if (isHoriz ? !inChart : !inArea) return;
+      if ((isHoriz || isVertBar) ? !inChart : !inArea) return;
       ctx.save();
-      ctx.font = dsOpt.font || o.font || '600 11px "Public Sans", sans-serif';
+      ctx.font = dsOpt.font || o.font || '700 12px "Public Sans", sans-serif';
       ctx.textAlign = align; ctx.textBaseline = baseline;
       if (o.outline || dsOpt.outline || (isVertBar && align === 'center') || isHoriz) {
         ctx.lineWidth = 3; ctx.strokeStyle = (color === '#fff') ? 'rgba(15,37,82,.35)' : 'rgba(255,255,255,.85)';
@@ -1062,7 +1069,10 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
   });
 }};
 
+let _chartDefaultsReady = false;
 function setupChartDefaults() {
+  if (_chartDefaultsReady || typeof Chart === 'undefined') return;
+  _chartDefaultsReady = true;
   Chart.register(refLine, barLabels, dataLabels);
   Chart.defaults.font.family = '"Public Sans", system-ui, sans-serif';
   Chart.defaults.font.size = 12;
@@ -1072,16 +1082,23 @@ function setupChartDefaults() {
   Chart.defaults.animation = false;
   Chart.defaults.plugins.legend.labels.boxWidth = 10;
   Chart.defaults.plugins.legend.labels.boxHeight = 10;
+  Chart.defaults.plugins.dataLabels = Object.assign({}, Chart.defaults.plugins.dataLabels || {}, {
+    display: true,
+    color: '#FF0000', // TEMP TEST: prove labels render (will switch to final styling)
+    font: '700 20px "Public Sans", sans-serif', // TEMP TEST
+    outline: true
+  });
 }
 const _drawQueue = [];
 let _drawScheduled = false;
 function _flushDrawQueue() {
   _drawScheduled = false;
   if (typeof Chart === 'undefined') {
-    // Chart.js still loading (deferred) - retry shortly
+    // Chart.js still loading - retry shortly
     if (_drawQueue.length) { _drawScheduled = true; setTimeout(_flushDrawQueue, 50); }
     return;
   }
+  setupChartDefaults();
   const job = _drawQueue.shift();
   if (!job) return;
   const { id, cfg, token } = job;
@@ -1099,7 +1116,55 @@ function _flushDrawQueue() {
     else setTimeout(_flushDrawQueue, 16);
   }
 }
+function _isBarLikeChart(cfg) {
+  if (!cfg) return false;
+  const t = cfg.type || ((cfg.data && cfg.data.datasets && cfg.data.datasets[0] && cfg.data.datasets[0].type) || 'bar');
+  if (t === 'bar') return true;
+  if (Array.isArray(cfg.data && cfg.data.datasets)) return cfg.data.datasets.some(ds => (ds && (ds.type === 'bar' || (!ds.type && t === 'bar'))));
+  return false;
+}
+function _applyBarLabelDefaults(cfg) {
+  if (!_isBarLikeChart(cfg)) return cfg;
+  cfg.options = cfg.options || {};
+  cfg.options.plugins = cfg.options.plugins || {};
+  const dl = Object.assign({}, cfg.options.plugins.dataLabels || {});
+  if (dl.display === false) { cfg.options.plugins.dataLabels = dl; return cfg; }
+  dl.display = true;
+  cfg.options.plugins.dataLabels = dl;
+  cfg.options.layout = cfg.options.layout || {};
+  cfg.options.layout.padding = Object.assign({ top: 0, right: 0, bottom: 0, left: 0 }, cfg.options.layout.padding || {});
+  const indexAxis = cfg.options.indexAxis || 'x';
+  const isHoriz = indexAxis === 'y';
+  if (isHoriz) {
+    cfg.options.layout.padding.right = Math.max(cfg.options.layout.padding.right || 0, 36);
+    cfg.options.scales = cfg.options.scales || {};
+    cfg.options.scales.x = Object.assign({}, cfg.options.scales.x || {});
+    // Extend max a bit to make room for outside labels when values are near max
+    const vals = (cfg.data && cfg.data.datasets || []).flatMap(ds => Array.isArray(ds.data) ? ds.data : []).map(v => (v && typeof v === 'object') ? (v.y != null ? v.y : v.x) : v).filter(v => typeof v === 'number' && isFinite(v));
+    if (vals.length) {
+      const max = Math.max.apply(null, vals);
+      if (max > 0) cfg.options.scales.x.suggestedMax = Math.max(cfg.options.scales.x.suggestedMax || 0, max * 1.12);
+    }
+  } else {
+    // vertical bar/column
+    const hasStacked = !!(cfg.options.scales && ((cfg.options.scales.x && cfg.options.scales.x.stacked) || (cfg.options.scales.y && cfg.options.scales.y.stacked)));
+    if (!hasStacked) {
+      cfg.options.layout.padding.top = Math.max(cfg.options.layout.padding.top || 0, 24);
+      cfg.options.scales = cfg.options.scales || {};
+      cfg.options.scales.y = Object.assign({}, cfg.options.scales.y || {});
+      const vals = (cfg.data && cfg.data.datasets || []).flatMap(ds => Array.isArray(ds.data) ? ds.data : []).map(v => (v && typeof v === 'object') ? (v.y != null ? v.y : v.x) : v).filter(v => typeof v === 'number' && isFinite(v));
+      if (vals.length) {
+        const max = Math.max.apply(null, vals);
+        if (max > 0) cfg.options.scales.y.suggestedMax = Math.max(cfg.options.scales.y.suggestedMax || 0, max * 1.15);
+      }
+    } else {
+      cfg.options.layout.padding.top = Math.max(cfg.options.layout.padding.top || 0, 12);
+    }
+  }
+  return cfg;
+}
 function draw(id, cfg) {
+  try { cfg = _applyBarLabelDefaults(cfg); } catch (e) {}
   _drawQueue.push({ id, cfg, token: _drawQueue.token });
   if (!_drawScheduled) {
     _drawScheduled = true;
