@@ -620,7 +620,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
 let CFG = null, M = null;
 // Day filter: the set of campaign-day indices included in every dashboard figure.
 // Selecting several days sums them (cumulative total over the selected days).
-const S = { zone:'all', woreda:'all', days:null, tab:'overview', sortKey:'cov', sortDir:1, q:'', rule:'all', mergeHc:false };
+const S = { zone:'all', woreda:'all', days:null, tab:'overview', sortKey:'dcov', sortDir:1, q:'', rule:'all', mergeHc:false };
 const allDayIdxs = () => (M ? Array.from({ length:(M.last || 0) + 1 }, (_, i) => i) : [0]);
 const selectedDayIdxs = () => Array.from(S.days || allDayIdxs()).sort((a, b) => a - b);
 const inDays = d => (S.days ? S.days.has(d) : d <= (M ? M.last : 0));
@@ -825,7 +825,9 @@ function unitRows() {
   return scopeUnits().map(u => {
     const rs = M.bySn[u.sn].filter(r => inDays(r.d));
     const a = sumRecs(rs), day = a; // "day" columns follow the Day filter selection
-    return { u, a, day, tgt: u.tgt, cov: cov(a.tot, u.tgt), w: wastage(a), bw: bWastage(a),
+    // Keep cumulative coverage (cov) for explicitly cumulative figures. Daily
+    // coverage uses the sum of the selected days' daily targets as its denominator.
+    return { u, a, day, tgt: u.tgt, cov: cov(a.tot, u.tgt), dtgt: a.dtgt, dcov: cov(a.tot, a.dtgt), w: wastage(a), bw: bWastage(a),
              flags: rs.reduce((n, r) => n + r.flags.length, 0) + u.flags.length };
   });
 }
@@ -833,10 +835,16 @@ function rollup(rows, keyFn) {
   const m = new Map();
   rows.forEach(r => {
     const k = keyFn(r); let g = m.get(k);
-    if (!g) { g = { key:k, rows:[], a:zeroObj(), tgt:0, flags:0 }; m.set(k, g); }
-    g.rows.push(r); addTo(g.a, r.a); g.tgt += r.tgt; g.flags += r.flags;
+    if (!g) { g = { key:k, rows:[], a:zeroObj(), tgt:0, dtgt:0, flags:0 }; m.set(k, g); }
+    g.rows.push(r); addTo(g.a, r.a); g.tgt += r.tgt; g.dtgt += (r.dtgt || 0); g.flags += r.flags;
   });
-  return Array.from(m.values()).map(g => { g.cov = cov(g.a.tot, g.tgt); g.w = wastage(g.a); g.bw = bWastage(g.a); g.atTarget = g.rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length; return g; });
+  return Array.from(m.values()).map(g => {
+    g.cov = cov(g.a.tot, g.tgt);
+    g.dcov = cov(g.a.tot, g.dtgt);
+    g.w = wastage(g.a); g.bw = bWastage(g.a);
+    g.atTarget = g.rows.filter(r => r.dcov != null && r.dcov >= CFG.targetCoverage).length;
+    return g;
+  });
 }
 const groupBy = () => S.zone === 'all' ? 'zone' : 'woreda';
 function groups(rows) { return rollup(rows, r => S.zone === 'all' ? r.u.zone : r.u.woreda); }
@@ -983,8 +991,8 @@ function renderOverview() {
   const cumRecs = recs.filter(r => inDays(r.d));
   const cum = sumRecs(cumRecs), cur = cum; // selected days are the reporting scope
   const c = cov(cum.tot, tgt), rows = unitRows(), w = wastage(cum);
-  const atT = rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length;
-  const below = rows.filter(r => r.cov != null && r.cov < CFG.warnCoverage).length;
+  const atT = rows.filter(r => r.dcov != null && r.dcov >= CFG.targetCoverage).length;
+  const below = rows.filter(r => r.dcov != null && r.dcov < CFG.warnCoverage).length;
   const dt = dayTotals(recs);
 
   const scaleMax = Math.max(1.05, (c || 0) * 1.04);
@@ -1000,7 +1008,7 @@ function renderOverview() {
     : fmt(-gap) + ' more children are needed to reach the ' + pct(CFG.targetCoverage, 0) + ' goal.';
   const hero = '<div class="hero"><div>' +
     '<div class="hero-row"><span class="ico">' + ICON_VAX + '</span><div class="hero-num ' + status(c) + '">' + pct(c) + '</div><span class="newpill">+' + fmt(cur.tot) + ' on ' + esc(dayName()) + '</span></div>' +
-    '<div class="hero-lab">of the target reached through ' + esc(dayName()) + '</div>' +
+    '<div class="hero-lab">of the total target reached cumulatively through ' + esc(dayName()) + '</div>' +
     '<div class="hero-sub">' + fmt(cum.tot) + ' children vaccinated. Target ' + fmt(tgt) + '. ' + esc(scopeName()) + '.</div></div>' +
     '<div class="track-wrap"><div class="track">' + segs +
     '<div class="tick t95" style="left:' + (CFG.targetCoverage / scaleMax * 100) + '%"><span>' + pct(CFG.targetCoverage, 0) + '</span></div>' +
@@ -1017,7 +1025,7 @@ function renderOverview() {
   const zdRepShare = cur.zdTeams > 0 ? cur.zdTeamsRep / cur.zdTeams : null;
   const strip = '<div class="strip-label">Vaccination &amp; coverage</div><div class="strip">' +
     stat('Vaccinated on ' + esc(dayName()), fmt(cur.tot), camp ? pct(dayCov) + ' of the daily target' : 'Mop-up day, no daily target') +
-    stat('Woredas at or above ' + pct(CFG.targetCoverage, 0), atT + ' of ' + rows.length, below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
+    stat('Woredas at or above ' + pct(CFG.targetCoverage, 0) + ' (daily)', atT + ' of ' + rows.length, 'Daily coverage · ' + below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
     stat('nOPV2 wastage', pct(w), 'Limit ' + pct(CFG.maxWastage, 0), w != null && w > CFG.maxWastage ? 'bad' : 'good') +
     stat('bOPV wastage', pct(bWastage(cum)), 'Limit ' + pct(CFG.maxWastage, 0), bWastage(cum) != null && bWastage(cum) > CFG.maxWastage ? 'bad' : 'good') +
     stat('Not vaccinated before', fmt(cum.n011 + cum.n1259), '0–11m ' + fmt(cum.n011) + ', 12–59m ' + fmt(cum.n1259)) +
@@ -1040,13 +1048,13 @@ function renderOverview() {
     stat('Social mobilization reach', fmt((cum.groupDisc || 0) + (cum.homeEdu || 0)), 'Group discussion + home-to-home education') +
     '</div>';
 
-  const g = groups(rows).sort((a, b) => (b.cov == null ? -1 : b.cov) - (a.cov == null ? -1 : a.cov));
+  const g = groups(rows).sort((a, b) => (b.dcov == null ? -1 : b.dcov) - (a.dcov == null ? -1 : a.dcov));
   const gh = Math.max(240, g.length * 30 + 50);
 
   app().innerHTML = hero + strip + renderFieldPhotos() + '<div class="grid">' +
     panel('c7', 'Children vaccinated each day', 'Bars show children vaccinated. The dashed line is the daily target on campaign days.', '<div class="chart"><canvas id="ch-daily"></canvas></div>') +
-    panel('c5', 'Cumulative coverage', 'Share of the planned target reached by the end of each day.', '<div class="chart"><canvas id="ch-cum"></canvas></div>') +
-    panel('c8', 'Coverage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Cumulative through ' + esc(dayName()) + '.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-group"></canvas></div>') +
+    panel('c5', 'Cumulative coverage', 'Share of the planned total target reached by the end of each day.', '<div class="chart"><canvas id="ch-cum"></canvas></div>') +
+    panel('c8', 'Coverage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Daily coverage for selected day(s), based on daily target.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-group"></canvas></div>') +
     panel('c4', 'Boys and girls', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
     panel('c7', 'Age group by day', 'Children aged 0–11 months and 12–59 months.', '<div class="chart"><canvas id="ch-age"></canvas></div>') +
     panel('c5', 'Where children were vaccinated', 'Through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-place"></canvas></div>') +
@@ -1067,7 +1075,7 @@ function renderOverview() {
     { label:pct(CFG.targetCoverage, 0) + ' goal', data:labels.map(() => CFG.targetCoverage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5 }
   ] }, options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip() } }) });
 
-  draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Coverage', data:g.map(x => x.cov == null ? null : x.cov * 100), backgroundColor:g.map(x => STATUS_COL[status(x.cov)]), borderRadius:3 }] },
+  draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Daily coverage', data:g.map(x => x.dcov == null ? null : x.dcov * 100), backgroundColor:g.map(x => STATUS_COL[status(x.dcov)]), borderRadius:3 }] },
     options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } },
       scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
       plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' } } } });
@@ -1099,33 +1107,33 @@ function renderOverview() {
 /* ---------- Zones and woredas ---------- */
 const GEO_COLS = [
   { k:'zone', t:'Zone', tl:1 }, { k:'woreda', t:'Woreda', tl:1 }, { k:'hc', t:'Health centers', tl:1 },
-  { k:'tgt', t:'Target' }, { k:'tot', t:'Vaccinated' }, { k:'cov', t:'Coverage' },
+  { k:'tgt', t:'Daily target' }, { k:'tot', t:'Vaccinated' }, { k:'cov', t:'Daily coverage' },
   { k:'day', t:'On selected day' }, { k:'w', t:'Wastage' }, { k:'flags', t:'Flags' }
 ];
 function geoValue(r, k) {
   switch (k) {
     case 'zone': return r.u.zone; case 'woreda': return r.u.woreda; case 'hc': return r.u.hc || '';
-    case 'tgt': return r.tgt; case 'tot': return r.a.tot; case 'cov': return r.cov == null ? -1 : r.cov;
+    case 'tgt': return r.dtgt; case 'tot': return r.a.tot; case 'cov': return r.dcov == null ? -1 : r.dcov;
     case 'day': return r.day.tot; case 'w': return r.w == null ? -9 : r.w; case 'flags': return r.flags;
   } return 0;
 }
 function renderGeo() {
   const rows = unitRows();
-  const zg = rollup(rows, r => r.u.zone).sort((a, b) => (a.cov == null ? -1 : a.cov) - (b.cov == null ? -1 : b.cov));
-  const low = rows.filter(r => r.cov != null).sort((a, b) => a.cov - b.cov).slice(0, 10);
+  const zg = rollup(rows, r => r.u.zone).sort((a, b) => (a.dcov == null ? -1 : a.dcov) - (b.dcov == null ? -1 : b.dcov));
+  const low = rows.filter(r => r.dcov != null).sort((a, b) => a.dcov - b.dcov).slice(0, 10);
 
-  const zt = '<div class="tbl-wrap"><table><thead><tr><th>Zone</th><th>Woredas</th><th>Target</th><th>Vaccinated</th><th>Coverage</th><th>At or above ' + pct(CFG.targetCoverage, 0) + '</th><th>Wastage</th><th>AEFI</th></tr></thead><tbody>' +
-    zg.map(g => '<tr><td>' + esc(g.key) + '</td><td>' + g.rows.length + '</td><td>' + fmt(g.tgt) + '</td><td>' + fmt(g.a.tot) + '</td><td>' + covCell(g.cov) + '</td><td>' + g.atTarget + ' of ' + g.rows.length + '</td><td>' + pct(g.w) + '</td><td>' + fmt(g.a.aefiM + g.a.aefiS) + '</td></tr>').join('') +
+  const zt = '<div class="tbl-wrap"><table><thead><tr><th>Zone</th><th>Woredas</th><th>Daily target</th><th>Vaccinated</th><th>Daily coverage</th><th>At or above ' + pct(CFG.targetCoverage, 0) + ' (daily)</th><th>Wastage</th><th>AEFI</th></tr></thead><tbody>' +
+    zg.map(g => '<tr><td>' + esc(g.key) + '</td><td>' + g.rows.length + '</td><td>' + fmt(g.dtgt) + '</td><td>' + fmt(g.a.tot) + '</td><td>' + covCell(g.dcov) + '</td><td>' + g.atTarget + ' of ' + g.rows.length + '</td><td>' + pct(g.w) + '</td><td>' + fmt(g.a.aefiM + g.a.aefiS) + '</td></tr>').join('') +
     '</tbody></table></div>';
 
   app().innerHTML = '<div class="grid" style="margin-top:0">' +
-    panel('c7', 'Zones', 'Cumulative through ' + esc(dayName()) + ', lowest coverage first.', zt) +
-    panel('c5', 'Ten lowest woredas', 'Where catch-up effort is most needed.', '<div class="chart tall"><canvas id="ch-low"></canvas></div>') +
-    '<div class="panel c12"><h2>Woredas</h2><p class="sub">Click a column heading to sort.</p>' +
+    panel('c7', 'Zones', 'Daily coverage for selected day(s), based on daily target. Lowest coverage first.', zt) +
+    panel('c5', 'Ten lowest woredas', 'Lowest daily coverage for selected day(s), based on daily target.', '<div class="chart tall"><canvas id="ch-low"></canvas></div>') +
+    '<div class="panel c12"><h2>Woredas</h2><p class="sub">Click a column heading to sort. Coverage and target use the selected day(s) daily values.</p>' +
     '<div class="toolbar"><input type="search" id="geoQ" placeholder="Search zone, woreda or health center" value="' + esc(S.q) + '" aria-label="Search woredas"><span class="grow"></span></div>' +
     '<div id="geoTbl"></div></div></div>';
 
-  draw('ch-low', { type:'bar', data:{ labels:low.map(r => r.u.woreda + ' (' + r.u.zone + ')'), datasets:[{ label:'Coverage', data:low.map(r => r.cov * 100), backgroundColor:low.map(r => STATUS_COL[status(r.cov)]), borderRadius:3 }] },
+  draw('ch-low', { type:'bar', data:{ labels:low.map(r => r.u.woreda + ' (' + r.u.zone + ')'), datasets:[{ label:'Daily coverage', data:low.map(r => r.dcov * 100), backgroundColor:low.map(r => STATUS_COL[status(r.dcov)]), borderRadius:3 }] },
     options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } }, scales:{ x:{ beginAtZero:true, suggestedMax:110, ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
       plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' } } } });
   $('#geoQ').addEventListener('input', e => { S.q = e.target.value; renderGeoTable(); });
@@ -1142,7 +1150,7 @@ function geoRows() {
 function renderGeoTable() {
   const rows = geoRows();
   const head = GEO_COLS.map(c => '<th class="' + (c.tl ? 'tl' : '') + '"><button type="button" data-sort="' + c.k + '">' + c.t + (S.sortKey === c.k ? (S.sortDir === 1 ? ' ▲' : ' ▼') : '') + '</button></th>').join('');
-  const body = rows.map(r => '<tr><td>' + esc(r.u.zone) + '</td><td>' + esc(r.u.woreda) + '</td><td class="hc" title="' + esc(r.u.hc) + '">' + (esc(r.u.hc) || '<span style="color:var(--ink3)">Not entered</span>') + '</td><td>' + fmt(r.tgt) + '</td><td>' + fmt(r.a.tot) + '</td><td>' + covCell(r.cov) + '</td><td>' + fmt(r.day.tot) + '</td><td>' + pct(r.w) + '</td><td>' + (r.flags ? '<span class="pill warn">' + r.flags + '</span>' : '') + '</td></tr>').join('');
+  const body = rows.map(r => '<tr><td>' + esc(r.u.zone) + '</td><td>' + esc(r.u.woreda) + '</td><td class="hc" title="' + esc(r.u.hc) + '">' + (esc(r.u.hc) || '<span style="color:var(--ink3)">Not entered</span>') + '</td><td>' + fmt(r.dtgt) + '</td><td>' + fmt(r.a.tot) + '</td><td>' + covCell(r.dcov) + '</td><td>' + fmt(r.day.tot) + '</td><td>' + pct(r.w) + '</td><td>' + (r.flags ? '<span class="pill warn">' + r.flags + '</span>' : '') + '</td></tr>').join('');
   $('#geoTbl').innerHTML = rows.length
     ? '<div class="tbl-wrap"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div><p class="note">' + rows.length + ' woredas shown.</p>'
     : '<div class="empty">No woreda matches your search.</div>';
@@ -2501,11 +2509,13 @@ function buildNarrationDeck(){
   const cum = sumRecs(recs.filter(r => inDays(r.d))), cur = cum;
   const rows = unitRows(), dt = dayTotals(recs);
   const c = cov(cum.tot, tgt), w = wastage(cum), bw = bWastage(cum), den = cum.tot || 1;
+  const dtgt = cur.dtgt || 0;
+  const dc = cov(cum.tot, dtgt);
   const T = pct(CFG.targetCoverage, 0), Wn = pct(CFG.warnCoverage, 0), WL = pct(CFG.maxWastage, 0);
-  const belowT = rows.filter(r => r.cov != null && r.cov < CFG.targetCoverage).sort((a,b)=>a.cov-b.cov);
-  const belowWarn = rows.filter(r => r.cov != null && r.cov < CFG.warnCoverage);
-  const atT = rows.filter(r => r.cov != null && r.cov >= CFG.targetCoverage).length;
-  const gap = cum.tot - CFG.targetCoverage * tgt;
+  const belowT = rows.filter(r => r.dcov != null && r.dcov < CFG.targetCoverage).sort((a,b)=>a.dcov-b.dcov);
+  const belowWarn = rows.filter(r => r.dcov != null && r.dcov < CFG.warnCoverage);
+  const atT = rows.filter(r => r.dcov != null && r.dcov >= CFG.targetCoverage).length;
+  const gap = cum.tot - CFG.targetCoverage * tgt; // cumulative vs total target (kept explicitly cumulative)
   const word = groupBy();
   const listOf = (arr,n)=> arr.length<=n ? arr.join(', ') : arr.slice(0,n).join(', ') + ' and ' + (arr.length-n) + ' more';
   const wname = r => r.u.woreda + (r.u.zone ? ' ('+r.u.zone+')' : '');
@@ -2524,9 +2534,9 @@ function buildNarrationDeck(){
   const sev = recs.filter(r => inDays(r.d) && (r.aefiSev||0) > 0).map(r => (r.u.woreda||'') + (r.u.zone?(' ('+r.u.zone+')'):'') + ', ' + M.days[r.d].label);
   let crossI = -1, run = 0;
   for (let i=0;i<dt.length;i++){ run += dt[i].tot; if(tgt>0 && run/tgt >= CFG.targetCoverage){ crossI=i; break; } }
-  const gs = groups(rows).filter(g=>g.cov!=null).sort((a,b)=>b.cov-a.cov);
-  const gBelow = gs.filter(g=>g.cov < CFG.targetCoverage);
-  const low = rows.filter(r=>r.cov!=null).sort((a,b)=>a.cov-b.cov).slice(0,10);
+  const gs = groups(rows).filter(g=>g.dcov!=null).sort((a,b)=>b.dcov-a.dcov);
+  const gBelow = gs.filter(g=>g.dcov < CFG.targetCoverage);
+  const low = rows.filter(r=>r.dcov!=null).sort((a,b)=>a.dcov-b.dcov).slice(0,10);
   const places = [['house', cum.pHouse||0], ['school', cum.pSchool||0], ['market', cum.pMarket||0], ['street', cum.pStreet||0], ['other places', cum.pOther||0]].sort((a,b)=>b[1]-a[1]);
   const mf = (cum.male||0)+(cum.female||0) || 1;
   // Woredas split across health centers carry a "/N" suffix (Woreda 03/1, Woreda 03/2).
@@ -2536,9 +2546,9 @@ function buildNarrationDeck(){
   const hcCount = new Set(units.map(u => String(u.hc || '').replace(/\s+/g,' ').trim().toLowerCase()).filter(Boolean)).size || units.length || 0;
   const teamCount = units.reduce((s,u)=>s + (Number(u.teams)||0), 0) || rows.reduce((s,r)=>s + (Number(r.day && r.day.teams)||Number(r.u && r.u.teams)||0), 0);
   const scopeLabel = scopeTitle + (hcName ? (' — ' + hcName) : '');
-  const perfGroups = groups(rows).filter(g => g.cov != null).sort((a,b)=>b.cov-a.cov);
+  const perfGroups = groups(rows).filter(g => g.dcov != null).sort((a,b)=>b.dcov-a.dcov);
   const highPerf = perfGroups.slice(0,5);
-  const lowPerf = perfGroups.slice().sort((a,b)=>a.cov-b.cov).slice(0,5);
+  const lowPerf = perfGroups.slice().sort((a,b)=>a.dcov-b.dcov).slice(0,5);
   const byArea = groups(rows).sort((a,b)=>b.a.tot-a.a.tot).slice(0,12);
   const areaChartTitle = (S.zone === 'all' && DASH_SCOPE.mode !== 'zone') ? 'Total vaccinated children by sub city/woreda' : 'Total vaccinated children by woreda/reporting area';
   const slides = [];
@@ -2565,7 +2575,7 @@ function buildNarrationDeck(){
     ],
     kpis: [
       ['Woredas', fmt(uniqueWoredas)], ['Health centers', fmt(hcCount)], ['Vaccination teams', fmt(teamCount)],
-      ['Vaccinated children', fmt(cum.tot)], ['Target', fmt(tgt)], ['Coverage', pct(c)]
+      ['Vaccinated children', fmt(cum.tot)], ['Total target', fmt(tgt)], ['Cumulative coverage', pct(c)]
     ]
   });
 
@@ -2581,13 +2591,13 @@ function buildNarrationDeck(){
 
   slides.push({ kind:'chart', title:'Performance comparison', heading:'High and low performing areas',
     narration: [
-      'Comparison of high-performing and low-performing areas by coverage to guide follow-up and recognition.',
-      highPerf.length ? ('Top performer: ' + highPerf[0].key + ' (' + pct(highPerf[0].cov) + ').') : '',
-      lowPerf.length ? ('Lowest performer: ' + lowPerf[0].key + ' (' + pct(lowPerf[0].cov) + ').') : ''
+      'Comparison of high-performing and low-performing areas by daily coverage (daily target) to guide follow-up and recognition.',
+      highPerf.length ? ('Top performer: ' + highPerf[0].key + ' (' + pct(highPerf[0].dcov) + ' daily coverage).') : '',
+      lowPerf.length ? ('Lowest performer: ' + lowPerf[0].key + ' (' + pct(lowPerf[0].dcov) + ' daily coverage).') : ''
     ].filter(Boolean),
     charts: [
-      { id:'ch_high_perf', type:'bar', title:'High performers (coverage %)', labels: highPerf.map(g=>g.key), datasets:[{label:'Coverage %', data: highPerf.map(g=>Math.round((g.cov||0)*1000)/10), backgroundColor:'#16A34A'}], yPercent:true },
-      { id:'ch_low_perf', type:'bar', title:'Low performers (coverage %)', labels: lowPerf.map(g=>g.key), datasets:[{label:'Coverage %', data: lowPerf.map(g=>Math.round((g.cov||0)*1000)/10), backgroundColor:'#DC2626'}], yPercent:true }
+      { id:'ch_high_perf', type:'bar', title:'High performers (daily coverage %)', labels: highPerf.map(g=>g.key), datasets:[{label:'Daily coverage %', data: highPerf.map(g=>Math.round((g.dcov||0)*1000)/10), backgroundColor:'#16A34A'}], yPercent:true },
+      { id:'ch_low_perf', type:'bar', title:'Low performers (daily coverage %)', labels: lowPerf.map(g=>g.key), datasets:[{label:'Daily coverage %', data: lowPerf.map(g=>Math.round((g.dcov||0)*1000)/10), backgroundColor:'#DC2626'}], yPercent:true }
     ]
   });
 
@@ -2600,43 +2610,43 @@ function buildNarrationDeck(){
 
   slides.push({ kind:'kpis', title:'Headline results', heading:'Headline results',
     narration: [
-      fmt(cum.tot) + ' children were vaccinated against a target of ' + fmt(tgt) + ', which is ' + pct(c) + ' coverage.',
-      atT + ' of ' + pl(rows.length,'reporting unit') + ' ' + isAre(atT) + ' at or above ' + T + '. ' + belowWarn.length + ' ' + isAre(belowWarn.length) + ' below ' + Wn + '.',
-      gap >= 0 ? 'The campaign is ahead of the ' + T + ' goal by ' + fmt(gap) + ' children.' : fmt(-gap) + ' more children are needed to reach the ' + T + ' goal.',
-      campIdx.length ? 'Campaign days delivered ' + fmt(campTot) + ' children (' + pct(cov(campTot,tgt)) + ' of target).' : 'No campaign days have been reported yet.',
-      mopIdx.length ? 'Mop-up days added ' + fmt(mopTot) + ' children (' + pct(cov(mopTot,tgt)) + ' of target).' : '',
+      fmt(cum.tot) + ' children were vaccinated against a total target of ' + fmt(tgt) + ', which is ' + pct(c) + ' cumulative coverage.',
+      atT + ' of ' + pl(rows.length,'reporting unit') + ' ' + isAre(atT) + ' at or above ' + T + ' daily coverage. ' + belowWarn.length + ' ' + isAre(belowWarn.length) + ' below ' + Wn + ' daily coverage.',
+      gap >= 0 ? 'The campaign is ahead of the ' + T + ' cumulative goal by ' + fmt(gap) + ' children.' : fmt(-gap) + ' more children are needed to reach the ' + T + ' cumulative goal (total target).',
+      campIdx.length ? 'Campaign days delivered ' + fmt(campTot) + ' children (' + pct(cov(campTot,tgt)) + ' of total target).' : 'No campaign days have been reported yet.',
+      mopIdx.length ? 'Mop-up days added ' + fmt(mopTot) + ' children (' + pct(cov(mopTot,tgt)) + ' of total target).' : '',
       'nOPV2 wastage is ' + pct(w) + ' and bOPV wastage is ' + pct(bw) + ' against a limit of ' + WL + '.'
     ].filter(Boolean),
     kpis: [
-      ['Coverage', pct(c)], ['Children vaccinated', fmt(cum.tot)], ['Target', fmt(tgt)],
-      ['At/above '+T, atT + ' of ' + rows.length], ['Below '+Wn, String(belowWarn.length)],
+      ['Cumulative coverage', pct(c)], ['Children vaccinated', fmt(cum.tot)], ['Total target', fmt(tgt)],
+      ['At/above '+T+' (daily)', atT + ' of ' + rows.length], ['Below '+Wn+' (daily)', String(belowWarn.length)],
       ['nOPV2 wastage', pct(w)], ['bOPV wastage', pct(bw)], ['Selected day', fmt(cur.tot)]
     ]});
 
   slides.push({ kind:'table', title:'Progress day by day', heading:'Progress day by day',
-    headers:['Day','Vaccinated','Daily target','Coverage','nOPV2 wastage','bOPV wastage'],
+    headers:['Day','Vaccinated','Daily target','Daily coverage','nOPV2 wastage','bOPV wastage'],
     rows: dt.map((a,i)=>[dayText(i), fmt(a.tot), fmt(a.dtgt), pct(a.dtgt? a.tot/a.dtgt : null), pct(wastage(a)), pct(bWastage(a))]),
     narration: [
       dt.length ? (M.days[peakI].label + ' was the busiest day, with ' + fmt(dt[peakI].tot) + ' children vaccinated.') : 'No daily data available.',
-      crossI >= 0 ? 'Cumulative coverage passed ' + T + ' on ' + M.days[crossI].label + '.' : 'Cumulative coverage has not yet reached ' + T + '.',
+      crossI >= 0 ? 'Cumulative coverage of the total target passed ' + T + ' on ' + M.days[crossI].label + '.' : 'Cumulative coverage of the total target has not yet reached ' + T + '.',
       'For ' + dayRangeText(false) + ', ' + fmt(cur.tot) + ' children were vaccinated' + (cur.dtgt ? (' against a daily target of ' + fmt(cur.dtgt) + ' (' + pct(cur.dtgt?cur.tot/cur.dtgt:null) + ').') : '.'),
-      'Daily coverage compares children vaccinated with that day’s target; mop-up days may not have a daily target.'
+      'Daily coverage compares children vaccinated with that day’s daily target; mop-up days may not have a daily target.'
     ]});
 
   slides.push({ kind:'table', title:'Coverage by '+word, heading:'Coverage by '+word,
-    headers:['Name','Vaccinated','Target','Coverage','At/above '+T],
-    rows: (gs.length?gs:[]).slice(0,14).map(g=>[g.key, fmt(g.a.tot), fmt(g.tgt), pct(g.cov), g.atTarget + ' of ' + g.rows.length]),
+    headers:['Name','Vaccinated','Daily target','Daily coverage','At/above '+T+' (daily)'],
+    rows: (gs.length?gs:[]).slice(0,14).map(g=>[g.key, fmt(g.a.tot), fmt(g.dtgt), pct(g.dcov), g.atTarget + ' of ' + g.rows.length]),
     narration: gs.length ? [
-      'Highest coverage: ' + gs[0].key + ' at ' + pct(gs[0].cov) + '. Lowest coverage: ' + gs[gs.length-1].key + ' at ' + pct(gs[gs.length-1].cov) + '.',
-      gBelow.length ? gBelow.length + ' of ' + pl(gs.length,word) + ' ' + isAre(gBelow.length) + ' under ' + T + ': ' + listOf(gBelow.map(g=>g.key),4) + '.' : 'All ' + gs.length + ' ' + word + 's are at or above ' + T + '.',
-      'The gap between highest and lowest is ' + ((gs[0].cov - gs[gs.length-1].cov)*100).toFixed(1) + ' percentage points; prioritize supervision and catch-up where coverage is low.'
+      'Highest daily coverage: ' + gs[0].key + ' at ' + pct(gs[0].dcov) + '. Lowest daily coverage: ' + gs[gs.length-1].key + ' at ' + pct(gs[gs.length-1].dcov) + '.',
+      gBelow.length ? gBelow.length + ' of ' + pl(gs.length,word) + ' ' + isAre(gBelow.length) + ' under ' + T + ' daily coverage: ' + listOf(gBelow.map(g=>g.key),4) + '.' : 'All ' + gs.length + ' ' + word + 's are at or above ' + T + ' daily coverage.',
+      'The gap between highest and lowest is ' + ((gs[0].dcov - gs[gs.length-1].dcov)*100).toFixed(1) + ' percentage points; prioritize supervision and catch-up where daily coverage is low.'
     ] : ['No grouped coverage data available for this view.']});
 
   slides.push({ kind:'table', title:'Reach and follow-up', heading:'Who was reached and where follow-up is needed',
-    headers:['Lowest reporting units','Coverage','Vaccinated','Target','Flags'],
-    rows: low.map(r=>[wname(r), pct(r.cov), fmt(r.a.tot), fmt(r.tgt), String(r.flags||0)]),
+    headers:['Lowest reporting units','Daily coverage','Vaccinated','Daily target','Flags'],
+    rows: low.map(r=>[wname(r), pct(r.dcov), fmt(r.a.tot), fmt(r.dtgt), String(r.flags||0)]),
     narration: [
-      low.length ? ('Lowest: ' + wname(low[0]) + ' at ' + pct(low[0].cov) + '. ' + (belowT.length ? pl(belowT.length,'unit') + ' ' + isAre(belowT.length) + ' under ' + T + ': ' + listOf(belowT.slice(0,5).map(wname),5) + '.' : 'No unit is under ' + T + '.')) : 'Coverage comparison is limited by available data.',
+      low.length ? ('Lowest daily coverage: ' + wname(low[0]) + ' at ' + pct(low[0].dcov) + '. ' + (belowT.length ? pl(belowT.length,'unit') + ' ' + isAre(belowT.length) + ' under ' + T + ' daily coverage: ' + listOf(belowT.slice(0,5).map(wname),5) + '.' : 'No unit is under ' + T + ' daily coverage.')) : 'Coverage comparison is limited by available data.',
       pct(((cum.v011||0)+(cum.n011||0))/den,0) + ' of children were 0–11 months and ' + pct(((cum.v1259||0)+(cum.n1259||0))/den,0) + ' were 12–59 months. ' + pct((cum.female||0)/mf,0) + ' were girls and ' + pct((cum.male||0)/mf,0) + ' were boys.',
       'Most children were vaccinated at ' + places[0][0] + ' (' + pct(places[0][1]/den,0) + '). ' + fmt((cum.n011||0)+(cum.n1259||0)) + ' children had not been vaccinated before.'
     ]});
@@ -2738,12 +2748,12 @@ function buildNarrationDeck(){
 
   slides.push({ kind:'chart', title:'Coverage comparison', heading:'Coverage comparison',
     narration: [
-      'These visuals highlight highest and lowest coverage areas to support targeted follow-up and supervision.',
-      gs.length ? ('Highest: ' + gs[0].key + ' (' + pct(gs[0].cov) + '), lowest: ' + gs[gs.length-1].key + ' (' + pct(gs[gs.length-1].cov) + ').') : 'Coverage comparison data is limited.'
+      'These visuals highlight highest and lowest daily coverage areas (based on daily target) to support targeted follow-up and supervision.',
+      gs.length ? ('Highest daily coverage: ' + gs[0].key + ' (' + pct(gs[0].dcov) + '), lowest: ' + gs[gs.length-1].key + ' (' + pct(gs[gs.length-1].dcov) + ').') : 'Coverage comparison data is limited.'
     ],
     charts: [
-      { id:'ch_cov_top', type:'bar', title:'Top coverage (' + word + 's)', labels: topGroups.map(g=>g.key), datasets:[{label:'Coverage %', data: topGroups.map(g=>Math.round((g.cov||0)*1000)/10), backgroundColor:'#16A34A'}], yPercent:true },
-      { id:'ch_cov_low', type:'bar', title:'Lowest coverage reporting units', labels: lowUnits.map(r=>r.u.woreda || r.u.zone || 'Unit'), datasets:[{label:'Coverage %', data: lowUnits.map(r=>Math.round((r.cov||0)*1000)/10), backgroundColor:'#DC2626'}], yPercent:true }
+      { id:'ch_cov_top', type:'bar', title:'Top daily coverage (' + word + 's)', labels: topGroups.map(g=>g.key), datasets:[{label:'Daily coverage %', data: topGroups.map(g=>Math.round((g.dcov||0)*1000)/10), backgroundColor:'#16A34A'}], yPercent:true },
+      { id:'ch_cov_low', type:'bar', title:'Lowest daily coverage reporting units', labels: lowUnits.map(r=>r.u.woreda || r.u.zone || 'Unit'), datasets:[{label:'Daily coverage %', data: lowUnits.map(r=>Math.round((r.dcov||0)*1000)/10), backgroundColor:'#DC2626'}], yPercent:true }
     ]
   });
 
