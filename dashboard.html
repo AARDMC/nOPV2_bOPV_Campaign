@@ -620,7 +620,7 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
 let CFG = null, M = null;
 // Day filter: the set of campaign-day indices included in every dashboard figure.
 // Selecting several days sums them (cumulative total over the selected days).
-const S = { zone:'all', woreda:'all', days:null, tab:'overview', sortKey:'dcov', sortDir:1, q:'', rule:'all', mergeHc:false };
+const S = { zone:'all', woreda:'all', days:null, tab:'overview', sortKey:'dcov', sortDir:1, q:'', rule:'all', mergeHc:false, perfBand:'≥90%' };
 const allDayIdxs = () => (M ? Array.from({ length:(M.last || 0) + 1 }, (_, i) => i) : [0]);
 const selectedDayIdxs = () => Array.from(S.days || allDayIdxs()).sort((a, b) => a - b);
 const inDays = d => (S.days ? S.days.has(d) : d <= (M ? M.last : 0));
@@ -1156,10 +1156,11 @@ function renderOverview() {
   const camp = selectedDayIdxs().some(i => M.days[i] && M.days[i].type === 'campaign');
   const dayCov = camp ? cov(cur.tot, cur.dtgt) : null;
   const fieldTeams = cur.teams > 0 ? cur.teamsRep / cur.teams : null;
-  // Safety and social mobilization indicators (new variable structure).
   const afpTotal = (cum.afpSig || 0) + (cum.afpAlt || 0);
   const aefiTotal = (cum.aefiMild || 0) + (cum.aefiSev || 0);
-  const zdRepShare = cur.zdTeams > 0 ? cur.zdTeamsRep / cur.zdTeams : null;
+
+  const afpCls = afpTotal > 0 ? 'warn' : '';
+  const aefiCls = (cum.aefiSev || 0) > 0 ? 'bad' : '';
   const strip = '<div class="strip-label">Vaccination &amp; coverage</div><div class="strip">' +
     stat('Vaccinated on ' + esc(dayName()), fmt(cur.tot), camp ? pct(dayCov) + ' of the daily target' : 'Mop-up day, no daily target') +
     stat('Woredas at or above ' + pct(CFG.targetCoverage, 0) + ' (daily)', atT + ' of ' + rows.length, 'Daily coverage · ' + below + ' below ' + pct(CFG.warnCoverage, 0), below > 0 ? 'bad' : 'good') +
@@ -1168,38 +1169,58 @@ function renderOverview() {
     stat('Not vaccinated before', fmt(cum.n011 + cum.n1259), '0–11m ' + fmt(cum.n011) + ', 12–59m ' + fmt(cum.n1259)) +
     '</div>' +
     '<div class="strip-label">AFP</div><div class="strip">' +
-    stat('AFP (signals + alerts)', fmt(afpTotal), 'Signals ' + fmt(cum.afpSig) + ' · Alerts ' + fmt(cum.afpAlt), afpTotal > 0 ? 'warn' : '') +
+    '<div class="stat ' + afpCls + '" style="grid-column:1/-1"><div class="l">AFP (Signals + Alerts)</div><div class="v ' + afpCls + '">' + fmt(afpTotal) + ' <span style="font-size:14px;font-weight:700;color:#44577F">total</span></div><div class="s"><b>Signals:</b> ' + fmt(cum.afpSig || 0) + ' &nbsp;&nbsp; <b>Alerts:</b> ' + fmt(cum.afpAlt || 0) + '</div></div>' +
     '</div>' +
     '<div class="strip-label">AEFI</div><div class="strip">' +
-    stat('AEFI (mild + severe)', fmt(aefiTotal), 'Mild ' + fmt(cum.aefiMild) + ' · Severe ' + fmt(cum.aefiSev), (cum.aefiSev || 0) > 0 ? 'bad' : '') +
+    '<div class="stat ' + aefiCls + '" style="grid-column:1/-1"><div class="l">AEFI (Mild + Severe)</div><div class="v ' + aefiCls + '">' + fmt(aefiTotal) + ' <span style="font-size:14px;font-weight:700;color:#44577F">total</span></div><div class="s"><b>Mild:</b> ' + fmt(cum.aefiMild || 0) + ' &nbsp;&nbsp; <b>Severe:</b> ' + fmt(cum.aefiSev || 0) + '</div></div>' +
     '</div>' +
     '<div class="strip-label">Vaccination teams</div><div class="strip">' +
     stat('Teams reporting on ' + esc(dayName()), pct(fieldTeams, 0), fmt(cur.teamsRep) + ' of ' + fmt(cur.teams) + ' teams', fieldTeams != null && fieldTeams < 0.95 ? 'warn' : 'good') +
-    stat('Zero-dose teams', fmt(cur.zdTeams), 'Number fielded on ' + esc(dayName())) +
-    stat('Zero-dose teams reported', fmt(cur.zdTeamsRep), 'of ' + fmt(cur.zdTeams) + ' teams (' + pct(zdRepShare, 0) + ')', zdRepShare != null && zdRepShare < 0.95 ? 'warn' : 'good') +
     '</div>' +
     '<div class="strip-label">Social mobilization</div><div class="strip">' +
-    stat('HHs visited by social mobilizers', fmt(cum.hh), 'Social mobilization') +
-    stat('Group discussions (Community Meetings)', fmt(cum.groupDisc), 'Parents/caregivers participated') +
-    stat('Home-to-Home Education / IPC', fmt(cum.homeEdu), 'Parents/caregivers reached') +
-    stat('Social mobilization reach', fmt((cum.groupDisc || 0) + (cum.homeEdu || 0)), 'Group discussion + home-to-home education') +
+    stat('Number of HHs Visited by Social Mobilizers', fmt(cum.hh || 0), 'Cumulative through ' + esc(dayName())) +
+    stat('Number of Parents/Caregivers Participated in Group Discussions (Community Meetings)', fmt(cum.groupDisc || 0), 'Parents/caregivers participated') +
+    stat('Number of Parents/Caregivers Reached Through House-to-House Education / Interpersonal Communication', fmt(cum.homeEdu || 0), 'Parents/caregivers reached') +
     '</div>';
 
   const g = groups(rows).sort((a, b) => (b.dcov == null ? -1 : b.dcov) - (a.dcov == null ? -1 : a.dcov));
   const gh = Math.max(240, g.length * 30 + 50);
 
+  // Woreda performance classification (daily coverage, selected day(s))
+  const rowsWithCov = rows.filter(r => r.dcov != null);
+  const bands = perfBandCounts(rowsWithCov);
+  const bandLabels = bands.labels;
+  if (bandLabels.indexOf(S.perfBand) === -1) S.perfBand = bandLabels[0] || '≥90%';
+  const selBand = S.perfBand;
+  const selListAll = (bands.lists[selBand] || []).slice().sort((a, b) => (a.dcov == null ? 1 : a.dcov) - (b.dcov == null ? 1 : b.dcov));
+  const selList = selListAll.slice(0, Math.max(10, Math.min(selListAll.length, 10)));
+  const bandBtns = bandLabels.map(label => {
+    const active = label === selBand;
+    const n = bands.counts[label] || 0;
+    const b = PERF_BANDS.find(x => x.label === label) || { color:'#2563EB' };
+    return '<button type="button" class="chip perf-band-btn" data-band="' + esc(label) + '" aria-pressed="' + active + '" style="border-color:' + (active ? b.color : 'var(--card-line)') + ';background:' + (active ? b.color : '#fff') + ';color:' + (active ? '#fff' : b.color) + ';font-weight:700">' + esc(label) + ' <b style="margin-left:6px">' + n + '</b></button>';
+  }).join('');
+
+  const placeVals = [['House', cum.pHouse || 0], ['School', cum.pSchool || 0], ['Market', cum.pMarket || 0], ['Street', cum.pStreet || 0], ['Other place', cum.pOther || 0]];
+  const placeColors = ['#2563EB', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6'];
+
   app().innerHTML = hero + strip + renderFieldPhotos() + '<div class="grid">' +
     panel('c7', 'Children vaccinated each day', 'Bars show children vaccinated. The dashed line is the daily target on campaign days.', '<div class="chart"><canvas id="ch-daily"></canvas></div>') +
     panel('c5', 'Cumulative coverage', 'Share of the planned total target reached by the end of each day.', '<div class="chart"><canvas id="ch-cum"></canvas></div>') +
+    panel('c12', 'Woreda performance classification', 'Daily coverage for selected day(s). Select a classification to view woredas in that band (up to 10 shown where available).', '<div class="chips" style="margin-bottom:10px">' + bandBtns + '</div><div class="chart" style="height:' + Math.max(260, selList.length * 34 + 60) + 'px"><canvas id="ch-perf-bands"></canvas></div>' + (selList.length ? '' : '<div class="empty" style="padding:12px 0">No woredas in this classification for the selected day(s).</div>')) +
     panel('c8', 'Coverage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), 'Daily coverage for selected day(s), based on daily target.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-group"></canvas></div>') +
-    panel('c4', 'Boys and girls', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
+    panel('c4', 'Sex Distribution', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
     panel('c7', 'Age group by day', 'Children aged 0–11 months and 12–59 months.', '<div class="chart"><canvas id="ch-age"></canvas></div>') +
     panel('c5', 'Where children were vaccinated', 'Through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-place"></canvas></div>') +
     panel('c6', 'Total Vaccination Teams vs. Reported Teams', 'Selected day(s): total vaccination teams fielded/planned compared with teams that reported.', '<div class="chart"><canvas id="ch-teams-cmp"></canvas></div>') +
     panel('c6', 'Total Zero-Dose Teams vs. Reported Teams', 'Selected day(s): total zero-dose teams fielded compared with zero-dose teams that reported.', '<div class="chart"><canvas id="ch-zdteams-cmp"></canvas></div>') +
-    panel('c7', 'Community engagement by day', 'Parents and caregivers reached through group discussions and home-to-home education / interpersonal communication.', '<div class="chart"><canvas id="ch-reach"></canvas></div>') +
-    panel('c5', 'Zero-dose vaccination teams', 'Teams fielded and teams reporting, each day.', '<div class="chart"><canvas id="ch-zdteams"></canvas></div>') +
+    panel('c12', 'Community engagement by day', 'Parents and caregivers reached through group discussions and home-to-home education / interpersonal communication.', '<div class="chart"><canvas id="ch-reach"></canvas></div>') +
     '</div>';
+
+  $$('[data-band]').forEach(btn => btn.addEventListener('click', () => {
+    S.perfBand = btn.getAttribute('data-band') || '≥90%';
+    renderOverview();
+  }));
 
   const labels = dt.map((a, i) => M.days[i].label);
   draw('ch-daily', { type:'bar', data:{ labels, datasets:[
@@ -1214,23 +1235,26 @@ function renderOverview() {
     { label:pct(CFG.targetCoverage, 0) + ' goal', data:labels.map(() => CFG.targetCoverage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5, datalabels:{ display:false } }
   ] }, options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter:(v)=> v==null?'':(Number(v).toFixed(1)+'%'), color:'#0F2552' } } }) });
 
+  // Performance band chart (daily coverage) - shows woredas in selected band
+  const bandInfo = PERF_BANDS.find(b => b.label === selBand) || PERF_BANDS[0];
+  draw('ch-perf-bands', { type:'bar', data:{ labels: selList.map(r => r.u.woreda + ' (' + r.u.zone + ')'), datasets:[{ label:'Daily coverage (%)', data: selList.map(r => r.dcov == null ? null : Math.round(r.dcov * 1000) / 10), backgroundColor: bandInfo.color, borderRadius:4 }] },
+    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:48 } }, scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:pctTip(), dataLabels:{ formatter:(v)=> v==null?'':(Number(v).toFixed(1)+'%') } } } });
+
   draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Daily coverage', data:g.map(x => x.dcov == null ? null : x.dcov * 100), backgroundColor:g.map(x => STATUS_COL[status(x.dcov)]), borderRadius:3 }] },
     options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:46 } },
       scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
       plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' }, dataLabels:{ formatter:(v)=> v==null?'':(Number(v).toFixed(1)+'%') } } } });
 
   draw('ch-sex', { type:'doughnut', data:{ labels:['Male', 'Female'], datasets:[{ data:[cum.male, cum.female], backgroundColor:['#1E6BFF', '#EC4899'], borderWidth:2, borderColor:'#fff' }] },
-    options:{ responsive:true, cutout:'62%', plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (cum.male + cum.female || 1)) + ')' } }, dataLabels:{ percent:true, color:'#fff', font:'700 12px "Public Sans", sans-serif' } } } });
+    options:{ responsive:true, cutout:'62%', plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (cum.male + cum.female || 1)) + ')' } }, dataLabels:{ percent:true, color:'#fff', font:'700 12px "Public Sans", sans-serif', showSmallPie:true } } } });
 
   draw('ch-age', { type:'bar', data:{ labels, datasets:[
     { label:'0–11 months', data:dt.map(a => a.v011 + a.n011), backgroundColor:'#1E6BFF' },
     { label:'12–59 months', data:dt.map(a => a.v1259 + a.n1259), backgroundColor:'#34D399' }
   ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter:(v)=> (v>0?fmt(v):''), color:'#fff', font:'600 10px "Public Sans", sans-serif' } } }) });
 
-  const pl = [['House', cum.pHouse], ['School', cum.pSchool], ['Market', cum.pMarket], ['Street', cum.pStreet], ['Other place', cum.pOther]];
-  draw('ch-place', { type:'bar', data:{ labels:pl.map(x => x[0]), datasets:[{ label:'Children', data:pl.map(x => x[1]), backgroundColor:'#1E6BFF', borderRadius:3 }] },
-    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
-      plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) }, dataLabels:{ formatter:(v)=>fmt(v) } } } });
+  draw('ch-place', { type:'pie', data:{ labels:placeVals.map(x => x[0]), datasets:[{ label:'Children', data:placeVals.map(x => x[1]), backgroundColor:placeColors, borderColor:'#fff', borderWidth:2 }] },
+    options:{ responsive:true, plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (placeVals.reduce((s, x) => s + x[1], 0) || 1)) + ')' } }, dataLabels:{ percent:true, color:'#fff', font:'700 11px "Public Sans", sans-serif', showSmallPie:true } } } });
 
   draw('ch-teams-cmp', { type:'bar', data:{ labels:['Total vaccination teams','Reported teams'], datasets:[{ label:'Teams', data:[cur.teams||0, cur.teamsRep||0], backgroundColor:['#1E6BFF','#10B981'], borderRadius:4 }] },
     options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v)=>fmt(v) } } }) });
@@ -1240,11 +1264,6 @@ function renderOverview() {
   draw('ch-reach', { type:'bar', data:{ labels, datasets:[
     { label:'Group discussions (Community Meetings)', data:dt.map(a => a.groupDisc), backgroundColor:'#0891B2', borderRadius:3 },
     { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#BE185D', borderRadius:3 }
-  ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter:(v)=> (v>0?fmt(v):'') } } }) });
-
-  draw('ch-zdteams', { type:'bar', data:{ labels, datasets:[
-    { label:'Zero-dose teams planned', data:dt.map(a => a.zdTeams), backgroundColor:'#8B5CF6', borderRadius:3 },
-    { label:'Zero-dose teams reported', data:dt.map(a => a.zdTeamsRep), backgroundColor:'#34D399', borderRadius:3 }
   ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter:(v)=> (v>0?fmt(v):'') } } }) });
 }
 
@@ -1492,17 +1511,13 @@ function renderTeams() {
   const tbl = '<div class="tbl-wrap"><table><thead><tr><th class="tl">Woreda — health center</th><th>Teams planned</th><th>Teams reported</th><th>Reporting rate</th><th>Zero-dose teams</th><th>Zero-dose reported</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="tl">' + esc(r.key) + '</td><td>' + fmt(r.a.teams) + '</td><td>' + fmt(r.a.teamsRep) + '</td><td>' + pct(r.rate, 0) + '</td><td>' + fmt(r.c.zdTeams) + '</td><td>' + fmt(r.c.zdTeamsRep) + '</td></tr>').join('') + '</tbody></table></div>';
   app().innerHTML = strip + '<div class="grid">' +
-    panel('c7', 'Vaccination teams reporting', 'Share of planned teams that reported each day, including zero-dose teams.', '<div class="chart"><canvas id="ch-teams"></canvas></div>') +
-    panel('c5', 'Zero-dose vaccination teams', 'Teams fielded and teams reporting, each day.', '<div class="chart"><canvas id="ch-zdteams"></canvas></div>') +
+    panel('c12', 'Vaccination teams reporting', 'Share of planned teams that reported each day, including zero-dose teams.', '<div class="chart"><canvas id="ch-teams"></canvas></div>') +
     '</div>' + panel('c12', 'Teams by woreda and health center', 'Reporting on ' + esc(dayName()) + '; zero-dose teams cumulative through ' + esc(dayName()) + '.', tbl);
   draw('ch-teams', { type:'line', data:{ labels, datasets:[
     { label:'All teams reporting', data:dt.map(a => a.teams > 0 ? a.teamsRep / a.teams * 100 : null), borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:4, tension:.2 },
     { label:'Zero-dose teams reporting', data:dt.map(a => a.zdTeams > 0 ? a.zdTeamsRep / a.zdTeams * 100 : null), borderColor:'#8B5CF6', backgroundColor:'#8B5CF6', borderWidth:3, pointRadius:4, borderDash:[6, 3], tension:.2 },
     { label:'95%', data:labels.map(() => 95), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5, datalabels:{ display:false } } ] },
     options:vOpts({ scales:{ y:{ min:0, max:100, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter: v => v == null ? '' : (Number(v).toFixed(1) + '%') } } }) });
-  draw('ch-zdteams', { type:'bar', data:{ labels, datasets:[
-    { label:'Zero-dose teams planned', data:dt.map(a => a.zdTeams), backgroundColor:'#8B5CF6', borderRadius:3 },
-    { label:'Zero-dose teams reported', data:dt.map(a => a.zdTeamsRep), backgroundColor:'#34D399', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: v => (v > 0 ? fmt(v) : '') } } }) });
 }
 
 /* ---------- Social mobilization ---------- */
