@@ -1332,7 +1332,7 @@ function updateCoverageAlertsDisplay_(r, c) {
   const n = v => (v === "" || v == null || isNaN(v)) ? 0 : Number(v);
   const L = n(r.H) + n(r.I) + n(r.J) + n(r.K);
   const nopv = vialCoverageInfo_("nOPV2", L, n(r.R) + n(r.S), 50);
-  const bopv = vialCoverageInfo_("bOPV", L, n(r.AA) + n(r.AB), 20);
+  const bopv = vialCoverageInfo_("bOPV", L, n(r.AA) + n(r.AB), Number((state.settings || {}).bopvDosesPerVial) || 20);
   const nEl = document.getElementById("nopvCoverageAlert");
   const bEl = document.getElementById("bopvCoverageAlert");
   if (nEl) nEl.innerHTML = nopv.html;

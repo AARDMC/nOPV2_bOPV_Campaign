@@ -679,6 +679,7 @@ function applyMergeSplitWoredas(M_obj) {
 
   const newUnits = [];
   const newRecs = [];
+  const remapSn = {}; // child sn -> merged synthetic sn (for remarks and similar links)
   let synth = -1;
 
   order.forEach((key) => {
@@ -696,7 +697,7 @@ function applyMergeSplitWoredas(M_obj) {
     const hc = Array.from(new Set(list.map(({u}) => String(u.hc || '').trim()).filter(Boolean))).join(' / ');
     const tgt = list.reduce((s, {u}) => s + (Number(u.tgt) || 0), 0);
     const teams = list.reduce((s, {u}) => s + (Number(u.teams) || 0), 0);
-    const woredaID = list[0].u.woredaID || list[0].u.woredaID;
+    const woredaID = list[0].u.woredaID;
     const merged = {
       sn: sn,
       zone: zone,
@@ -710,6 +711,7 @@ function applyMergeSplitWoredas(M_obj) {
     };
     newUnits.push(merged);
     const childSns = new Set(list.map(({u}) => u.sn));
+    childSns.forEach((childSn) => { remapSn[childSn] = sn; });
     const byDay = {};
     M_obj.recs.forEach((r) => {
       if (!childSns.has(r.sn)) return;
@@ -744,8 +746,20 @@ function applyMergeSplitWoredas(M_obj) {
   M_obj.bySnU = bySnU;
   M_obj.last = last;
   M_obj.zones = Array.from(new Set(newUnits.map((u) => u.zone))).sort();
-  newRecs.forEach(flagRecord);
-  newUnits.forEach(flagUnit);
+  // Remarks are keyed by the original child sn; point them at the merged unit so
+  // they stay visible when Merge HC is on.
+  if (Array.isArray(M_obj.remarks) && M_obj.remarks.length) {
+    M_obj.remarks = M_obj.remarks.map((x) => {
+      if (!x) return x;
+      const to = remapSn[x[1]];
+      return to == null ? x : [x[0], to, x[2]];
+    });
+  }
+  // Re-run the quality checks over the merged view. Reused (non-merged) records and
+  // units already carry flags from the first pass, so clear them first — otherwise
+  // every flag would be counted twice whenever Merge HC is on.
+  newRecs.forEach((r) => { r.flags = []; flagRecord(r); });
+  newUnits.forEach((u) => { u.flags = []; flagUnit(u); });
   return M_obj;
 }
 
@@ -778,7 +792,9 @@ function buildModel(p) {
 }
 
 function flagRecord(r) {
-  const camp = M.days[r.d].type === 'campaign', f = r.flags;
+  const day = (M && M.days) ? M.days[r.d] : null;
+  if (!day) return; // unknown day index: there is no daily context to flag against
+  const camp = day.type === 'campaign', f = r.flags;
   if (camp && r.tot === 0) f.push({ rule:'zero', text:'No vaccination reported' });
   if (camp && r.dtgt > 0 && r.tot > 1.5 * r.dtgt)
     f.push({ rule:'overtarget', text:'Vaccinated ' + fmt(r.tot) + ' against a daily target of ' + fmt(r.dtgt) + ' (' + pct(r.tot / r.dtgt, 0) + ')' });
@@ -803,7 +819,8 @@ function flagRecord(r) {
 }
 function flagUnit(u) {
   if (!u.hc) u.flags.push({ rule:'hcname', text:'Health center name is blank in the sheet' });
-  const tot = M.bySn[u.sn].reduce((a, r) => a + r.tot, 0);
+  const rs = (M && M.bySn && M.bySn[u.sn]) || [];
+  const tot = rs.reduce((a, r) => a + (Number(r.tot) || 0), 0);
   if (u.tgt > 0 && tot / u.tgt > CFG.overCoverage)
     u.flags.push({ rule:'cumover', text:'Cumulative coverage ' + pct(tot / u.tgt) + ' of target ' + fmt(u.tgt) + '. Check the target.' });
 }
@@ -827,8 +844,10 @@ function perfBandCounts(rows) {
   const counts = { '≥90%': 0, '80–89%': 0, '<80%': 0 };
   const lists = { '≥90%': [], '80–89%': [], '<80%': [] };
   (rows || []).forEach(r => {
-    const covv = (r && r.dcov != null) ? r.dcov : (r && r.cov != null ? r.cov : null);
-    const b = perfBand(covv);
+    // Performance bands are defined on DAILY coverage. Never fall back to
+    // cumulative coverage here: mixing the two metrics would count a woreda in a
+    // band the matching chart does not show.
+    const b = perfBand(r ? r.dcov : null);
     if (!b) return;
     counts[b.label] += 1;
     lists[b.label].push(r);
@@ -1647,7 +1666,7 @@ function renderQuality() {
     : '<div class="empty">No issues found for this selection.</div>';
 
   const set = new Set(scopeUnits().map(u => u.sn));
-  const rem = M.remarks.filter(x => set.has(x[1]) && inDays(x[0]));
+  const rem = M.remarks.filter(x => x && set.has(x[1]) && inDays(x[0]) && M.bySnU[x[1]] && M.days[x[0]]);
   const remTbl = rem.length
     ? '<div class="tbl-wrap"><table><thead><tr><th class="tl">Day</th><th class="tl">Zone</th><th class="tl">Woreda</th><th class="tl">Remark</th></tr></thead><tbody>' +
       rem.map(x => { const u = M.bySnU[x[1]]; return '<tr><td class="tl">' + esc(M.days[x[0]].label) + '</td><td class="tl">' + esc(u.zone) + '</td><td class="tl">' + esc(u.woreda) + '</td><td class="wrap">' + esc(x[2]) + '</td></tr>'; }).join('') + '</tbody></table></div>'
@@ -2271,6 +2290,14 @@ function fillWoredas() {
   if (S.zone === 'all') { sel.innerHTML = '<option value="all">Choose a zone first</option>'; sel.disabled = true; S.woreda = 'all'; return; }
   const ws = M.units.filter(u => u.zone === S.zone).map(u => u.woreda);
   const uniq = Array.from(new Set(ws)).sort();
+  // Merge HC (or a data refresh) can retire the selected woreda label — e.g.
+  // "Woreda 03/1" disappears into "Woreda 03". Re-point the selection to the
+  // matching woreda or fall back to "all woredas" so the scope never goes empty.
+  if (S.woreda !== 'all' && uniq.indexOf(S.woreda) === -1) {
+    const base = baseWoredaLabel(S.woreda);
+    const match = uniq.find(w => w === S.woreda || baseWoredaLabel(w) === base);
+    S.woreda = match || 'all';
+  }
   sel.innerHTML = '<option value="all">All woredas</option>' + uniq.map(w => '<option>' + esc(w) + '</option>').join('');
   sel.disabled = false; sel.value = S.woreda;
   if (DASH_SCOPE.mode === 'woreda' && DASH_SCOPE.woreda) {
