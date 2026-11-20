@@ -962,7 +962,12 @@ function _dlDefaultFormatter(value, chart, ctx) {
   if (o.percent) {
     const vals = ((chart.data.datasets || [])[ctx.datasetIndex] || {}).data || [];
     const total = vals.reduce((s, v) => s + (Number(v) || 0), 0);
-    if (total > 0) return Math.round((Number(value) || 0) / total * 100) + '%';
+    if (total > 0) {
+      const p = (Number(value) || 0) / total * 100;
+      const type = chart && chart.config && chart.config.type;
+      const isPieLike = type === 'pie' || type === 'doughnut' || type === 'polarArea';
+      return isPieLike ? (fmt(Number(value) || 0) + ' (' + Math.round(p) + '%)') : (Math.round(p) + '%');
+    }
   }
   if (isPctContext) {
     let n = Number(value);
@@ -1084,8 +1089,8 @@ function setupChartDefaults() {
   Chart.defaults.plugins.legend.labels.boxHeight = 10;
   Chart.defaults.plugins.dataLabels = Object.assign({}, Chart.defaults.plugins.dataLabels || {}, {
     display: true,
-    color: '#FF0000', // TEMP TEST: prove labels render (will switch to final styling)
-    font: '700 20px "Public Sans", sans-serif', // TEMP TEST
+    color: '#0F2552',
+    font: '700 12px "Public Sans", sans-serif',
     outline: true
   });
 }
@@ -1136,26 +1141,26 @@ function _applyBarLabelDefaults(cfg) {
   const indexAxis = cfg.options.indexAxis || 'x';
   const isHoriz = indexAxis === 'y';
   if (isHoriz) {
-    cfg.options.layout.padding.right = Math.max(cfg.options.layout.padding.right || 0, 36);
+    cfg.options.layout.padding.right = Math.max(cfg.options.layout.padding.right || 0, 40);
     cfg.options.scales = cfg.options.scales || {};
     cfg.options.scales.x = Object.assign({}, cfg.options.scales.x || {});
     // Extend max a bit to make room for outside labels when values are near max
     const vals = (cfg.data && cfg.data.datasets || []).flatMap(ds => Array.isArray(ds.data) ? ds.data : []).map(v => (v && typeof v === 'object') ? (v.y != null ? v.y : v.x) : v).filter(v => typeof v === 'number' && isFinite(v));
     if (vals.length) {
       const max = Math.max.apply(null, vals);
-      if (max > 0) cfg.options.scales.x.suggestedMax = Math.max(cfg.options.scales.x.suggestedMax || 0, max * 1.12);
+      if (max > 0 && cfg.options.scales.x.max == null) cfg.options.scales.x.suggestedMax = Math.max(cfg.options.scales.x.suggestedMax || 0, max * 1.12);
     }
   } else {
     // vertical bar/column
     const hasStacked = !!(cfg.options.scales && ((cfg.options.scales.x && cfg.options.scales.x.stacked) || (cfg.options.scales.y && cfg.options.scales.y.stacked)));
     if (!hasStacked) {
-      cfg.options.layout.padding.top = Math.max(cfg.options.layout.padding.top || 0, 24);
+      cfg.options.layout.padding.top = Math.max(cfg.options.layout.padding.top || 0, 28);
       cfg.options.scales = cfg.options.scales || {};
       cfg.options.scales.y = Object.assign({}, cfg.options.scales.y || {});
       const vals = (cfg.data && cfg.data.datasets || []).flatMap(ds => Array.isArray(ds.data) ? ds.data : []).map(v => (v && typeof v === 'object') ? (v.y != null ? v.y : v.x) : v).filter(v => typeof v === 'number' && isFinite(v));
       if (vals.length) {
         const max = Math.max.apply(null, vals);
-        if (max > 0) cfg.options.scales.y.suggestedMax = Math.max(cfg.options.scales.y.suggestedMax || 0, max * 1.15);
+        if (max > 0 && cfg.options.scales.y.max == null) cfg.options.scales.y.suggestedMax = Math.max(cfg.options.scales.y.suggestedMax || 0, max * 1.15);
       }
     } else {
       cfg.options.layout.padding.top = Math.max(cfg.options.layout.padding.top || 0, 12);
@@ -1287,7 +1292,7 @@ function renderOverview() {
 
   const labels = dt.map((a, i) => M.days[i].label);
   draw('ch-daily', { type:'bar', data:{ labels, datasets:[
-    { type:'bar', label:'Vaccinated', data:dt.map(a => a.tot), backgroundColor:dt.map((a, i) => dayColor(i)), borderRadius:3, order:2, datalabels:{ formatter:(v,ctx)=>{ if(v==null) return ''; const a = dt[ctx.dataIndex]; const t = a ? a.dtgt : null; return (t > 0) ? (fmt(v) + ' (' + pct(v / t) + ')') : fmt(v); } } },
+    { type:'bar', label:'Vaccinated', data:dt.map(a => a.tot), backgroundColor:dt.map((a, i) => dayColor(i)), borderRadius:3, order:2, datalabels:{ formatter:(v)=> v==null?'':fmt(v) } },
     { type:'line', label:'Daily target', data:dt.map((a, i) => M.days[i].type === 'campaign' ? a.dtgt : null), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:4, pointBackgroundColor:'#0F2552', borderWidth:2, tension:0, order:1, datalabels:{ formatter:(v)=> v==null?'':fmt(v), align:'top', anchor:'end', color:'#0F2552' } }
   ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ color:'#0F2552' } } }) });
 
@@ -1296,12 +1301,12 @@ function renderOverview() {
   draw('ch-cum', { type:'line', data:{ labels, datasets:[
     { label:'Cumulative coverage', data:cumCov, borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:4, tension:.25 },
     { label:pct(CFG.targetCoverage, 0) + ' goal', data:labels.map(() => CFG.targetCoverage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5, datalabels:{ display:false } }
-  ] }, options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter:(v)=> v==null?'':(Number(v).toFixed(1)+'%'), color:'#0F2552' } } }) });
+  ] }, options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter:(v)=> v==null?'':(Math.round(Number(v))+'%'), color:'#0F2552' } } }) });
 
   draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Daily coverage', data:g.map(x => x.dcov == null ? null : x.dcov * 100), backgroundColor:g.map(x => STATUS_COL[status(x.dcov)]), borderRadius:3 }] },
-    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:150 } },
-      scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
-      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' }, dataLabels:{ formatter:(v,ctx)=>{ if(v==null) return ''; const gi = g[ctx.dataIndex]; const tot = gi && gi.a ? (gi.a.tot || 0) : 0; const dtgt = gi ? (gi.dtgt || 0) : 0; return fmt(tot) + '/' + fmt(dtgt) + ' (' + Number(v).toFixed(1) + '%)'; } } } } });
+    options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } },
+      scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' }, _pct:true }, y:{ grid:{ display:false } } },
+      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%' }, dataLabels:{ yPercent:true, formatter:(v)=> v==null?'':(Math.round(Number(v))+'%') } } } });
 
   draw('ch-sex', { type:'doughnut', data:{ labels:['Male', 'Female'], datasets:[{ data:[cum.male, cum.female], backgroundColor:['#1E6BFF', '#EC4899'], borderWidth:2, borderColor:'#fff' }] },
     options:{ responsive:true, cutout:'62%', plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (cum.male + cum.female || 1)) + ')' } }, dataLabels:{ percent:true, color:'#fff', font:'700 12px "Public Sans", sans-serif', showSmallPie:true } } } });
@@ -1309,18 +1314,18 @@ function renderOverview() {
   draw('ch-age', { type:'bar', data:{ labels, datasets:[
     { label:'0–11 months', data:dt.map(a => a.v011 + a.n011), backgroundColor:'#1E6BFF' },
     { label:'12–59 months', data:dt.map(a => a.v1259 + a.n1259), backgroundColor:'#34D399' }
-  ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter:(v,ctx)=>{ if(!(v>0)) return ''; const total = (chartTotalsAt_(ctx.chart, ctx.dataIndex) || 0); return total > 0 ? (fmt(v) + ' (' + pct(v/total) + ')') : fmt(v); }, color:'#fff', font:'600 10px "Public Sans", sans-serif' } } }) });
+  ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter:(v)=> (v>0?fmt(v):''), color:'#fff', font:'700 11px "Public Sans", sans-serif' } } }) });
 
   draw('ch-place', { type:'pie', data:{ labels:placeVals.map(x => x[0]), datasets:[{ label:'Children', data:placeVals.map(x => x[1]), backgroundColor:placeColors, borderColor:'#fff', borderWidth:2 }] },
     options:{ responsive:true, plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (placeVals.reduce((s, x) => s + x[1], 0) || 1)) + ')' } }, dataLabels:{ percent:true, color:'#fff', font:'700 11px "Public Sans", sans-serif', showSmallPie:true } } } });
 
   draw('ch-teams-cmp', { type:'bar', data:{ labels:['Total vaccination teams','Reported teams'], datasets:[{ label:'Teams', data:[cur.teams||0, cur.teamsRep||0], backgroundColor:['#1E6BFF','#10B981'], borderRadius:4 }] },
-    options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v,ctx)=>{ const arr = (ctx.chart.data.datasets[0]||{}).data || []; const base = Number(arr[0] || 0); return base > 0 ? (fmt(v) + ' (' + pct((Number(v)||0)/base) + ')') : fmt(v); } } } }) });
+    options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v)=> fmt(v) } } }) });
   draw('ch-zdteams-cmp', { type:'bar', data:{ labels:['Total zero-dose teams','Reported zero-dose teams'], datasets:[{ label:'Teams', data:[cur.zdTeams||0, cur.zdTeamsRep||0], backgroundColor:['#8B5CF6','#34D399'], borderRadius:4 }] },
-    options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v,ctx)=>{ const arr = (ctx.chart.data.datasets[0]||{}).data || []; const base = Number(arr[0] || 0); return base > 0 ? (fmt(v) + ' (' + pct((Number(v)||0)/base) + ')') : fmt(v); } } } }) });
+    options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v)=> fmt(v) } } }) });
 
   draw('ch-perf-bands-summary', { type:'bar', data:{ labels: perfBands.labels, datasets:[{ label:'Woredas', data: perfBands.labels.map(function(l){ return perfBands.counts[l] || 0; }), backgroundColor: perfBands.colors, borderRadius:4 }] },
-    options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ precision:0, callback: function(v){ return fmt(v); } } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:function(v){ var n = Number(v)||0; return perfBandTotal>0 ? (fmt(n)+' ('+pct(n/perfBandTotal)+')') : fmt(n); } } } }) });
+    options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ precision:0, callback: function(v){ return fmt(v); } } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:function(v){ return fmt(v); } } } }) });
 }
 
 /* ---------- Zones and woredas ---------- */
@@ -1371,7 +1376,7 @@ function renderGeo() {
   const bandInfo = PERF_BANDS.find(b => b.label === selBand) || PERF_BANDS[0];
   if (selList.length) {
     draw('ch-perf-bands', { type:'bar', data:{ labels: selList.map(function(r){ return r.u.woreda + ' (' + r.u.zone + ')'; }), datasets:[{ label:'Daily coverage (%)', data: selList.map(function(r){ return r.dcov == null ? null : Math.round(r.dcov * 1000) / 10; }), backgroundColor: bandInfo.color, borderRadius:4 }] },
-      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:150 } }, scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: function(v){ return v + '%'; } } }, y:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:pctTip(), dataLabels:{ formatter: function(v,ctx){ if(v==null) return ''; var row = selList[ctx.dataIndex]; var tot = row && row.a ? (row.a.tot || 0) : 0; var dtgt = row ? (row.dtgt || 0) : 0; return fmt(tot) + '/' + fmt(dtgt) + ' (' + Number(v).toFixed(1) + '%)'; } } } } });
+      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: function(v){ return v + '%'; } }, _pct:true }, y:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:pctTip(), dataLabels:{ yPercent:true, formatter: function(v){ return v==null?'':(Math.round(Number(v))+'%'); } } } } });
   }
   $('#geoQ').addEventListener('input', e => { S.q = e.target.value; renderGeoTable(); });
   renderGeoTable();
@@ -1452,26 +1457,19 @@ function renderVaccine() {
     const vl = [['Received', r.rec, '#0F2552'], ['Used', r.used, '#1E6BFF'], ['Partially used', r.part, '#06B6D4'], ['Returned, good', r.retG, '#34D399'], ['Broken', r.brk, '#E69B00'], ['Returned, bad', r.retB, '#E5262B'], ['Lost', r.lost, '#EC4899']];
     const recBase = Number(r.rec || 0);
     draw(id, { type:'bar', data:{ labels:vl.map(x => x[0]), datasets:[{ label:'Vials', data:vl.map(x => x[1]), backgroundColor:vl.map(x => x[2]), borderRadius:3 }] },
-      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:110 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
-        plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) }, dataLabels:{ formatter: v => recBase > 0 ? (fmt(v) + ' (' + pct((Number(v)||0)/recBase) + ')') : fmt(v) } } } });
+      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:40 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
+        plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) }, dataLabels:{ formatter: v => fmt(v) } } } });
   }
   function drawWday(id, isB) {
     draw(id, { type:'line', data:{ labels, datasets:[
       { label:'Wastage', data:dt.map(a => { const x = isB ? bWastage(a) : wastage(a); return x == null ? null : x * 100; }), borderColor: isB ? '#10B981' : '#1E6BFF', backgroundColor: isB ? '#10B981' : '#1E6BFF', borderWidth:3, pointRadius:5, pointBackgroundColor:dt.map((a, i) => dayColor(i)), tension:.2 },
       { label:'Limit', data:labels.map(() => CFG.maxWastage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5, datalabels:{ display:false } }
-    ] }, options:vOpts({ scales:{ y:{ ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter: v => v == null ? '' : (Number(v).toFixed(1) + '%') } } }) });
+    ] }, options:vOpts({ scales:{ y:{ ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter: v => v == null ? '' : (Math.round(Number(v)) + '%') } } }) });
   }
   function drawWgrp(id, g, isB) {
     draw(id, { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Wastage', data:g.map(x => (isB ? x.bw : x.w) * 100), backgroundColor:g.map(x => (isB ? x.bw : x.w) > CFG.maxWastage ? '#E5262B' : (isB ? '#10B981' : '#1E6BFF')), borderRadius:3 }] },
-      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:130 } }, scales:{ x:{ ticks:{ callback: v => v + '%' } }, y:{ grid:{ display:false } } },
-        plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.maxWastage * 100, label:'Limit ' + pct(CFG.maxWastage, 0) }, barLabels:{ format: v => v.toFixed(1) + '%' }, dataLabels:{ formatter: (v,ctx) => {
-          if (v == null) return '';
-          const gi = g[ctx.dataIndex], a = gi && gi.a ? gi.a : {};
-          const dpp = isB ? (CFG.bopvDosesPerVial || 20) : CFG.dosesPerVial;
-          const cap = ((isB ? (a.bused||0)+(a.bpart||0) : (a.used||0)+(a.part||0)) * dpp);
-          const wasted = Math.max(0, cap - (a.tot || 0));
-          return cap > 0 ? (fmt(wasted) + ' doses (' + Number(v).toFixed(1) + '%)') : (Number(v).toFixed(1) + '%');
-        } } } } });
+      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ ticks:{ callback: v => v + '%' }, _pct:true }, y:{ grid:{ display:false } } },
+        plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.maxWastage * 100, label:'Limit ' + pct(CFG.maxWastage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%' }, dataLabels:{ yPercent:true, formatter: (v) => v == null ? '' : (Math.round(Number(v)) + '%') } } } });
   }
 
   drawVials('ch-vials-n', cum, false);
@@ -1527,12 +1525,12 @@ function renderAfp() {
     '</div>' + panel('c12', 'AFP surveillance by woreda and health center', 'Cumulative through ' + esc(dayName()) + '.', tbl);
   draw('ch-afp-day', { type:'bar', data:{ labels, datasets:[
     { label:'AFP signals (rumors)', data:dt.map(a => a.afpSig), backgroundColor:'#BE185D', borderRadius:3 },
-    { label:'AFP alert cases', data:dt.map(a => a.afpAlt), backgroundColor:'#F43F5E', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v,ctx) => { if(!(v>0)) return ''; const total = chartTotalsAt_(ctx.chart, ctx.dataIndex); return total>0 ? (fmt(v)+' ('+pct(v/total)+')') : fmt(v); } } } }) });
+    { label:'AFP alert cases', data:dt.map(a => a.afpAlt), backgroundColor:'#F43F5E', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
   draw('ch-afp-link', { type:'bar', data:{ labels, datasets:[
     { label:'Zero-dose identified', data:dt.map(a => a.zdId), backgroundColor:'#6D28D9' },
     { label:'Zero-dose vaccinated', data:dt.map(a => a.zdV), backgroundColor:'#06B6D4' },
     { label:'Under-vaccinated identified', data:dt.map(a => a.uvId), backgroundColor:'#A855F7' },
-    { label:'Under-vaccinated vaccinated', data:dt.map(a => a.uvV), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v,ctx) => { if(!(v>0)) return ''; const total = chartTotalsAt_(ctx.chart, ctx.dataIndex); return total>0 ? (fmt(v)+' ('+pct(v/total)+')') : fmt(v); } } } }) });
+    { label:'Under-vaccinated vaccinated', data:dt.map(a => a.uvV), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
 }
 
 /* ---------- AEFI ---------- */
@@ -1556,13 +1554,13 @@ function renderAefi() {
     '</div>' + panel('c12', 'AEFI by woreda and health center', 'Cumulative through ' + esc(dayName()) + '.', tbl);
   draw('ch-aefi-day', { type:'bar', data:{ labels, datasets:[
     { label:'Mild AEFI', data:dt.map(a => a.aefiMild), backgroundColor:'#F59E0B', borderRadius:3 },
-    { label:'Severe AEFI', data:dt.map(a => a.aefiSev), backgroundColor:'#E5262B', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v,ctx) => { if(!(v>0)) return ''; const total = chartTotalsAt_(ctx.chart, ctx.dataIndex); return total>0 ? (fmt(v)+' ('+pct(v/total)+')') : fmt(v); } } } }) });
+    { label:'Severe AEFI', data:dt.map(a => a.aefiSev), backgroundColor:'#E5262B', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
   const gA = rollup(unitRows(), r => groupBy() === 'zone' ? r.u.zone : r.u.woreda)
     .sort((a, b) => ((b.a.aefiSev || 0) - (a.a.aefiSev || 0)) || (((b.a.aefiMild || 0) + (b.a.aefiSev || 0)) - ((a.a.aefiMild || 0) + (a.a.aefiSev || 0))));
   draw('ch-aefi-grp', { type:'bar', data:{ labels:gA.map(x => x.key), datasets:[
     { label:'Mild', data:gA.map(x => x.a.aefiMild), backgroundColor:'#F59E0B', borderRadius:3 },
     { label:'Severe', data:gA.map(x => x.a.aefiSev), backgroundColor:'#E5262B', borderRadius:3 } ] },
-    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, layout:{ padding:{ right:110 } }, scales:{ x:{ beginAtZero:true, ticks:{ precision:0, callback: v => fmt(v) } }, y:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v,ctx) => { if(!(v>0)) return ''; const total = chartTotalsAt_(ctx.chart, ctx.dataIndex); return total>0 ? (fmt(v)+' ('+pct(v/total)+')') : fmt(v); } } } } });
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, layout:{ padding:{ right:40 } }, scales:{ x:{ beginAtZero:true, ticks:{ precision:0, callback: v => fmt(v) } }, y:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } } });
 }
 
 /* ---------- Teams ---------- */
@@ -1592,7 +1590,7 @@ function renderTeams() {
     { label:'All teams reporting', data:dt.map(a => a.teams > 0 ? a.teamsRep / a.teams * 100 : null), borderColor:'#1E6BFF', backgroundColor:'#1E6BFF', borderWidth:3, pointRadius:4, tension:.2 },
     { label:'Zero-dose teams reporting', data:dt.map(a => a.zdTeams > 0 ? a.zdTeamsRep / a.zdTeams * 100 : null), borderColor:'#8B5CF6', backgroundColor:'#8B5CF6', borderWidth:3, pointRadius:4, borderDash:[6, 3], tension:.2 },
     { label:'95%', data:labels.map(() => 95), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5, datalabels:{ display:false } } ] },
-    options:vOpts({ scales:{ y:{ min:0, max:100, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter: v => v == null ? '' : (Number(v).toFixed(1) + '%') } } }) });
+    options:vOpts({ scales:{ y:{ min:0, max:100, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter: v => v == null ? '' : (Math.round(Number(v)) + '%') } } }) });
 }
 
 /* ---------- Social mobilization ---------- */
@@ -1624,10 +1622,10 @@ function renderSocial() {
   draw('ch-mob', { type:'bar', data:{ labels, datasets:[
     { label:'HHs visited by social mobilizers', data:dt.map(a => a.hh), backgroundColor:'#6D28D9' },
     { label:'Group discussions (Community Meetings)', data:dt.map(a => a.groupDisc), backgroundColor:'#06B6D4' },
-    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v,ctx) => { if(!(v>0)) return ''; const total = chartTotalsAt_(ctx.chart, ctx.dataIndex); return total>0 ? (fmt(v)+' ('+pct(v/total)+')') : fmt(v); } } } }) });
+    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
   draw('ch-cmp', { type:'bar', data:{ labels, datasets:[
     { label:'Group discussions', data:dt.map(a => a.groupDisc), backgroundColor:'#0891B2', borderRadius:3 },
-    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#BE185D', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v,ctx) => { if(!(v>0)) return ''; const total = chartTotalsAt_(ctx.chart, ctx.dataIndex); return total>0 ? (fmt(v)+' ('+pct(v/total)+')') : fmt(v); } } } }) });
+    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#BE185D', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
 }
 
 /* ---------- Data quality ---------- */
@@ -3075,26 +3073,20 @@ function renderPresenterCharts_(){
       options.scales = { x: { ticks: { maxRotation: 0, autoSkip: true } }, y: { beginAtZero: true } };
       if (cfg.yPercent) {
         options.scales.y.ticks = { callback: v => v + '%' };
-        options.plugins.dataLabels.formatter = (v) => v == null ? '' : (Number(v).toFixed(1) + '%');
+        options.plugins.dataLabels.formatter = (v) => v == null ? '' : (Math.round(Number(v)) + '%');
       } else {
-        options.plugins.dataLabels.formatter = (v, ctx) => {
+        options.plugins.dataLabels.formatter = (v) => {
           if (v == null || v === '') return '';
           const n = Number(v);
-          if (!isFinite(n)) return String(v);
-          const chart = ctx && ctx.chart;
-          const datasets = (chart && chart.data && chart.data.datasets) || [];
-          let base = 0;
-          if (datasets.length <= 1) {
-            base = (datasets[0] && datasets[0].data || []).reduce((s, x) => s + (Number(x) || 0), 0);
-          } else {
-            base = chart ? chartTotalsAt_(chart, ctx.dataIndex) : 0;
-          }
-          return base > 0 ? (fmt(n) + ' (' + pct(n / base) + ')') : fmt(n);
+          return isFinite(n) ? fmt(n) : String(v);
         };
       }
     }
     try {
-      PRESENT_CHARTS.push(new Chart(ctx, { type, data: { labels: cfg.labels || [], datasets: cfg.datasets || [] }, options }));
+      let chartCfg = { type, data: { labels: cfg.labels || [], datasets: cfg.datasets || [] }, options };
+      if (cfg.yPercent) chartCfg._pctLabel = true;
+      try { chartCfg = _applyBarLabelDefaults(chartCfg); } catch(e) {}
+      PRESENT_CHARTS.push(new Chart(ctx, chartCfg));
     } catch(e){}
   });
 }
