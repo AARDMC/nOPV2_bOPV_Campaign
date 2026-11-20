@@ -1336,7 +1336,7 @@ function renderOverview() {
   draw('ch-age', { type:'bar', data:{ labels, datasets:[
     { label:'0–11 months', data:dt.map(a => a.v011 + a.n011), backgroundColor:'#1E6BFF' },
     { label:'12–59 months', data:dt.map(a => a.v1259 + a.n1259), backgroundColor:'#34D399' }
-  ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter:(v)=> (v>0?fmt(v):''), color:'#fff', font:'700 11px "Public Sans", sans-serif' } } }) });
+  ] }, options:vOpts({ scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v) } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter:(v)=> (v==null?'':fmt(v)), color:'#fff', font:'700 11px "Public Sans", sans-serif' } } }) });
 
   draw('ch-place', { type:'pie', data:{ labels:placeVals.map(x => x[0]), datasets:[{ label:'Children', data:placeVals.map(x => x[1]), backgroundColor:placeColors, borderColor:'#fff', borderWidth:2 }] },
     options:{ responsive:true, plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (placeVals.reduce((s, x) => s + x[1], 0) || 1)) + ')' } }, dataLabels:{ percent:true, color:'#fff', font:'700 11px "Public Sans", sans-serif', showSmallPie:true } } } });
@@ -1547,12 +1547,12 @@ function renderAfp() {
     '</div>' + panel('c12', 'AFP surveillance by woreda and health center', 'Cumulative through ' + esc(dayName()) + '.', tbl);
   draw('ch-afp-day', { type:'bar', data:{ labels, datasets:[
     { label:'AFP signals (rumors)', data:dt.map(a => a.afpSig), backgroundColor:'#BE185D', borderRadius:3 },
-    { label:'AFP alert cases', data:dt.map(a => a.afpAlt), backgroundColor:'#F43F5E', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
+    { label:'AFP alert cases', data:dt.map(a => a.afpAlt), backgroundColor:'#F43F5E', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v == null ? '' : fmt(v)) } } }) });
   draw('ch-afp-link', { type:'bar', data:{ labels, datasets:[
     { label:'Zero-dose identified', data:dt.map(a => a.zdId), backgroundColor:'#6D28D9' },
     { label:'Zero-dose vaccinated', data:dt.map(a => a.zdV), backgroundColor:'#06B6D4' },
     { label:'Under-vaccinated identified', data:dt.map(a => a.uvId), backgroundColor:'#A855F7' },
-    { label:'Under-vaccinated vaccinated', data:dt.map(a => a.uvV), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
+    { label:'Under-vaccinated vaccinated', data:dt.map(a => a.uvV), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v == null ? '' : fmt(v)) } } }) });
 }
 
 /* ---------- AEFI ---------- */
@@ -1576,13 +1576,13 @@ function renderAefi() {
     '</div>' + panel('c12', 'AEFI by woreda and health center', 'Cumulative through ' + esc(dayName()) + '.', tbl);
   draw('ch-aefi-day', { type:'bar', data:{ labels, datasets:[
     { label:'Mild AEFI', data:dt.map(a => a.aefiMild), backgroundColor:'#F59E0B', borderRadius:3 },
-    { label:'Severe AEFI', data:dt.map(a => a.aefiSev), backgroundColor:'#E5262B', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
+    { label:'Severe AEFI', data:dt.map(a => a.aefiSev), backgroundColor:'#E5262B', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v == null ? '' : fmt(v)) } } }) });
   const gA = rollup(unitRows(), r => groupBy() === 'zone' ? r.u.zone : r.u.woreda)
     .sort((a, b) => ((b.a.aefiSev || 0) - (a.a.aefiSev || 0)) || (((b.a.aefiMild || 0) + (b.a.aefiSev || 0)) - ((a.a.aefiMild || 0) + (a.a.aefiSev || 0))));
   draw('ch-aefi-grp', { type:'bar', data:{ labels:gA.map(x => x.key), datasets:[
     { label:'Mild', data:gA.map(x => x.a.aefiMild), backgroundColor:'#F59E0B', borderRadius:3 },
     { label:'Severe', data:gA.map(x => x.a.aefiSev), backgroundColor:'#E5262B', borderRadius:3 } ] },
-    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, layout:{ padding:{ right:40 } }, scales:{ x:{ beginAtZero:true, ticks:{ precision:0, callback: v => fmt(v) } }, y:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } } });
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, layout:{ padding:{ right:40 } }, scales:{ x:{ beginAtZero:true, ticks:{ precision:0, callback: v => fmt(v) } }, y:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v == null ? '' : fmt(v)) } } } });
 }
 
 /* ---------- Teams ---------- */
@@ -1644,10 +1644,10 @@ function renderSocial() {
   draw('ch-mob', { type:'bar', data:{ labels, datasets:[
     { label:'HHs visited by social mobilizers', data:dt.map(a => a.hh), backgroundColor:'#6D28D9' },
     { label:'Group discussions (Community Meetings)', data:dt.map(a => a.groupDisc), backgroundColor:'#06B6D4' },
-    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
+    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#F472B6' } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v == null ? '' : fmt(v)) } } }) });
   draw('ch-cmp', { type:'bar', data:{ labels, datasets:[
     { label:'Group discussions', data:dt.map(a => a.groupDisc), backgroundColor:'#0891B2', borderRadius:3 },
-    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#BE185D', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v>0 ? fmt(v) : '') } } }) });
+    { label:'Home-to-Home Education / IPC', data:dt.map(a => a.homeEdu), backgroundColor:'#BE185D', borderRadius:3 } ] }, options:vOpts({ plugins:{ legend:{ position:'bottom' }, tooltip:numTip, dataLabels:{ formatter: (v) => (v == null ? '' : fmt(v)) } } }) });
 }
 
 /* ---------- Data quality ---------- */
