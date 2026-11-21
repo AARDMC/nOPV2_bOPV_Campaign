@@ -3203,7 +3203,11 @@ function _presenterBuildDynamicReport(mapSvg){
   const campLabel = (M.meta && M.meta.title) ? M.meta.title : 'bOPV1 & nOPV2 Round 1 Campaign';
   // replace hardcoded day/report strings in template
   out = out.replace(/Campaign Day 1/g, dayLabel || 'Campaign Day 1');
+  out = out.replace(/Day 1 achievement/g, (dayLabel || 'Day 1') + ' achievement');
+  out = out.replace(/Day 1 target by sub-city/g, (dayLabel || 'Day 1') + ' target by sub-city');
+  out = out.replace(/Day 1 only/g, (dayLabel || 'Day 1') + ' (selected)');
   out = out.replace(/20 November 2026 \(campaign day 1\)/g, _presenterEscHtml(dayLabel) + (repDate ? ' (data read ' + _presenterEscHtml(repDate) + ')' : ''));
+  out = out.replace(/20 November 2026 · Gulele Sub City, Addis Ababa/g, _presenterEscHtml(dayLabel) + ' · Gulele Sub City, Addis Ababa');
   out = out.replace(/Addis Ababa bOPV1 &amp; nOPV2 Round 1 Campaign – Day 1 M&amp;E Report/g, _presenterEscHtml(scopeTitle) + ' – ' + _presenterEscHtml(dayLabel) + ' M&amp;E Report');
   out = out.replace(/Addis Ababa bOPV1 &amp; nOPV2 Round 1 Campaign   2026/g, _presenterEscHtml(scopeTitle) + ' ' + _presenterEscHtml(campLabel));
   out = out.replace(/ADDIS ABABA CITY ADMINISTRATION HEALTH BUREAU/g, _presenterEscHtml(scopeTitle).toUpperCase());
