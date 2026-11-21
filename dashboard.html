@@ -999,8 +999,8 @@ function _dlDefaultFormatter(value, chart, ctx) {
   return isFinite(n) ? fmt(n) : String(value);
 }
 const dataLabels = { id:'dataLabels',
-  afterDatasetsDraw(chart) { this._paint(chart, 'afterDatasetsDraw'); },
-  afterDraw(chart) { if (!chart._dlPainted) this._paint(chart, 'afterDraw'); chart._dlPainted = false; },
+  afterDatasetsDraw(chart) { dataLabels._paint(chart, 'afterDatasetsDraw'); },
+  afterDraw(chart) { if (!chart._dlPainted) dataLabels._paint(chart, 'afterDraw'); chart._dlPainted = false; },
   _paint(chart, phase) {
   try {
   const o = (chart.options.plugins && chart.options.plugins.dataLabels) || {};
@@ -3284,10 +3284,15 @@ function updatePresenter(){
   setTimeout(() => { (PRESENT_CHARTS||[]).forEach(ch => { try { ch.resize(); } catch(e){} }); }, 30);
 }
 function openPresenter(){
-  if(!M){ toast('Load the dashboard first.', true); return; }
-  renderPresenter();
-  const p = document.getElementById('presenter'); if(!p) return;
-  p.classList.add('show'); p.setAttribute('aria-hidden','false');
+  try {
+    if(!M){ toast('Load the dashboard first.', true); return; }
+    renderPresenter();
+    const p = document.getElementById('presenter'); if(!p) return;
+    p.classList.add('show'); p.setAttribute('aria-hidden','false');
+  } catch(e) {
+    try { toast('Could not open presenter: ' + esc((e && e.message) || String(e)), true); } catch(_) {}
+    console.error('openPresenter failed', e);
+  }
 }
 function closePresenter(){
   destroyPresenterCharts_();
