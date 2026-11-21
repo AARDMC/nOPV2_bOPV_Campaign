@@ -947,8 +947,15 @@ const refLine = { id:'refLine', afterDatasetsDraw(chart, args, o) {
 const barLabels = { id:'barLabels', afterDatasetsDraw(chart, args, o) {
   if (!o || !o.format) return;
   const dl = chart.options.plugins && chart.options.plugins.dataLabels;
-  if (dl && dl.display !== false && !o.force) return;
-  const ctx = chart.ctx; ctx.save(); ctx.fillStyle = '#0F2552';
+  if (o.force) {
+    // explicit fallback/force draw
+  } else if (dl && dl.display !== false) {
+    // if generic dataLabels plugin already painted this render, skip to avoid duplicates
+    if (chart._dlPainted) return;
+    // otherwise fall through as a best-effort fallback
+  }
+  const ctx = chart.ctx; if (!ctx) return;
+  ctx.save(); ctx.fillStyle = '#0F2552';
   ctx.font = '600 11px "Public Sans", sans-serif'; ctx.textBaseline = 'middle';
   const meta = chart.getDatasetMeta(0);
   if (!meta || !meta.data) { ctx.restore(); return; }
@@ -1115,8 +1122,8 @@ function setupChartDefaults() {
   if (_chartDefaultsReady) return;
   _chartDefaultsReady = true;
   try { Chart.register(refLine); } catch (e) {}
-  try { Chart.register(barLabels); } catch (e) {}
   try { Chart.register(dataLabels); } catch (e) {}
+  try { Chart.register(barLabels); } catch (e) {}
   Chart.defaults.font.family = '"Public Sans", system-ui, sans-serif';
   Chart.defaults.font.size = 12;
   Chart.defaults.color = '#44577F';
@@ -1498,7 +1505,7 @@ function renderVaccine() {
     const recBase = Number(r.rec || 0);
     draw(id, { type:'bar', data:{ labels:vl.map(x => x[0]), datasets:[{ label:'Vials', data:vl.map(x => x[1]), backgroundColor:vl.map(x => x[2]), borderRadius:3 }] },
       options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:40 } }, scales:{ x:{ beginAtZero:true, ticks:{ callback: v => fmt(v) } }, y:{ grid:{ display:false } } },
-        plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v) }, dataLabels:{ formatter: v => fmt(v) } } } });
+        plugins:{ legend:{ display:false }, tooltip:numTip, barLabels:{ format: v => fmt(v), force: true }, dataLabels:{ display:true, formatter: v => fmt(v), color:'#0F2552' } } } });
   }
   function drawWday(id, isB) {
     draw(id, { type:'line', data:{ labels, datasets:[
@@ -1509,7 +1516,7 @@ function renderVaccine() {
   function drawWgrp(id, g, isB) {
     draw(id, { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Wastage', data:g.map(x => (isB ? x.bw : x.w) * 100), backgroundColor:g.map(x => (isB ? x.bw : x.w) > CFG.maxWastage ? '#E5262B' : (isB ? '#10B981' : '#1E6BFF')), borderRadius:3 }] },
       options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ ticks:{ callback: v => v + '%' }, _pct:true }, y:{ grid:{ display:false } } },
-        plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.maxWastage * 100, label:'Limit ' + pct(CFG.maxWastage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%' }, dataLabels:{ yPercent:true, formatter: (v) => v == null ? '' : (Math.round(Number(v)) + '%') } } } });
+        plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.maxWastage * 100, label:'Limit ' + pct(CFG.maxWastage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%', force: true }, dataLabels:{ display:true, yPercent:true, formatter: (v) => v == null ? '' : (Math.round(Number(v)) + '%'), color:'#0F2552' } } } });
   }
 
   drawVials('ch-vials-n', cum, false);
