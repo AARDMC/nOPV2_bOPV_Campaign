@@ -998,7 +998,10 @@ function _dlDefaultFormatter(value, chart, ctx) {
   const n = Number(value);
   return isFinite(n) ? fmt(n) : String(value);
 }
-const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
+const dataLabels = { id:'dataLabels',
+  afterDatasetsDraw(chart) { this._paint(chart, 'afterDatasetsDraw'); },
+  afterDraw(chart) { if (!chart._dlPainted) this._paint(chart, 'afterDraw'); chart._dlPainted = false; },
+  _paint(chart, phase) {
   try {
   const o = (chart.options.plugins && chart.options.plugins.dataLabels) || {};
   const globalO = (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.plugins && Chart.defaults.plugins.dataLabels) || {};
@@ -1009,6 +1012,7 @@ const dataLabels = { id:'dataLabels', afterDatasetsDraw(chart) {
   if (!ctx || !area) return;
   const type = chart.config.type || (chart.data.datasets && chart.data.datasets[0] && chart.data.datasets[0].type) || 'bar';
   const indexAxis = (chart.options && chart.options.indexAxis) || 'x';
+  if (phase === 'afterDatasetsDraw') chart._dlPainted = true;
   (chart.data.datasets || []).forEach((ds, di) => {
     try {
     if (ds && ds.datalabels && ds.datalabels.display === false) return;
