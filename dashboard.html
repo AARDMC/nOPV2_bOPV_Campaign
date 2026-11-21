@@ -1372,7 +1372,7 @@ function renderOverview() {
     options:vOpts({ plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:(v)=> fmt(v) } } }) });
 
   draw('ch-perf-bands-summary', { type:'bar', data:{ labels: perfBands.labels, datasets:[{ label:'Woredas', data: perfBands.labels.map(function(l){ return perfBands.counts[l] || 0; }), backgroundColor: perfBands.colors, borderRadius:4 }] },
-    options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ precision:0, callback: function(v){ return fmt(v); } } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ formatter:function(v){ return fmt(v); } } } }) });
+    options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ precision:0, callback: function(v){ return fmt(v); } } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:numTip, dataLabels:{ display:true, formatter:function(v){ return v == null ? '' : fmt(v); }, color:'#0F2552' } } }) });
 }
 
 /* ---------- Zones and woredas ---------- */
@@ -1423,7 +1423,7 @@ function renderGeo() {
   const bandInfo = PERF_BANDS.find(b => b.label === selBand) || PERF_BANDS[0];
   if (selList.length) {
     draw('ch-perf-bands', { type:'bar', data:{ labels: selList.map(function(r){ return r.u.woreda + ' (' + r.u.zone + ')'; }), datasets:[{ label:'Daily coverage (%)', data: selList.map(function(r){ return r.dcov == null ? null : Math.round(r.dcov * 1000) / 10; }), backgroundColor: bandInfo.color, borderRadius:4 }] },
-      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: function(v){ return v + '%'; } }, _pct:true }, y:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:pctTip(), dataLabels:{ yPercent:true, formatter: function(v){ return v==null?'':(Math.round(Number(v))+'%'); } } } } });
+      options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } }, scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: function(v){ return v + '%'; } }, _pct:true }, y:{ grid:{ display:false } } }, plugins:{ legend:{ display:false }, tooltip:pctTip(), barLabels:{ format: function(v){ return v == null ? '' : (Math.round(Number(v)) + '%'); }, force: true }, dataLabels:{ display:true, yPercent:true, formatter: function(v){ return v==null?'':(Math.round(Number(v))+'%'); }, color:'#0F2552' } } } });
   }
   $('#geoQ').addEventListener('input', e => { S.q = e.target.value; renderGeoTable(); });
   renderGeoTable();
