@@ -2915,6 +2915,10 @@ function buildNarrationDeck(){
     ]});
 
 
+  const dayLabels = dt.map((a,i)=>dayText(i));
+  const dayVacc = dt.map(a=>a.tot||0);
+  const dayTarget = dt.map(a=>a.dtgt||0);
+
   slides.push({ kind:'chart', title:'Progress day by day', heading:'Progress day by day',
     narration: [
       dt.length ? (M.days[peakI].label + ' was the busiest day, with ' + fmt(dt[peakI].tot) + ' children vaccinated.') : 'No daily data available.',
@@ -3024,9 +3028,6 @@ function buildNarrationDeck(){
   if (!disc.length) disc.push('No urgent issues were found. Maintain current performance and keep reporting daily.');
 
   // Explanatory chart slides
-  const dayLabels = dt.map((a,i)=>dayText(i));
-  const dayVacc = dt.map(a=>a.tot||0);
-  const dayTarget = dt.map(a=>a.dtgt||0);
   const placeLabels = ['House','School','Market','Street','Other'];
   const placeVals = [cum.pHouse||0, cum.pSchool||0, cum.pMarket||0, cum.pStreet||0, cum.pOther||0];
   const ageLabels = ['0–11m vaccinated before','0–11m not vaccinated before','12–59m vaccinated before','12–59m not vaccinated before'];
