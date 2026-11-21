@@ -2914,6 +2914,7 @@ function buildNarrationDeck(){
       ['nOPV2 wastage', pct(w)], ['bOPV wastage', pct(bw)], ['Selected day', fmt(cur.tot)]
     ]});
 
+
   slides.push({ kind:'chart', title:'Progress day by day', heading:'Progress day by day',
     narration: [
       dt.length ? (M.days[peakI].label + ' was the busiest day, with ' + fmt(dt[peakI].tot) + ' children vaccinated.') : 'No daily data available.',
