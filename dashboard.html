@@ -1346,7 +1346,7 @@ function renderOverview() {
   draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:'Daily coverage', data:g.map(x => x.dcov == null ? null : x.dcov * 100), backgroundColor:g.map(x => STATUS_COL[status(x.dcov)]), borderRadius:3 }] },
     options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } },
       scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' }, _pct:true }, y:{ grid:{ display:false } } },
-      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%' }, dataLabels:{ yPercent:true, formatter:(v)=> v==null?'':(Math.round(Number(v))+'%') } } } });
+      plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%', force: true }, dataLabels:{ display:true, yPercent:true, formatter:(v)=> v==null?'':(Math.round(Number(v))+'%'), color:'#0F2552' } } } });
 
   draw('ch-sex', { type:'doughnut', data:{ labels:['Male', 'Female'], datasets:[{ data:[cum.male, cum.female], backgroundColor:['#1E6BFF', '#EC4899'], borderWidth:2, borderColor:'#fff' }] },
     options:{ responsive:true, cutout:'62%', plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' ' + c.label + ': ' + fmt(c.parsed) + ' (' + pct(c.parsed / (cum.male + cum.female || 1)) + ')' } }, dataLabels:{ percent:true, color:'#fff', font:'700 12px "Public Sans", sans-serif', showSmallPie:true } } } });
