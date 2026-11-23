@@ -607,11 +607,13 @@ window.CAMPAIGN_API_URL = "https://script.google.com/macros/s/AKfycbwc-1fB489Zw5
 let CFG = null, M = null;
 // Day filter: the set of campaign-day indices included in every dashboard figure.
 // Selecting several days sums them (cumulative total over the selected days).
-const S = { zone:'all', woreda:'all', days:null, tab:'overview', sortKey:'dcov', sortDir:1, q:'', rule:'all', mergeHc:false, perfBand:'≥90%' };
+const S = { zone:'all', woreda:'all', days:null, cumulative:false, tab:'overview', sortKey:'dcov', sortDir:1, q:'', rule:'all', mergeHc:false, perfBand:'≥90%' };
+const cumMode = () => !!(S.cumulative && M && M.cumDayIdx >= 0 && M.cumRecs);
+const cumDayLabel = () => (M && M.cumDayIdx >= 0 && M.days[M.cumDayIdx]) ? (M.days[M.cumDayIdx].label || 'Cumulative') : 'Cumulative';
 const allDayIdxs = () => (M ? Array.from({ length:(M.last || 0) + 1 }, (_, i) => i) : [0]);
 const selectedDayIdxs = () => Array.from(S.days || allDayIdxs()).sort((a, b) => a - b);
-const inDays = d => (S.days ? S.days.has(d) : d <= (M ? M.last : 0));
-const dayRangeText = (withDate) => selectedDayIdxs().map(i => withDate ? dayText(i) : (M && M.days[i] ? M.days[i].label : '')).join(' + ');
+const inDays = d => cumMode() ? d === M.cumDayIdx : (S.days ? S.days.has(d) : d <= (M ? M.last : 0));
+const dayRangeText = (withDate) => cumMode() ? cumDayLabel() : selectedDayIdxs().map(i => withDate ? dayText(i) : (M && M.days[i] ? M.days[i].label : '')).join(' + ');
 let DASH_SCOPE = { mode:'all', zone:'', woreda:'', woredaID:'', facilities: [], facilityCount: 0, facilityIndex: -1 };
 let DASH_FACILITY = -1;
 let IS_SUPER_ADMIN = false; // signed in as @Get-Man — may lock/unlock data-entry days
@@ -761,19 +763,23 @@ function buildModel(p) {
   // cumulative figure, including "Total Vaccinated by Place" on the map.
   const cumDay = days.findIndex(d => /cumulative/i.test(String((d && d.label) || '')));
   const recs = [];
+  const cumRecs = [];
   p.rows.forEach(r => {
-    if (cumDay >= 0 && r[0] === cumDay) return;
     const u = bySnU[r[1]]; if (!u) return;
     const o = { d: r[0], sn: r[1], u: u, flags: [] };
     fields.forEach((k, i) => { o[k] = r[i + 2]; });
+    if (cumDay >= 0 && r[0] === cumDay) { cumRecs.push(o); return; }
     recs.push(o);
   });
   const bySn = {}; units.forEach(u => { bySn[u.sn] = []; });
   recs.forEach(r => bySn[r.sn].push(r));
+  const cumBySn = {}; units.forEach(u => { cumBySn[u.sn] = []; });
+  cumRecs.forEach(r => cumBySn[r.sn].push(r));
   let last = 0; days.forEach((d, i) => { if (recs.some(r => r.d === i && r.tot > 0)) last = i; });
   M = { fields, units, recs, bySn, bySnU, days, last, meta: p.meta, remarks: p.remarks || [],
-        zones: Array.from(new Set(units.map(u => u.zone))).sort() };
-  recs.forEach(flagRecord); units.forEach(flagUnit);
+        zones: Array.from(new Set(units.map(u => u.zone))).sort(),
+        cumDayIdx: cumDay, cumRecs, cumBySn };
+  recs.forEach(flagRecord); cumRecs.forEach(flagRecord); units.forEach(flagUnit);
   if (S.mergeHc) applyMergeSplitWoredas(M);
   return M;
 }
@@ -812,9 +818,31 @@ function flagUnit(u) {
     u.flags.push({ rule:'cumover', text:'Cumulative coverage ' + pct(tot / u.tgt) + ' of target ' + fmt(u.tgt) + '. Check the target.' });
 }
 
+const TEAM_FIELDS = ['teams','teamsRep','zdTeams','zdTeamsRep'];
+const isTeamField = k => TEAM_FIELDS.indexOf(k) !== -1;
 const zeroObj = () => { const o = {}; M.fields.forEach(k => { o[k] = 0; }); return o; };
 function addTo(a, b) { M.fields.forEach(k => { a[k] += (b[k] || 0); }); return a; }
-function sumRecs(rs) { const a = zeroObj(); rs.forEach(r => addTo(a, r)); return a; }
+function sumRecs(rs) {
+  const a = zeroObj();
+  const teamBySn = {};
+  rs.forEach(r => {
+    M.fields.forEach(k => {
+      const v = Number(r[k]) || 0;
+      if (isTeamField(k)) {
+        const sn = r.sn;
+        if (!teamBySn[sn]) teamBySn[sn] = {};
+        teamBySn[sn][k] = Math.max(teamBySn[sn][k] || 0, v);
+      } else {
+        a[k] += v;
+      }
+    });
+  });
+  Object.keys(teamBySn).forEach(sn => {
+    const t = teamBySn[sn];
+    M.fields.forEach(k => { if (isTeamField(k)) a[k] += (t[k] || 0); });
+  });
+  return a;
+}
 const tgtOf = us => us.reduce((s, u) => s + (u.tgt || 0), 0);
 const cov = (tot, tgt) => tgt > 0 ? tot / tgt : null;
 function wastage(a) { const cap = (a.used + a.part) * CFG.dosesPerVial; return cap > 0 ? 1 - a.tot / cap : null; }
@@ -843,11 +871,15 @@ function perfBandCounts(rows) {
 }
 
 function scopeUnits() { return M.units.filter(u => (S.zone === 'all' || u.zone === S.zone) && (S.woreda === 'all' || u.woreda === S.woreda)); }
-function scopeRecs() { const set = new Set(scopeUnits().map(u => u.sn)); return M.recs.filter(r => set.has(r.sn)); }
+function scopeRecs() {
+  const set = new Set(scopeUnits().map(u => u.sn));
+  const src = cumMode() ? (M.cumRecs || []) : M.recs;
+  return src.filter(r => set.has(r.sn));
+}
 
 function unitRows() {
   return scopeUnits().map(u => {
-    const rs = M.bySn[u.sn].filter(r => inDays(r.d));
+    const rs = cumMode() ? ((M.cumBySn && M.cumBySn[u.sn]) || []) : M.bySn[u.sn].filter(r => inDays(r.d));
     const a = sumRecs(rs), day = a; // "day" columns follow the Day filter selection
     // Keep cumulative coverage (cov) for explicitly cumulative figures. Daily
     // coverage uses the sum of the selected days' daily targets as its denominator.
@@ -872,11 +904,21 @@ function rollup(rows, keyFn) {
 }
 const groupBy = () => S.zone === 'all' ? 'zone' : 'woreda';
 function groups(rows) { return rollup(rows, r => S.zone === 'all' ? r.u.zone : r.u.woreda); }
-function dayTotals(recs) { return M.days.slice(0, M.last + 1).map((d, i) => inDays(i) ? sumRecs(recs.filter(r => r.d === i)) : zeroObj()); }
+function dayTotals(recs) {
+  if (cumMode()) {
+    const set = new Set(scopeUnits().map(u => u.sn));
+    const src = (recs && recs.length && recs[0] && recs[0].d === M.cumDayIdx) ? recs : (M.cumRecs || []);
+    return [sumRecs(src.filter(r => set.has(r.sn)))];
+  }
+  return M.days.slice(0, M.last + 1).map((d, i) => inDays(i) ? sumRecs(recs.filter(r => r.d === i)) : zeroObj());
+}
+const dtLabel = (i) => cumMode() ? cumDayLabel() : (M && M.days[i] ? M.days[i].label : '');
+const dtDayText = (i) => cumMode() ? cumDayLabel() : dayText(i);
 
 function qualityItems() {
   const set = new Set(scopeUnits().map(u => u.sn)), items = [];
-  M.recs.forEach(r => {
+  const src = cumMode() ? (M.cumRecs || []) : M.recs;
+  src.forEach(r => {
     if (!set.has(r.sn) || !inDays(r.d)) return;
     r.flags.forEach(f => items.push({ rule:f.rule, text:f.text, day:M.days[r.d].label, d:r.d, zone:r.u.zone, woreda:r.u.woreda }));
   });
@@ -1249,8 +1291,8 @@ function renderOverview() {
   let segs = '', legend = '';
   dt.forEach((a, i) => {
     const frac = tgt > 0 ? a.tot / tgt : 0;
-    segs += '<div class="seg" title="' + esc(dayText(i)) + ': ' + fmt(a.tot) + ' children" style="width:' + (frac / scaleMax * 100) + '%;background:' + dayColor(i) + '"></div>';
-    legend += '<span><i style="background:' + dayColor(i) + '"></i>' + esc(M.days[i].label) + ' <b>' + fmt(a.tot) + '</b> (' + pct(cov(a.tot, tgt)) + ')</span>';
+    segs += '<div class="seg" title="' + esc(dtDayText(i)) + ': ' + fmt(a.tot) + ' children" style="width:' + (frac / scaleMax * 100) + '%;background:' + dayColor(i) + '"></div>';
+    legend += '<span><i style="background:' + dayColor(i) + '"></i>' + esc(dtLabel(i)) + ' <b>' + fmt(a.tot) + '</b> (' + pct(cov(a.tot, tgt)) + ')</span>';
   });
   const gap = cum.tot - CFG.targetCoverage * tgt;
   const note = gap >= 0
@@ -1447,7 +1489,7 @@ function renderGeoTable() {
 function renderVaccine() {
   const recs = scopeRecs(), cumRecs = recs.filter(r => inDays(r.d)), cum = sumRecs(cumRecs);
   const w = wastage(cum), bw = bWastage(cum);
-  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
+  const dt = dayTotals(recs), labels = dt.map((a, i) => dtLabel(i));
   const gN = groups(unitRows()).filter(x => x.w != null).sort((a, b) => b.w - a.w);
   const gB = groups(unitRows()).filter(x => x.bw != null).sort((a, b) => b.bw - a.bw);
   const ghN = Math.max(220, gN.length * 28 + 50);
@@ -1470,11 +1512,11 @@ function renderVaccine() {
     stat('bOPV wastage', pct(bw), 'Limit ' + pct(CFG.maxWastage, 0) + ' · 20 doses/vial', bw != null && bw > CFG.maxWastage ? 'bad' : 'good') + '</div>';
 
   const totalRowN = '<tr style="font-weight:700;background:#EEF4FF"><td>Grand total</td><td>' + fmt(cum.rec) + '</td><td>' + fmt(cum.used) + '</td><td>' + fmt(cum.part) + '</td><td>' + fmt(cum.retG) + '</td><td>' + fmt(cum.brk) + '</td><td>' + fmt(cum.retB) + '</td><td>' + fmt(cum.lost) + '</td><td>' + fmt(cum.tot) + '</td><td>' + pct(wastage(cum)) + '</td></tr>';
-  const trsN = dt.map((a, i) => { const x = wastage(a); return '<tr><td>' + esc(dayText(i)) + '</td><td>' + fmt(a.rec) + '</td><td>' + fmt(a.used) + '</td><td>' + fmt(a.part) + '</td><td>' + fmt(a.retG) + '</td><td>' + fmt(a.brk) + '</td><td>' + fmt(a.retB) + '</td><td>' + fmt(a.lost) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('') + totalRowN;
+  const trsN = dt.map((a, i) => { const x = wastage(a); return '<tr><td>' + esc(dtDayText(i)) + '</td><td>' + fmt(a.rec) + '</td><td>' + fmt(a.used) + '</td><td>' + fmt(a.part) + '</td><td>' + fmt(a.retG) + '</td><td>' + fmt(a.brk) + '</td><td>' + fmt(a.retB) + '</td><td>' + fmt(a.lost) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('') + totalRowN;
   const tblN = '<div class="tbl-wrap"><table><thead><tr><th>Day</th><th>Received</th><th>Used</th><th>Partially used</th><th>Returned, good</th><th>Broken</th><th>Returned, bad</th><th>Lost</th><th>Doses given</th><th>Wastage</th></tr></thead><tbody>' + trsN + '</tbody></table></div>';
 
   const totalRowB = '<tr style="font-weight:700;background:#EEF4FF"><td>Grand total</td><td>' + fmt(cum.brec||0) + '</td><td>' + fmt(cum.bused||0) + '</td><td>' + fmt(cum.bpart||0) + '</td><td>' + fmt(cum.bretG||0) + '</td><td>' + fmt(cum.bbrk||0) + '</td><td>' + fmt(cum.bretB||0) + '</td><td>' + fmt(cum.blost||0) + '</td><td>' + fmt(cum.tot) + '</td><td>' + pct(bWastage(cum)) + '</td></tr>';
-  const trsB = dt.map((a, i) => { const x = bWastage(a); return '<tr><td>' + esc(dayText(i)) + '</td><td>' + fmt(a.brec||0) + '</td><td>' + fmt(a.bused||0) + '</td><td>' + fmt(a.bpart||0) + '</td><td>' + fmt(a.bretG||0) + '</td><td>' + fmt(a.bbrk||0) + '</td><td>' + fmt(a.bretB||0) + '</td><td>' + fmt(a.blost||0) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('') + totalRowB;
+  const trsB = dt.map((a, i) => { const x = bWastage(a); return '<tr><td>' + esc(dtDayText(i)) + '</td><td>' + fmt(a.brec||0) + '</td><td>' + fmt(a.bused||0) + '</td><td>' + fmt(a.bpart||0) + '</td><td>' + fmt(a.bretG||0) + '</td><td>' + fmt(a.bbrk||0) + '</td><td>' + fmt(a.bretB||0) + '</td><td>' + fmt(a.blost||0) + '</td><td>' + fmt(a.tot) + '</td><td>' + pct(x) + '</td></tr>'; }).join('') + totalRowB;
   const tblB = '<div class="tbl-wrap"><table><thead><tr><th>Day</th><th>Received</th><th>Used</th><th>Partially used</th><th>Returned, good</th><th>Broken</th><th>Returned, bad</th><th>Lost</th><th>Doses given</th><th>Wastage</th></tr></thead><tbody>' + trsB + '</tbody></table></div>';
 
   app().innerHTML =
@@ -1544,7 +1586,7 @@ function communityReachHTML(title, rows, keyLabel) {
 /* ---------- AFP ---------- */
 function renderAfp() {
   const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
-  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
+  const dt = dayTotals(recs), labels = dt.map((a, i) => dtLabel(i));
   const afpTotal = (cum.afpSig || 0) + (cum.afpAlt || 0);
   const zdShare = (cum.zdId || 0) > 0 ? (cum.zdV || 0) / cum.zdId : null;
   const uvShare = (cum.uvId || 0) > 0 ? (cum.uvV || 0) / cum.uvId : null;
@@ -1578,7 +1620,7 @@ function renderAfp() {
 /* ---------- AEFI ---------- */
 function renderAefi() {
   const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
-  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
+  const dt = dayTotals(recs), labels = dt.map((a, i) => dtLabel(i));
   const aefiTotal = (cum.aefiMild || 0) + (cum.aefiSev || 0);
   const sevShare = aefiTotal > 0 ? (cum.aefiSev || 0) / aefiTotal : null;
   const strip = '<div class="strip">' +
@@ -1610,7 +1652,7 @@ function renderAefi() {
 function renderTeams() {
   const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
   const cur = cum;
-  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
+  const dt = dayTotals(recs), labels = dt.map((a, i) => dtLabel(i));
   const fieldTeams = cur.teams > 0 ? cur.teamsRep / cur.teams : null;
   const zdRepShare = cum.zdTeams > 0 ? cum.zdTeamsRep / cum.zdTeams : null;
   const strip = '<div class="strip">' +
@@ -1641,7 +1683,7 @@ function renderTeams() {
 /* ---------- Social mobilization ---------- */
 function renderSocial() {
   const recs = scopeRecs(), cum = sumRecs(recs.filter(r => inDays(r.d)));
-  const dt = dayTotals(recs), labels = dt.map((a, i) => M.days[i].label);
+  const dt = dayTotals(recs), labels = dt.map((a, i) => dtLabel(i));
   const mobTotal = (cum.groupDisc || 0) + (cum.homeEdu || 0);
   const groupShare = mobTotal > 0 ? (cum.groupDisc || 0) / mobTotal : null;
   const strip = '<div class="strip">' +
@@ -1846,7 +1888,7 @@ function renderMap(){
           M.units.forEach(u => {
             if (DASH_SCOPE && DASH_SCOPE.mode === 'zone' && String(u.zone || '').toLowerCase() !== String(DASH_SCOPE.zone || '').toLowerCase()) return;
             if (DASH_SCOPE && DASH_SCOPE.mode === 'woreda' && String(u.woredaID || '') !== String(DASH_SCOPE.woredaID || '')) return;
-            const recsU = (M.bySn[u.sn] || []).filter(rec => inDays(rec.d));
+            const recsU = cumMode() ? ((M.cumBySn && M.cumBySn[u.sn]) || []) : (M.bySn[u.sn] || []).filter(rec => inDays(rec.d));
             const pt = placeTotAgg(sumRecs(recsU));
             placeRegionAll += pt;
             if (u.zone) {
@@ -2282,10 +2324,12 @@ function fillFilters() {
 function dayMenuBuild() {
   const menu = document.getElementById('fDayMenu');
   if (!menu || !M) return;
-  const checked = i => selectedDayIdxs().indexOf(i) >= 0 ? ' checked' : '';
+  const checked = i => (!S.cumulative && selectedDayIdxs().indexOf(i) >= 0) ? ' checked' : '';
+  const cumBtn = (M.cumDayIdx >= 0) ? '<button type="button" data-dayact="cumulative">Cumulative</button>' : '';
   menu.innerHTML = '<div class="day-all">' +
       '<button type="button" data-dayact="all">All days</button>' +
-      '<button type="button" data-dayact="first">Day 1 only</button></div>' +
+      '<button type="button" data-dayact="first">Day 1 only</button>' +
+      cumBtn + '</div>' +
     M.days.map((d, i) => i > M.last ? '' :
       '<label><input type="checkbox" value="' + i + '"' + checked(i) + '><span>' + esc(dayText(i)) + '</span></label>').join('');
   dayMenuSync();
@@ -2293,9 +2337,19 @@ function dayMenuBuild() {
 function dayMenuSync() {
   const txt = document.getElementById('fDayText');
   const sel = selectedDayIdxs();
-  if (txt) { txt.textContent = sel.length ? sel.map(i => (M && M.days[i]) ? M.days[i].label : String(i)).join(' + ') : 'No days'; txt.title = txt.textContent; }
+  if (txt) {
+    txt.textContent = cumMode() ? cumDayLabel() : (sel.length ? sel.map(i => (M && M.days[i]) ? M.days[i].label : String(i)).join(' + ') : 'No days');
+    txt.title = txt.textContent;
+  }
   const menu = document.getElementById('fDayMenu');
-  if (menu) Array.from(menu.querySelectorAll('input[type=checkbox]')).forEach(cb => { cb.checked = S.days ? S.days.has(Number(cb.value)) : false; });
+  if (menu) {
+    Array.from(menu.querySelectorAll('input[type=checkbox]')).forEach(cb => { cb.checked = !S.cumulative && (S.days ? S.days.has(Number(cb.value)) : true); });
+    Array.from(menu.querySelectorAll('[data-dayact]')).forEach(btn => {
+      const act = btn.getAttribute('data-dayact');
+      btn.style.fontWeight = (act === 'cumulative' && cumMode()) ? '800' : '';
+      btn.style.textDecoration = (act === 'cumulative' && cumMode()) ? 'underline' : '';
+    });
+  }
 }
 function closeDayMenu() {
   const menu = document.getElementById('fDayMenu'), btn = document.getElementById('fDayBtn');
@@ -2303,6 +2357,7 @@ function closeDayMenu() {
   if (btn) btn.setAttribute('aria-expanded', 'false');
 }
 function setDaySelection(idxs, keepOpen) {
+  S.cumulative = false;
   const allowed = new Set(allDayIdxs());
   const cleaned = idxs.filter(i => allowed.has(i));
   S.days = new Set(cleaned.length ? cleaned : allDayIdxs());
@@ -2922,7 +2977,7 @@ function buildNarrationDeck(){
     ]});
 
 
-  const dayLabels = dt.map((a,i)=>dayText(i));
+  const dayLabels = dt.map((a,i)=>dtDayText(i));
   const dayVacc = dt.map(a=>a.tot||0);
   const dayTarget = dt.map(a=>a.dtgt||0);
 
@@ -3469,6 +3524,7 @@ function init() {
     if (!e.target.matches('input[type=checkbox]')) return;
     const sel = $$('#fDayMenu input[type=checkbox]:checked').map(cb => Number(cb.value));
     if (!sel.length) { e.target.checked = true; return; } // never leave an empty scope
+    S.cumulative = false;
     S.days = new Set(sel);
     dayMenuSync();
     render();
@@ -3476,6 +3532,12 @@ function init() {
   $('#fDayMenu').addEventListener('click', e => {
     const a = e.target.closest('[data-dayact]'); if (!a) return;
     e.preventDefault();
+    if (a.dataset.dayact === 'cumulative') {
+      S.cumulative = true;
+      dayMenuSync();
+      render();
+      return;
+    }
     setDaySelection(a.dataset.dayact === 'all' ? allDayIdxs() : [0], true);
   });
   document.addEventListener('click', e => { if (!e.target.closest('#dayField')) closeDayMenu(); });
