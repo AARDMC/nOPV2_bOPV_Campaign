@@ -135,6 +135,7 @@ main{max-width:1320px;margin:0 auto;padding:14px 20px 40px}
 .panel h2{margin:0;display:inline-block;background:linear-gradient(90deg,#0B2E6B 0,#1E78D8 100%);color:#fff;border-radius:20px;padding:6px 18px;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;font-family:"Poppins",sans-serif}
 .panel .sub{margin:8px 0 12px;font-size:12.5px;color:var(--ink2)}
 .chart{position:relative;height:270px}
+#ch-group{cursor:pointer}
 .chart.tall{height:340px}
 .grid>.panel:nth-child(6n+1) h2{background:linear-gradient(90deg,#6D28D9,#8B5CF6)}
 .grid>.panel:nth-child(6n+2) h2{background:linear-gradient(90deg,#1E6BFF,#38BDF8)}
@@ -1278,6 +1279,22 @@ function covCell(c) {
 }
 
 /* ---------- Overview ---------- */
+// Cross-filter: a click on "Coverage by zone/woreda" drives the global scope
+// selectors so every tab, table, map and export follows the drill-down.
+function applyCoverageDrill(key) {
+  if (!key || !M) return;
+  if (S.zone === 'all') {
+    if (M.zones.indexOf(key) === -1) return;
+    S.zone = key; S.woreda = 'all';
+  } else {
+    const ws = Array.from(new Set(M.units.filter(u => u.zone === S.zone).map(u => u.woreda)));
+    if (ws.indexOf(key) === -1) return;
+    S.woreda = key;
+  }
+  const zs = $('#fZone'); if (zs) zs.value = S.zone;
+  fillWoredas();
+  render();
+}
 function renderOverview() {
   const units = scopeUnits(), recs = scopeRecs(), tgt = tgtOf(units);
   const cumRecs = recs.filter(r => inDays(r.d));
@@ -1344,9 +1361,10 @@ function renderOverview() {
   // coverage against that day's target.
   const cumulativeView = cumMode() || selectedDayIdxs().length > 1;
   const groupCov = x => cumulativeView ? x.cov : x.dcov;
+  const drillHint = ' Click a bar to drill down.';
   const coverageSub = cumMode()
-    ? 'Cumulative coverage from the Cumulative tab, based on the cumulative target.'
-    : (cumulativeView ? 'Cumulative coverage through selected days, based on the total target.' : 'Daily coverage for selected day(s), based on daily target.');
+    ? 'Cumulative coverage from the Cumulative tab, based on the cumulative target.' + drillHint
+    : (cumulativeView ? 'Cumulative coverage through selected days, based on the total target.' + drillHint : 'Daily coverage for selected day(s), based on daily target.' + drillHint);
   const g = groups(rows).sort((a, b) => {
     const ac = groupCov(a), bc = groupCov(b);
     return (bc == null ? -1 : bc) - (ac == null ? -1 : ac);
@@ -1395,6 +1413,8 @@ function renderOverview() {
   draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:cumulativeView ? 'Cumulative coverage' : 'Daily coverage', data:g.map(x => { const v = groupCov(x); return v == null ? null : v * 100; }), backgroundColor:g.map(x => STATUS_COL[status(groupCov(x))]), borderRadius:3 }] },
     options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } },
       scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' }, _pct:true }, y:{ grid:{ display:false } } },
+      onHover: function(evt, els) { const t = evt && evt.native && evt.native.target; if (t) t.style.cursor = (els && els.length) ? 'pointer' : 'default'; },
+      onClick: function(evt, els) { if (!els || !els.length) return; const x = g[els[0].index]; if (x) applyCoverageDrill(x.key); },
       plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%', force: true }, dataLabels:{ display:true, yPercent:true, formatter:(v)=> v==null?'':(Math.round(Number(v))+'%'), color:'#0F2552' } } } });
 
   draw('ch-sex', { type:'doughnut', data:{ labels:['Male', 'Female'], datasets:[{ data:[cum.male, cum.female], backgroundColor:['#1E6BFF', '#EC4899'], borderWidth:2, borderColor:'#fff' }] },
