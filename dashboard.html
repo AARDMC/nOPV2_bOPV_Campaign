@@ -1337,10 +1337,16 @@ function renderOverview() {
     stat('Number of Parents/Caregivers Reached Through House-to-House Education / Interpersonal Communication', fmt(cum.homeEdu || 0), 'Parents/caregivers reached') +
     '</div>';
 
-  // In Cumulative mode the records already come from the Cumulative tab. Coverage by
-  // woreda/zone must use its cumulative numerator and cumulative denominator (g.cov),
-  // not the daily-target denominator (g.dcov), which can inflate coverage past 100%.
-  const groupCov = x => cumMode() ? x.cov : x.dcov;
+  // Cumulative mode reads the Cumulative tab directly. Multi-day selections are also
+  // cumulative achievement: the numerator is the reported total through the selected
+  // days and the denominator is the total target (g.cov), not the summed daily targets
+  // (g.dcov), which deducts part of the achievement. Only one selected day uses daily
+  // coverage against that day's target.
+  const cumulativeView = cumMode() || selectedDayIdxs().length > 1;
+  const groupCov = x => cumulativeView ? x.cov : x.dcov;
+  const coverageSub = cumMode()
+    ? 'Cumulative coverage from the Cumulative tab, based on the cumulative target.'
+    : (cumulativeView ? 'Cumulative coverage through selected days, based on the total target.' : 'Daily coverage for selected day(s), based on daily target.');
   const g = groups(rows).sort((a, b) => {
     const ac = groupCov(a), bc = groupCov(b);
     return (bc == null ? -1 : bc) - (ac == null ? -1 : ac);
@@ -1364,7 +1370,7 @@ function renderOverview() {
   app().innerHTML = hero + strip + renderFieldPhotos() + '<div class="grid">' +
     panel('c7', 'Children vaccinated each day', 'Bars show children vaccinated. The dashed line is the daily target on campaign days.', '<div class="chart"><canvas id="ch-daily"></canvas></div>') +
     panel('c5', 'Cumulative coverage', 'Share of the planned total target reached by the end of each day.', '<div class="chart"><canvas id="ch-cum"></canvas></div>') +
-    panel('c8', 'Coverage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), cumMode() ? 'Cumulative coverage from the Cumulative tab, based on the cumulative target.' : 'Daily coverage for selected day(s), based on daily target.', '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-group"></canvas></div>') +
+    panel('c8', 'Coverage by ' + (groupBy() === 'zone' ? 'zone' : 'woreda'), coverageSub, '<div class="chart" style="height:' + gh + 'px"><canvas id="ch-group"></canvas></div>') +
     panel('c4', 'Sex Distribution', 'Children vaccinated through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-sex"></canvas></div>') +
     panel('c7', 'Age group by day', 'Children aged 0–11 months and 12–59 months.', '<div class="chart"><canvas id="ch-age"></canvas></div>') +
     panel('c5', 'Where children were vaccinated', 'Through ' + esc(dayName()) + '.', '<div class="chart"><canvas id="ch-place"></canvas></div>') +
@@ -1386,7 +1392,7 @@ function renderOverview() {
     { label:pct(CFG.targetCoverage, 0) + ' goal', data:labels.map(() => CFG.targetCoverage * 100), borderColor:'#0F2552', borderDash:[5, 4], pointRadius:0, borderWidth:1.5, datalabels:{ display:false } }
   ] }, options:vOpts({ scales:{ y:{ beginAtZero:true, ticks:{ callback: v => v + '%' } }, x:{ grid:{ display:false } } }, plugins:{ legend:{ position:'bottom' }, tooltip:pctTip(), dataLabels:{ formatter:(v)=> v==null?'':(Math.round(Number(v))+'%'), color:'#0F2552' } } }) });
 
-  draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:cumMode() ? 'Cumulative coverage' : 'Daily coverage', data:g.map(x => { const v = groupCov(x); return v == null ? null : v * 100; }), backgroundColor:g.map(x => STATUS_COL[status(groupCov(x))]), borderRadius:3 }] },
+  draw('ch-group', { type:'bar', data:{ labels:g.map(x => x.key), datasets:[{ label:cumulativeView ? 'Cumulative coverage' : 'Daily coverage', data:g.map(x => { const v = groupCov(x); return v == null ? null : v * 100; }), backgroundColor:g.map(x => STATUS_COL[status(groupCov(x))]), borderRadius:3 }] },
     options:{ indexAxis:'y', responsive:true, layout:{ padding:{ right:60 } },
       scales:{ x:{ beginAtZero:true, suggestedMax:120, ticks:{ callback: v => v + '%' }, _pct:true }, y:{ grid:{ display:false } } },
       plugins:{ legend:{ display:false }, tooltip:pctTip(), refLine:{ value:CFG.targetCoverage * 100, label:pct(CFG.targetCoverage, 0) }, barLabels:{ format: v => Math.round(Number(v)) + '%', force: true }, dataLabels:{ display:true, yPercent:true, formatter:(v)=> v==null?'':(Math.round(Number(v))+'%'), color:'#0F2552' } } } });
