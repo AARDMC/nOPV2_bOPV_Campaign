@@ -3419,6 +3419,38 @@ window.addEventListener('message', function(e){
   const sc = document.getElementById('slideCount'); if (sc) sc.textContent = total ? (idx + ' / ' + total) : '1 / 1';
 });
 
+function _tableGrandTotalRow(headers, rows) {
+  if (!rows || !rows.length) return null;
+  const cols = (headers && headers.length) ? headers.length : (rows[0] ? rows[0].length : 0);
+  if (!cols) return null;
+  const total = new Array(cols).fill('');
+  let labelSet = false;
+  for (let c = 0; c < cols; c++) {
+    let numSum = 0, numCount = 0, allInt = true, ofX = 0, ofY = 0, ofCount = 0, pctCount = 0, anyText = false;
+    for (let r = 0; r < rows.length; r++) {
+      const cell = rows[r] && rows[r][c] != null ? String(rows[r][c]).trim() : '';
+      if (!cell || cell === '—' || cell === '-' || cell === '–') continue;
+      const ofm = cell.match(/^([\d,]+(?:\.\d+)?)\s*of\s*([\d,]+(?:\.\d+)?)$/i);
+      if (ofm) { ofX += Number(ofm[1].replace(/,/g,'')) || 0; ofY += Number(ofm[2].replace(/,/g,'')) || 0; ofCount++; continue; }
+      const pm = cell.match(/^([\d,]+(?:\.\d+)?)\s*%$/);
+      if (pm) { pctCount++; continue; }
+      const nm = cell.match(/^-?[\d,]+(?:\.\d+)?$/);
+      if (nm) { const v = Number(cell.replace(/,/g,'')); if (isFinite(v)) { numSum += v; numCount++; if (!Number.isInteger(v)) allInt = false; } continue; }
+      anyText = true;
+    }
+    if (ofCount > 0 && pctCount === 0 && numCount === 0) { total[c] = ofX + ' of ' + ofY; }
+    else if (numCount > 0 && pctCount === 0 && ofCount === 0) { total[c] = (allInt ? String(Math.round(numSum)) : String(Math.round(numSum * 10) / 10)); }
+    else if (!labelSet && (anyText || numCount === 0)) { total[c] = 'Grand total'; labelSet = true; }
+  }
+  if (!labelSet) {
+    for (let c = 0; c < cols; c++) {
+      const h = headers && headers[c] ? String(headers[c]).toLowerCase() : '';
+      if (c === 0 || /name|woreda|zone|day|check|indicator|metric|health|hc|remark|label/.test(h)) { total[c] = 'Grand total'; labelSet = true; break; }
+    }
+  }
+  if (!labelSet) total[0] = 'Grand total';
+  return total;
+}
 function doPptExport(){
   if(!M){ toast('Load the dashboard first.', true); return; }
   const btn = document.getElementById('btnExportPpt');
